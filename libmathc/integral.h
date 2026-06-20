@@ -1,23 +1,25 @@
 #include <math.h>
 #define math_pi M_PI
 #define math_e M_E
-
 inline float factorial_float (float x);
 inline float factorial_float (float x) {return (sqrt (2 * math_pi * x)) * (pow ((x / math_e), x));}
-
-inline int factorial (int x);
-inline int factorial (int x) {
-    if (x == 0) {return (int) (0);}
-    int result = (int) (x);
-    while ((x - 1) > 0) {result *= (x - 1);
-    x -= 1;} return result;
-}
-
 inline float integral_traditional (float a, float b, float exponent, float additive, float d) {
-    
-}
-
-inline float gamma_new (float x);
+    float result = 0.0;
+    float x = a;
+    while (x < b) {result += (pow (x, exponent) + additive) * d;
+    x += d;} return result;
+} inline float gamma_new (float x);
 inline float gamma_new (float x) {
-    float placeholder = 2.0;
+    if (x <= 0) {return 0.0 / 0.0;}
+    if (x > 2) {return (x - 1) * gamma_new (x - 1);}
+    if (x < 1) {return gamma_new (x + 1) / x;}
+    float z = x - 1;
+    float p = -0.193527818 + z * 0.035868343;
+    p = 0.482199394 + z * p;
+    p = -0.756704078 + z * p;
+    p = 0.918206857 + z * p;
+    p = -0.897056937 + z * p;
+    p = 0.989028236 + z * p;
+    p = -0.577191652 + z * p;
+    return 1 + z * p;
 }

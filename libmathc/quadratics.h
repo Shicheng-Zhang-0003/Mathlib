@@ -1,12 +1,10 @@
 //Library Header Files for Quadratics
-#include <stdio.h>
+#include <math.h>
+inline float equation (float a, float b, float c, float x);
+inline float equation (float a, float b, float c, float x) {return (a * x * x) + b * x + c;}
+inline float formula_pos (float a, float b, float c);
+inline float formula_pos (float a, float b, float c) {return (-b + sqrt (b * b - 4 * a * c)) / (2 * a);}
+inline float formula_neg (float a, float b, float c);
+inline float formula_neg (float a, float b, float c) {return (-b - sqrt (b * b - 4 * a * c)) / (2 * a);}
 
-inline int equation (int a, int b, int c, int x);
-inline int equation (int a, int b, int c, int x) {return (a * x * x) + b * x + c;}
-
-inline int formula_pos (int a, int b, int c);
-inline int formula_pos (int a, int b, int c) {return (-b + sqrt (b * b - 4 * a * c)) / (2 * a);}
-
-inline int formula_neg (int a, int b, int c);
-inline int formula_neg (int a, int b, int c) {return (-b - sqrt (b * b - 4 * a * c)) / (2 * a);}
 
