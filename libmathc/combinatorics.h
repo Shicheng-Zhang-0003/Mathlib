@@ -1,3 +1,6 @@
+#ifndef LIBMATHC_COMBINATORICS_H
+#define LIBMATHC_COMBINATORICS_H
+
 //Library header file for combinatorics
 #include <stdio.h>
 inline int factorial (int x);
@@ -20,3 +23,4 @@ inline int ncr (int n, int r) {
 
 
 
+#endif

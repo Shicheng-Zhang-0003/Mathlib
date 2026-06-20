@@ -1,4 +1,13 @@
+#ifndef LIBMATHC_INTEGRAL_H
+#define LIBMATHC_INTEGRAL_H
+
 #include <math.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#ifndef M_E
+#define M_E 2.71828182845904523536
+#endif
 #define math_pi M_PI
 #define math_e M_E
 inline float factorial_float (float x);
@@ -23,3 +32,5 @@ inline float gamma_new (float x) {
     p = -0.577191652 + z * p;
     return 1 + z * p;
 }
+
+#endif

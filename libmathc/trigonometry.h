@@ -1,12 +1,20 @@
+#ifndef LIBMATHC_TRIGONOMETRY_H
+#define LIBMATHC_TRIGONOMETRY_H
+
 #include <math.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 #define math_pi M_PI
 inline float sine (float x);
 inline float cosine (float x);
 inline float tangent (float x);
 inline float sine (float x) {
+    while (x > math_pi) {x -= 2 * math_pi;}
+    while (x < -math_pi) {x += 2 * math_pi;}
     float result = x;
     for (int step = 3; step < 100; step += 2) {
-        float additive = pow ((double) (x), (double) (step)) / (tgamma ((double) (step + 1)));
+        float additive = pow (x, (float) (step)) / (tgamma (step + 1));
         if (((step - 1) / 2) % 2 == 1) {result -= additive;}
         else {result += additive;}
     } return result;
@@ -14,9 +22,11 @@ inline float sine (float x) {
     //Range: [-1, 1]
     //Period: 2pi
 } inline float cosine (float x) {
+    while (x > math_pi) {x -= 2 * math_pi;}
+    while (x < -math_pi) {x += 2 * math_pi;}
     float result = 1;
     for (int step = 2; step < 100; step += 2) {
-        float additive = pow ((double) (x), (double) (step)) / (tgamma ((double) (step + 1)));
+        float additive = pow (x, (float) (step)) / (tgamma (step + 1));
         if ((step / 2) % 2 == 1) {result -= additive;}
         else {result += additive;}
     } return result;
@@ -24,11 +34,13 @@ inline float sine (float x) {
     //Range: [-1, 1]
     //Period: 2pi
 } inline float tangent (float x) {
+    while (x > math_pi / 2) {x -= math_pi;}
+    while (x < -math_pi / 2) {x += math_pi;}
     float divisor_now = 99;
     float divisor_coefficient_now = 97;
     while (1) {
         if (divisor_coefficient_now == -1) {break;}
-        divisor_now = divisor_coefficient_now - (pow ((double) (x), 2.0) / divisor_now);
+        divisor_now = divisor_coefficient_now - (pow (x, 2.0) / divisor_now);
         divisor_coefficient_now -= 2;
     } return x / divisor_now;
     //Domain: (-infinity, infinity), constraint (x != 0.5pi + kpi, k ->= integer)
@@ -95,3 +107,5 @@ inline float arccosecant (float x) {return arcsine (1 / x);
     //Range: (0, pi)
     //No Restriction
 }
+
+#endif
