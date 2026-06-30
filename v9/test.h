@@ -13,7 +13,8 @@ extern int tests_failed;
 
 #define CHECK_NEAR_LOOSE(got,expected,eps) {double diff=fabs((double)((got)-(expected)));if(diff<(eps)){tests_passed++;}else{tests_failed++;printf("FAIL %s:%d  got %.15g  expected %.15g  diff %.15g\n",__FILE__,__LINE__,(double)(got),(double)(expected),diff);}}
 
-#define CHECK_INT(got,expected) {if((got)==(expected)){tests_passed++;}else{tests_failed++;printf("FAIL %s:%d  got %d  expected %d\n",__FILE__,__LINE__,(got),(expected));}}
+#define CHECK_INT(got,expected) {if((long long)(got)==(long long)(expected)){tests_passed++;}else{tests_failed++;printf("FAIL %s:%d  got %lld  expected %lld
+",__FILE__,__LINE__,(long long)(got),(long long)(expected));}}
 
 #define CHECK_NAN(got) {if((got)!=(got)){tests_passed++;}else{tests_failed++;printf("FAIL %s:%d  got %.15g  expected NaN\n",__FILE__,__LINE__,(double)(got));}}
 

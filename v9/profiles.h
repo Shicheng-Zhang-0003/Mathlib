@@ -1,7 +1,7 @@
 #ifndef MATHLIB_PROFILES_H
 #define MATHLIB_PROFILES_H
 
-#include <math.h>
+#include "ml_core.h"
 #include "minimax.h"
 #include "cordic.h"
 #include "trigonometry.h"
@@ -25,8 +25,8 @@
     // Scientific (Default): Strict IEEE-754
     static inline double __ml_sci_sin(double x) { return sine(x); }
     static inline double __ml_sci_cos(double x) { return cosine(x); }
-    static inline double __ml_sci_sqrt(double x) { return sqrt(x); }
-    static inline double __ml_sci_rsqrt(double x) { return 1.0 / sqrt(x); }
+    static inline double __ml_sci_sqrt(double x) { return ml_sqrt(x); }
+    static inline double __ml_sci_rsqrt(double x) { return 1.0 / ml_sqrt(x); }
     #define ml_sin(x) __ml_sci_sin(x)
     #define ml_cos(x) __ml_sci_cos(x)
     #define ml_sqrt(x) __ml_sci_sqrt(x)

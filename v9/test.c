@@ -1,3 +1,4 @@
+#include <math.h>
 #include <time.h>
 #include "test.h"
 #include "combinatorics.h"
@@ -2191,10 +2192,11 @@ int main() {
     CHECK_NEAR_LOOSE(cplx_abs(spec[1]), 4.0, 1e-7);
     ml_fft_stream_free(&stream);
 
-    printf("\n=== v9: Trojan Horse Migration ===\n");
-    #include "compat.h"
-    double trojan_sin = sin(1.0); // Routes through ml_sin -> Profile Backend
-    CHECK_NEAR_LOOSE(trojan_sin, 0.8414709848078965, 1e-7);
+    printf("
+=== v9: Linker-Level Migration ===
+");
+    printf("Trojan Horse deleted. Use gcc -Wl,--wrap=sin for production override.
+");
 
     TEST_SUMMARY();
 }

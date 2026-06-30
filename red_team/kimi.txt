@@ -1,0 +1,209 @@
+Here's my ruthless critique and v10 roadmap, organized by severity:
+
+---
+
+## 🔴 CRITICAL: Will Break in Production
+
+### 1. **The `inline` Without `static` Timebomb**
+```c
+// combinatorics.h, polynomial.h, etc.
+inline int factorial(int x) { ... }  // NOT static!
+```
+**Problem**: ODR violation if included in multiple translation units. Your `mathlib.c` compilation-unit trick only works if users *never* include headers directly in their own `.c` files — but they will.
+
+**Fix**: Every `inline` function in a header needs `static inline`. Every. Single. One.
+
+### 2. **The `compat.h` Trojan Horse is a Loaded Gun**
+```c
+#define sin(x) ml_sin(x)
+```
+**Problem**: This violates the user's namespace. Breaks `sin` as a variable name, function pointer captures, `std::sin` in C++, and any code doing `double (*my_sin)(double) = sin;` after inclusion. Your `bench.c` already had to dance around this with `static double (*raw_libm_sin)(double) = sin;` *before* including `compat.h`.
+
+**Fix**: Remove `compat.h` entirely, or rename it `compat_opt_in.h` with big warnings. Provide `ml_` prefix as the *only* interface.
+
+### 3. **Factorial Returns `int` — Overflow at 13!**
+```c
+inline int factorial(int x) { ... }  // 13! = 6,227,020,800 > INT_MAX
+```
+**Fix**: Return `double` or `uint64_t`, or use `tgamma` approximation. Better: remove integer factorial entirely; it's a numerical library.
+
+### 4. **Naive Quadratic Formula — Catastrophic Cancellation**
+```c
+return (-b + sqrt(b*b - 4*a*c)) / (2*a);  // When b ≈ sqrt(discriminant), this loses digits
+```
+**Fix**: Use the stable form:
+```c
+double q = -0.5 * (b + copysign(sqrt(discriminant), b));
+root1 = q / a; root2 = c / q;
+```
+
+### 5. **`ml_matrix_lu` Swaps Rows in `L` Incorrectly**
+Your LU pivoting swaps rows in `U` and `L`, but `L` should *only* have multipliers below the diagonal in the *final* factorization. Swapping `L` rows during elimination corrupts the unit-lower-triangular structure.
+
+**Fix**: Only swap `U` and permutation vector `P`. Reconstruct `L` from the multipliers post-elimination.
+
+### 6. **`ml_matrix_qr` Householder is Broken**
+The reflection application to `Q` is wrong — you're applying `Q = Q * H_k` but Householder QR requires `Q = Q * H_k^T` (or building Q as product of reflectors from the left). Also, `ml_matrix_identity(m)` for Q when `m > n` creates a non-square Q but you return it as `m×m`.
+
+**Fix**: Use the compact WY representation or at least verify `Q*R` reconstructs A.
+
+### 7. **`ml_matrix_eigen_qr` Wilkinson Shift is Wrong**
+```c
+for(int i=0; i<n; i++) ML_MAT(I, i, i) -= mu; // I = I - mu*I ???
+```
+You subtract `mu` from identity, then never use `I`. The shift should be `A - mu*I`, not this dead code.
+
+**Fix**: Actually compute `A - mu*I` before calling QR.
+
+---
+
+## 🟠 SERIOUS: Performance / Precision Issues
+
+### 8. **Trigonometry Taylor Series is Ludicrously Slow**
+```c
+for (int step = 3; step <= 21; step += 2) { ... }  // 10 terms, no Horner
+```
+For `sine()`, you do 10 divisions per call. Minimax uses Horner. Your "scientific" profile should too.
+
+**Fix**: Horner form: `x * (1 + x2*(c1 + x2*(c2 + x2*c3)))`.
+
+### 9. **`reduce_angle` Uses `fmod` — The Very libm You're Replacing**
+```c
+x = fmod(x, 2.0 * math_pi);  // Calls libm fmod!
+```
+Your Payne-Hanek header exists but the default trig doesn't use it.
+
+**Fix**: Make `ml_reduce_payne_hanek` the default in all profiles. It's already there, use it.
+
+### 10. **`exponential()` Computes `round(x/ln2)` with `round()` — libm Again**
+```c
+double n = round(x / math_ln2);  // round() is libm
+```
+**Fix**: Use `floor(x/ln2 + 0.5)` or pure integer conversion.
+
+### 11. **`ml_fast_exp2` is Completely Wrong**
+```c
+c.u = ((uint64_t)(exp_int + 1023) << 52) | (uint64_t)(mant_frac * 4503599627370496.0);
+```
+This ignores the actual `log2(1+m)` relationship. The mantissa fraction doesn't linearly map to bits.
+
+**Fix**: Use a proper minimax polynomial for `2^frac` part, or remove this function.
+
+### 12. **SIMD Batch Does Unaligned Loads**
+```c
+ml_vec4d v = *(ml_vec4d*)in;  // UB if in isn't 32-byte aligned
+```
+**Fix**: Use `_mm256_loadu_pd` for unaligned, or require alignment and document it.
+
+### 13. **No FMA Exploitation**
+You have software FMA in `error_free.h` but never use it in polynomial evaluation. Modern CPUs have hardware FMA.
+
+**Fix**: Use `__builtin_fma` or `_mm256_fmadd_pd` in hot paths.
+
+---
+
+## 🟡 ARCHITECTURAL: v10 Should Redesign
+
+### 14. **The Header-Only + Single `.c` Unit is Schizophrenic**
+You have 35 headers that are *almost* header-only (all `inline`), but then force a single `mathlib.c` to compile them. This gives you the downsides of both worlds: slow compile (headers parsed repeatedly) AND no true header-only convenience.
+
+**v10 Decision**:
+- **Option A**: True header-only (like `stb` libraries). User does `#define MATHLIB_IMPLEMENTATION` in one `.c` file.
+- **Option B**: Split into `.c`/`.h` pairs with proper linkage. Build a real static library.
+
+### 15. **No Namespace / Prefix Consistency**
+- `sine()` vs `ml_sin()` vs `ml_minimax_sin()` vs `__ml_cordic_sin`
+- `cplx_add` (no prefix) vs `ml_quat_mul` (has prefix)
+
+**v10 Fix**: Everything is `ml_` prefixed. `ml_sin`, `ml_cplx_add`, `ml_vec2_add`.
+
+### 16. **Type System is Ad-Hoc**
+```c
+typedef struct { double real; double imag; } cplx;   // lowercase
+typedef struct { double w, x, y, z; } ml_quat;      // prefixed
+```
+**v10 Fix**: Consistent naming. `ml_complex_t`, `ml_quat_t`, `ml_vec2_t`, `ml_vec3_t`, `ml_mat3_t`, `ml_mat_t` (dynamic).
+
+### 17. **No Const-Correctness**
+```c
+inline ml_matrix ml_matrix_mul(ml_matrix a, ml_matrix b)  // Pass by value! Copies 24 bytes + pointer
+```
+Matrix struct contains `double *data` — you're copying the pointer but the name suggests value semantics. Also no `const` anywhere.
+
+**v10 Fix**:
+```c
+ml_matrix_t ml_matrix_mul(const ml_matrix_t *a, const ml_matrix_t *b);
+```
+
+### 18. **Memory Management is Inconsistent**
+- `ml_matrix_create` returns by value (caller must call `ml_matrix_free`)
+- `ml_matrix_lu` takes output pointers but allocates internally with `ml_matrix_create`
+- `ml_matrix_eigen_qr` returns `double*` that caller must `free`
+
+**v10 Fix**: Arena allocator or explicit `ml_alloc`/`ml_free` with ownership rules. Or return structs with inline storage for small sizes.
+
+### 19. **No Error Codes / Logging**
+LU returns `0` or `-1`. QR returns `0` always (even if it fails). No way to distinguish "singular" from "malloc failed".
+
+**v10 Fix**:
+```c
+typedef enum { ML_OK, ML_SINGULAR, ML_NO_CONVERGE, ML_BAD_ARG } ml_status_t;
+```
+
+### 20. **The "Profiles" System is a Macro Minefield**
+```c
+#define ml_sin(x) ml_minimax_sin(x)
+```
+This prevents taking function pointers (`&ml_sin` doesn't work). Breaks debugging (step into `ml_sin`, land in `ml_minimax_sin` with no stack frame).
+
+**v10 Fix**: Function pointer tables:
+```c
+typedef struct {
+    double (*sin)(double);
+    double (*cos)(double);
+    // ...
+} ml_backend_t;
+
+extern const ml_backend_t ml_backend_scientific;
+extern const ml_backend_t ml_backend_graphics;
+extern const ml_backend_t ml_backend_embedded;
+```
+
+---
+
+## 🔵 v10 Feature Gaps
+
+| Missing | Why It Matters |
+|--------|----------------|
+| **Posit/FP16/BF16 support** | ML/graphics are moving to lower precision |
+| **Multithreading** | Your N×N matrix ops are single-threaded; embarrassingly parallel |
+| **GPU offload hooks** | Even just OpenCL/CUDA wrappers for FFT/matmul |
+| **Sparse matrices** | LU on dense N×N is O(N³); sparse is often needed |
+| **RNG / sampling** | Statistics module has PDFs but no way to generate random variates |
+| **Special functions** | Bessel, erf, gamma (you have `gamma_new` but it's Lanczos-like, not robust) |
+| **Interpolation** | No splines, no Chebyshev, no rational approximation |
+| **Root-finding for systems** | Newton-Raphson is scalar-only; no `n`-dimensional solver |
+| **Adaptive quadrature** | `integral_simpson` is fixed-step; adaptive Gauss-Kronrod is standard |
+| **IEEE 754 rounding mode control** | You classify FP but don't set rounding modes |
+
+---
+
+## 🎯 v10 Restructure Proposal
+
+```
+mathlib/
+├── core/           # ml_fp_classify, ml_rounding_mode, ml_fenv
+├── scalar/         # ml_sin, ml_exp, ml_log (all profiles as function tables)
+├── vec/            # vec2, vec3, vec4 (SIMD)
+├── mat/            # mat3, mat4, N×N dense, N×N sparse
+├── complex/        # complex, quaternion
+├── transform/      # FFT, DCT, convolution
+├── solve/          # linear, nonlinear, ODE, optimization
+├── stats/          # distributions, regression, RNG
+├── approx/         # polynomial, minimax, interpolation
+└── io/             # serialization, debug printing
+```
+
+---
+
+Want me to go deeper on any of these, or draft specific v10 header designs?

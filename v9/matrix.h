@@ -11,24 +11,24 @@ typedef struct {
 
 #define ML_MAT(m, r, c) ((m).data[(r) * (m).cols + (c)])
 
-inline ml_matrix ml_matrix_create(int r, int c) {
+static inline ml_matrix ml_matrix_create(int r, int c) {
     ml_matrix m;
     m.rows = r; m.cols = c;
     m.data = (double*)calloc(r * c, sizeof(double));
     return m;
 }
 
-inline void ml_matrix_free(ml_matrix m) {
+static inline void ml_matrix_free(ml_matrix m) {
     if(m.data) free(m.data);
 }
 
-inline ml_matrix ml_matrix_identity(int n) {
+static inline ml_matrix ml_matrix_identity(int n) {
     ml_matrix m = ml_matrix_create(n, n);
     for (int i = 0; i < n; i++) ML_MAT(m, i, i) = 1.0;
     return m;
 }
 
-inline ml_matrix ml_matrix_mul(ml_matrix a, ml_matrix b) {
+static inline ml_matrix ml_matrix_mul(ml_matrix a, ml_matrix b) {
     ml_matrix res = ml_matrix_create(a.rows, b.cols);
     for (int i = 0; i < a.rows; i++) {
         for (int j = 0; j < b.cols; j++) {
@@ -47,7 +47,7 @@ inline ml_matrix ml_matrix_mul(ml_matrix a, ml_matrix b) {
 
 // LU Decomposition with Partial Pivoting (PA = LU)
 // Returns 0 on success, -1 if singular.
-inline int ml_matrix_lu(ml_matrix A, ml_matrix *L, ml_matrix *U, int *P) {
+static inline int ml_matrix_lu(ml_matrix A, ml_matrix *L, ml_matrix *U, int *P) {
     int n = A.rows;
     *L = ml_matrix_create(n, n);
     *U = ml_matrix_create(n, n);
@@ -59,10 +59,10 @@ inline int ml_matrix_lu(ml_matrix A, ml_matrix *L, ml_matrix *U, int *P) {
     for (int i = 0; i < n; i++) {
         // Find pivot
         int max_row = i;
-        double max_val = fabs(ML_MAT(*U, i, i));
+        double max_val = ml_fabs(ML_MAT(*U, i, i));
         for (int k = i + 1; k < n; k++) {
-            if (fabs(ML_MAT(*U, k, i)) > max_val) {
-                max_val = fabs(ML_MAT(*U, k, i));
+            if (ml_fabs(ML_MAT(*U, k, i)) > max_val) {
+                max_val = ml_fabs(ML_MAT(*U, k, i));
                 max_row = k;
             }
         }
@@ -89,7 +89,7 @@ inline int ml_matrix_lu(ml_matrix A, ml_matrix *L, ml_matrix *U, int *P) {
 }
 
 // Solve Ax = b using LU with Pivoting
-inline int ml_matrix_solve_lu(ml_matrix A, double *b, double *x) {
+static inline int ml_matrix_solve_lu(ml_matrix A, double *b, double *x) {
     int n = A.rows;
     if (n <= 0) return -1;
     ml_matrix L, U;
@@ -121,7 +121,7 @@ inline int ml_matrix_solve_lu(ml_matrix A, double *b, double *x) {
 
 // QR Decomposition (Householder Reflections)
 // Returns 0 on success.
-inline int ml_matrix_qr(ml_matrix A, ml_matrix *Q, ml_matrix *R) {
+static inline int ml_matrix_qr(ml_matrix A, ml_matrix *Q, ml_matrix *R) {
     int m = A.rows;
     int n = A.cols;
     *R = ml_matrix_create(m, n);
@@ -134,7 +134,7 @@ inline int ml_matrix_qr(ml_matrix A, ml_matrix *Q, ml_matrix *R) {
         // Calculate Householder vector
         double norm_x = 0;
         for (int i = k; i < m; i++) norm_x += ML_MAT(*R, i, k) * ML_MAT(*R, i, k);
-        norm_x = sqrt(norm_x);
+        norm_x = ml_sqrt(norm_x);
 
         if (ML_MAT(*R, k, k) > 0) norm_x = -norm_x;
 
@@ -165,7 +165,7 @@ inline int ml_matrix_qr(ml_matrix A, ml_matrix *Q, ml_matrix *R) {
 }
 
 // Power Iteration for Dominant Eigenvalue & Eigenvector
-inline double ml_matrix_eigen_power(ml_matrix A, double *eigenvector, int max_iter) {
+static inline double ml_matrix_eigen_power(ml_matrix A, double *eigenvector, int max_iter) {
     int n = A.rows;
     double *b = (double*)calloc(n, sizeof(double));
     double *b_next = (double*)calloc(n, sizeof(double));
@@ -178,7 +178,7 @@ inline double ml_matrix_eigen_power(ml_matrix A, double *eigenvector, int max_it
             for(int j=0; j<n; j++) b_next[i] += ML_MAT(A, i, j) * b[j];
         }
         double max_val = 0;
-        for(int i=0; i<n; i++) if(fabs(b_next[i]) > fabs(max_val)) max_val = b_next[i];
+        for(int i=0; i<n; i++) if(ml_fabs(b_next[i]) > ml_fabs(max_val)) max_val = b_next[i];
         if(max_val == 0) break;
         for(int i=0; i<n; i++) b_next[i] /= max_val; // Normalize
         lambda = max_val;
@@ -190,7 +190,7 @@ inline double ml_matrix_eigen_power(ml_matrix A, double *eigenvector, int max_it
 }
 
 // QR Algorithm with Wilkinson Shift for all Eigenvalues (Symmetric Matrices)
-inline double* ml_matrix_eigen_qr(ml_matrix A, int max_iter) {
+static inline double* ml_matrix_eigen_qr(ml_matrix A, int max_iter) {
     int n = A.rows;
     ml_matrix Ak = ml_matrix_create(n, n);
     for(int i=0; i<n; i++) for(int j=0; j<n; j++) ML_MAT(Ak, i, j) = ML_MAT(A, i, j);
@@ -202,7 +202,7 @@ inline double* ml_matrix_eigen_qr(ml_matrix A, int max_iter) {
         double c_w = ML_MAT(Ak, n-1, n-1);
         double delta_w = (a_w - c_w) / 2.0;
         double sign_delta = (delta_w >= 0) ? 1.0 : -1.0;
-        double denom = delta_w + sign_delta * sqrt(delta_w * delta_w + b_w * b_w);
+        double denom = delta_w + sign_delta * ml_sqrt(delta_w * delta_w + b_w * b_w);
         double mu = (denom == 0.0) ? c_w : c_w - (b_w * b_w) / denom;
         ml_matrix I = ml_matrix_identity(n);
         for(int i=0; i<n; i++) ML_MAT(I, i, i) -= mu; // I = I - mu*I -> actually we need A - mu*I

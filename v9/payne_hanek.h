@@ -12,8 +12,8 @@
 #define PI_LO   -5.01367118772543e-33    // Low bits
 
 // O(1) Range reduction to [-pi/4, pi/4] with ZERO precision loss for massive inputs
-inline double ml_reduce_payne_hanek(double x) {
-    // Estimate quotient n = round(x / (2*pi))
+static inline double ml_reduce_payne_hanek(double x) {
+    // Estimate quotient n = ml_round(x / (2*pi))
     double n = x * 0.1591549430918953357; // 1/(2*pi)
     n = (n >= 0.0) ? (double)(long long)(n + 0.5) : (double)(long long)(n - 0.5);
 

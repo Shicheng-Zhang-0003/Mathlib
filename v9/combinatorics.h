@@ -3,21 +3,21 @@
 
 //Library header file for combinatorics
 #include <stdio.h>
-inline int factorial (int x);
-inline int factorial (int x) {
-    if (x < 0) {return (int) (0);}
-    if (x == 0) {return (int) (1);}
-    int result = (int) (x);
+static inline uint64_t factorial(int x);
+static inline uint64_t factorial(int x) {
+    if (x < 0) {return (uint64_t) (0);}
+    if (x == 0) {return (uint64_t) (1);}
+    uint64_t result = (uint64_t) (x);
     while ((x - 1) > 0) {result *= (x - 1);
     x -= 1;} return result;
-} inline int npr (int n, int r);
-inline int npr (int n, int r) {
-    if (r < 0 || r > n) {return (int) (0);}
+} static inline uint64_t npr(int n, int r);
+static inline uint64_t npr(int n, int r) {
+    if (r < 0 || r > n) {return (uint64_t) (0);}
     return factorial (n) / factorial (n - r);
 }
-inline int ncr (int n, int r);
-inline int ncr (int n, int r) {
-    if (r < 0 || r > n) {return (int) (0);}
+static inline uint64_t ncr(int n, int r);
+static inline uint64_t ncr(int n, int r) {
+    if (r < 0 || r > n) {return (uint64_t) (0);}
     return factorial (n) / (factorial (n - r) * factorial (r));
 }
 

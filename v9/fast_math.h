@@ -3,7 +3,7 @@
 #include "bitwise_fp.h"
 
 // Quake III Fast Inverse Sqrt for 64-bit doubles
-inline double ml_fast_rsqrt(double number) {
+static inline double ml_fast_rsqrt(double number) {
     ml_fp_cast c; c.d = number;
     // Magic constant for 64-bit double precision
     c.u = 0x5fe6ec85e7de30daULL - (c.u >> 1);
@@ -13,7 +13,7 @@ inline double ml_fast_rsqrt(double number) {
 }
 
 // Fast Log2 using the integer-float isomorphism
-inline double ml_fast_log2(double x) {
+static inline double ml_fast_log2(double x) {
     ml_fp_cast c; c.d = x;
     // Extract exponent, adjust bias (1023), and add mantissa approximation
     double exp = (double)((c.u >> 52) & 0x7FF) - 1023.0;
@@ -22,7 +22,7 @@ inline double ml_fast_log2(double x) {
 }
 
 // Fast Exp2 using the reverse isomorphism
-inline double ml_fast_exp2(double x) {
+static inline double ml_fast_exp2(double x) {
     double exp_int = (double)(long long)x;
     double mant_frac = x - exp_int;
     ml_fp_cast c;

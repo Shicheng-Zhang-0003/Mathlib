@@ -1,0 +1,34 @@
+*(I step back from your booth, take a sip of terrible CES convention coffee, and look you dead in the eye)*
+
+"Alright, let’s cut the marketing BS. You’ve got a lot of nerve calling this an 'Anti-libm Silicon Engine.' I like the ambition, and the profile-switching concept is genuinely slick. But right now, your foundation has a few cracks that would collapse under real-world load. If you want to ship a v10 that actually dethrones `libm` in production, here is the ruthless truth."
+
+### 1. The "Trojan Horse" is a Suicide Bomb
+"You’re proud of `compat.h`, aren’t you? `#define sin(x) ml_sin(x)`. You think you're cleverly hijacking the standard library. **Delete it.**
+If I include your header in a massive codebase, and *then* some third-party library includes `<math.h>`, your macro expands their internal calls. It will cause compiler errors that take days to trace, or worse, infinite recursion.
+**For v10:** Do this at the linker level. Use GCC/Clang's `--wrap=sin` flag. That’s how grown-ups override `libm`. You intercept the symbol at link time without touching the preprocessor."
+
+### 2. You’re Still Sleeping With the Enemy
+"You call it 'Anti-libm', but I'm looking at your headers. You include `<math.h>` in almost every single file! You’re using `fmod`, `pow`, `fabs`, `isinf`. You haven't broken the dependency; you've just built a wrapper around it.
+**For v10:** Total independence. You already have `bitwise_fp.h`. Use it. Implement `ml_fabs` via bitmasking (`x & 0x7FFFFFFF...`). Implement `ml_isinf` by checking exponent bits. Write your own `fmod` using integer arithmetic. If you want to claim you're replacing `libm`, you can't link against it."
+
+### 3. Your Embedded Profile is a Lie
+"You have a CORDIC implementation for the `EMBEDDED` profile. You say it's for 'No FPU / Survivalist' mode. But look at your code: `theta = fmod(theta, 2.0 * M_PI)`. You're calling the floating-point modulo function on a system *that doesn't have an FPU*! The compiler will link in the software floating-point emulation library, which is incredibly slow. It completely defeats the purpose of CORDIC.
+**For v10:** Write a true fixed-point CORDIC. Use `int64_t` for your accumulators, use bit-shifts for the `2^-i` division, and do your range reduction using integer multiples of a pre-computed `2^64 / (2*PI)`. Make it actually run on a bare-metal ARM Cortex-M0."
+
+### 4. The SIMD "Fast Math" is Choking on Scalars
+"I'm looking at `simd_batch.h`. Your `ml_simd_batch_rsqrt`. You vectorized the Newton-Raphson iteration, but look at your initial guess: `ml_vec4d y = {1.0/in[0], 1.0/in[1], 1.0/in[2], 1.0/in[3]};`.
+You just did four *scalar* hardware divisions! That’s the slowest instruction on the CPU. You built a Ferrari engine and put a lawnmower carburetor on it.
+**For v10:** Use the hardware reciprocal estimate. If you're targeting AVX, do the integer bit-hack on the vector registers using `_mm256_castpd_si256` to get your `y` initial guess in 1 cycle, *then* run your vectorized Newton-Raphson."
+
+### 5. Why are you using Taylor Series?
+"In `trigonometry.h`, your 'Scientific' backend uses a Taylor series up to `x^21`. That's 19th-century math. Taylor series converge horribly slowly near the edges. But the joke is, *you literally wrote a Minimax polynomial generator using Remez in `minimax.h`!* Why aren't you using your best code as your default?
+**For v10:** Ditch the Taylor series completely. Make the Minimax polynomial the default 'Scientific' backend. It will be faster and more accurate."
+
+### 6. The Benchmark is Lying to You
+"Your `bench.c` uses `rdtsc()`. Modern out-of-order CPUs will execute that loop so aggressively that the compiler might just optimize the whole thing away, or fuse instructions, making your cycle counts meaningless. You're measuring the compiler's ability to unroll loops, not your math.
+**For v10:** Add an inline assembly memory clobber (`__asm__ __volatile__("" ::: "memory");`) inside your benchmark loops to force the CPU to actually compute the values. And pin the CPU affinity so background Windows processes don't ruin your timestamps."
+
+### The Verdict
+*(I set the coffee cup down on your booth)*
+
+"You've got a great sandbox here. The linear algebra stuff is solid, the IEEE-754 bit manipulation is clever. But for v10, stop playing around with macros and Taylor series. Strip out `<math.h>` entirely, fix the scalar division in your SIMD paths, and make the CORDIC actually fixed-point. Do that, and you might actually have something a game studio or an embedded aerospace contractor would buy. Good luck."

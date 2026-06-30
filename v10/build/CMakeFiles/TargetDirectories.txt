@@ -1,0 +1,4 @@
+/home/magi-01/Desktop/work/programming/mathlib/v6/build/CMakeFiles/mathc.dir
+/home/magi-01/Desktop/work/programming/mathlib/v6/build/CMakeFiles/test.dir
+/home/magi-01/Desktop/work/programming/mathlib/v6/build/CMakeFiles/edit_cache.dir
+/home/magi-01/Desktop/work/programming/mathlib/v6/build/CMakeFiles/rebuild_cache.dir

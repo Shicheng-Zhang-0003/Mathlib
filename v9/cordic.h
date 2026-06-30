@@ -1,6 +1,6 @@
 #ifndef LIBMATHC_CORDIC_H
 #define LIBMATHC_CORDIC_H
-#include <math.h>
+#include "ml_core.h"
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -18,9 +18,9 @@ static const double cordic_atan[] = {
 
 #define CORDIC_GAIN 0.607252935008881
 
-inline void ml_cordic_sincos(double theta, double *sin_out, double *cos_out) {
+static inline void ml_cordic_sincos(double theta, double *sin_out, double *cos_out) {
     // 1. Range reduction to [-pi, pi]
-    theta = fmod(theta, 2.0 * M_PI);
+    theta = ml_fmod(theta, 2.0 * M_PI);
     if (theta > M_PI) theta -= 2.0 * M_PI;
     if (theta < -M_PI) theta += 2.0 * M_PI;
 
