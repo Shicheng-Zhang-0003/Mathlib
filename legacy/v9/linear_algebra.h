@@ -85,7 +85,7 @@ static inline mat3x3 mat3x3_transpose(mat3x3 m) {
 
 static inline mat3x3 mat3x3_inverse(mat3x3 m) {
     double det = mat3x3_det(m);
-    if (det == 0.0) {
+    if (ml_fabs(det) < 1e-12) {
         mat3x3 nan_mat;
         for(int i=0; i<9; i++) nan_mat.m[i] = 0.0/0.0;
         return nan_mat;

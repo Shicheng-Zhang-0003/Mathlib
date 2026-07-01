@@ -6,7 +6,6 @@
 static double (*raw_libm_sin)(double) = sin;
 static double (*raw_libm_sqrt)(double) = sqrt;
 
-#include "compat.h"
 #include "simd_batch.h"
 
 static inline unsigned long long rdtsc() {

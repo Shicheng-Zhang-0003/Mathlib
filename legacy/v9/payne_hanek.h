@@ -13,8 +13,12 @@
 
 // O(1) Range reduction to [-pi/4, pi/4] with ZERO precision loss for massive inputs
 static inline double ml_reduce_payne_hanek(double x) {
+    if (ml_isnan(x) || ml_isinf(x)) return 0.0/0.0;
     // Estimate quotient n = ml_round(x / (2*pi))
     double n = x * 0.1591549430918953357; // 1/(2*pi)
+    // Cap to prevent long long UB overflow on inputs > 5.7e19
+    if (n > 9.22e18) n = 9.22e18;
+    if (n < -9.22e18) n = -9.22e18;
     n = (n >= 0.0) ? (double)(long long)(n + 0.5) : (double)(long long)(n - 0.5);
 
     // Subtract n * 2*pi using 3-part split to preserve lower bits

@@ -2,6 +2,7 @@
 #define MATHLIB_QUATERNION_H
 
 #include "profiles.h"
+#include "trigonometry.h"
 #include "ml_core.h"
 
 typedef struct { double w, x, y, z; } ml_quat;
@@ -30,7 +31,7 @@ static inline ml_quat ml_quat_slerp(ml_quat a, ml_quat b, double t) {
             a.y + t*(b.y-a.y), a.z + t*(b.z-a.z)
         });
     }
-    double theta = acos(dot);
+    double theta = arccosine(dot);
     double sin_theta = ml_sin(theta); // Profile-aware trig
     double s0 = ml_sin((1.0 - t) * theta) / sin_theta;
     double s1 = ml_sin(t * theta) / sin_theta;

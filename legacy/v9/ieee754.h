@@ -27,9 +27,9 @@ static inline double logarithm_ieee754(double x) {
     double m = (double)mantissa / 4503599627370496.0; // 2^52
 
     // Adjust to [ml_sqrt(2)/2, ml_sqrt(2)] for optimal series convergence
-    if (m > 1.4142135623730950) {
-        m /= 2.0;
-        e++;
+    if (m < 0.7071067811865475) {
+        m *= 2.0;
+        e--;
     }
 
     // Fast series: 2 * (z + z^3/3 + z^5/5...) where z = (m-1)/(m+1)
@@ -73,21 +73,5 @@ static inline double exponential_ieee754(double x) {
     return cast.d;
 }
 
-
-// --- Pure Bitwise frexp and ldexp (No Standard Library) ---
-static inline double ml_ldexp_pure(double x, int exp) {
-    ml_fp_cast cast; cast.d = x;
-    cast.u += ((uint64_t)exp << 52);
-    return cast.d;
-}
-
-static inline double ml_frexp_pure(double x, int *exp) {
-    ml_fp_cast cast; cast.d = x;
-    // Extract exponent, adjust bias to 1022 for [0.5, 1.0) range
-    *exp = ((cast.u >> 52) & 0x7FF) - 1022;
-    // Mask out exponent, set it to 1022 (0x3FE)
-    cast.u = (cast.u & 0x800FFFFFFFFFFFFFULL) | 0x3FE0000000000000ULL;
-    return cast.d;
-}
 
 #endif

@@ -23,8 +23,8 @@
     #define ml_rsqrt(x) ml_fast_rsqrt(x)
 #else
     // Scientific (Default): Strict IEEE-754
-    static inline double __ml_sci_sin(double x) { return sine(x); }
-    static inline double __ml_sci_cos(double x) { return cosine(x); }
+    static inline double __ml_sci_sin(double x) { return ml_minimax_sin(x); }
+    static inline double __ml_sci_cos(double x) { return ml_minimax_cos(x); }
     static inline double __ml_sci_sqrt(double x) { return ml_sqrt(x); }
     static inline double __ml_sci_rsqrt(double x) { return 1.0 / ml_sqrt(x); }
     #define ml_sin(x) __ml_sci_sin(x)

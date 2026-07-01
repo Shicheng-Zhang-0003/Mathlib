@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c99 -fgnu89-inline -Wall -Wextra -O3 -march=native
+CFLAGS = -std=c99 -g -fgnu89-inline -Wall -Wextra -O3 -march=native
 LDFLAGS = -lm
 
 TARGET = test

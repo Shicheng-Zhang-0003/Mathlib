@@ -22,6 +22,12 @@
 #include "payne_hanek.h"
 #include "minimax.h"
 
+#include "tensor.h"
+#include "linalg_v10.h"
+#include "fixed_point.h"
+#include "simd_bare_metal.h"
+
+
 #include "profiles.h"
 #include "simd_batch.h"
 #include "quaternion.h"
@@ -2178,11 +2184,11 @@ int main() {
     CHECK_NEAR_LOOSE(q_mid.x, 0.3826834, 1e-5);
 
     printf("\n=== v9: SIMD Batch Processing ===\n");
-    double simd_in[4] __attribute__((aligned(32))) = {1.0, 2.0, 3.0, 4.0};
-    double simd_out[4] __attribute__((aligned(32)));
-    ml_simd_batch_poly(simd_in, simd_out);
-    CHECK_NEAR(simd_out[0], 2.0);
-    CHECK_NEAR(simd_out[3], 20.0);
+    double v9_simd_in[4] __attribute__((aligned(32))) = {1.0, 2.0, 3.0, 4.0};
+    double v9_simd_out[4] __attribute__((aligned(32)));
+    ml_simd_batch_poly(v9_simd_in, v9_simd_out);
+    CHECK_NEAR(v9_simd_out[0], 2.0);
+    CHECK_NEAR(v9_simd_out[3], 20.0);
 
     printf("\n=== v9: Streaming FFT ===\n");
     ml_fft_stream stream = ml_fft_stream_create(8);
@@ -2192,11 +2198,46 @@ int main() {
     CHECK_NEAR_LOOSE(cplx_abs(spec[1]), 4.0, 1e-7);
     ml_fft_stream_free(&stream);
 
-    printf("
-=== v9: Linker-Level Migration ===
-");
-    printf("Trojan Horse deleted. Use gcc -Wl,--wrap=sin for production override.
-");
+printf("\n=== v9: Linker-Level Migration ===\n");
+printf("Trojan Horse deleted. Use gcc -Wl,--wrap=sin for production override.\n");
+
+    
+    printf("\n=== v10 Strike 3: Zero-Alloc Tensor Engine ===\n");
+    // Allocate a single 1MB scratchpad ONCE at startup
+    char scratchpad[1024 * 1024];
+    ml_workspace_t ws = { scratchpad, sizeof(scratchpad), 0 };
+
+    double A_data[9] = {2, -1, 0, -1, 2, -1, 0, -1, 2};
+    double b_data[3] = {1, 0, 1};
+    double x_data[3] = {0};
+
+    ml_tensor_view_t A_view = ml_tensor_view(A_data, 3, 3);
+    int status = ml_solve_v10(A_view, b_data, x_data, &ws);
+    CHECK_INT(status, 0);
+    CHECK_NEAR(x_data[0], 1.0);
+    CHECK_NEAR(x_data[1], 1.0);
+    CHECK_NEAR(x_data[2], 1.0);
+    printf("Workspace used: %zu bytes (Zero Mallocs!)\n", ws.used_bytes);
+
+    printf("\n=== v10 Strike 4 Prep: True Bare-Metal ===\n");
+    // Fixed-Point CORDIC (No FPU)
+    ml_q16_16_t f_sin, f_cos;
+    ml_cordic_sincos_fixed(ML_FIXED_HALF_PI / 2, &f_sin, &f_cos); // PI/4
+    double d_sin = (double)f_sin / 65536.0;
+    double d_cos = (double)f_cos / 65536.0;
+    CHECK_NEAR_LOOSE(d_sin, 0.7071, 1e-3);
+    CHECK_NEAR_LOOSE(d_cos, 0.7071, 1e-3);
+
+    // AVX2 Integer-Cast RSqrt
+    double v10_simd_in[4] __attribute__((aligned(32))) = {4.0, 9.0, 16.0, 25.0};
+    double v10_simd_out[4] __attribute__((aligned(32)));
+    __m256d v10_v_in = _mm256_load_pd(v10_simd_in);
+    __m256d v10_v_out = ml_avx2_fast_rsqrt(v10_v_in);
+    _mm256_store_pd(v10_simd_out, v10_v_out);
+    CHECK_NEAR_LOOSE(v10_simd_out[0], 0.5, 1e-3);
+    CHECK_NEAR_LOOSE(v10_simd_out[1], 0.333, 1e-2);
+    CHECK_NEAR_LOOSE(v10_simd_out[2], 0.25, 1e-3);
+    CHECK_NEAR_LOOSE(v10_simd_out[3], 0.2, 1e-3);
 
     TEST_SUMMARY();
 }

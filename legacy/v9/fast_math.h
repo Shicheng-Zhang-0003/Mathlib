@@ -14,6 +14,9 @@ static inline double ml_fast_rsqrt(double number) {
 
 // Fast Log2 using the integer-float isomorphism
 static inline double ml_fast_log2(double x) {
+    if (x < 0.0) return 0.0/0.0;
+    if (x == 0.0) return -1.0/0.0;
+    if (ml_isinf(x) || ml_isnan(x)) return x;
     ml_fp_cast c; c.d = x;
     // Extract exponent, adjust bias (1023), and add mantissa approximation
     double exp = (double)((c.u >> 52) & 0x7FF) - 1023.0;
@@ -21,13 +24,17 @@ static inline double ml_fast_log2(double x) {
     return exp + mant; // Linear approximation of log2(1+m)
 }
 
-// Fast Exp2 using the reverse isomorphism
+// Fast Exp2 using reverse isomorphism + Minimax fractional polynomial
 static inline double ml_fast_exp2(double x) {
-    double exp_int = (double)(long long)x;
-    double mant_frac = x - exp_int;
+    long long xi = (long long)x;
+    if (x < 0.0 && x != (double)xi) xi -= 1; // Bitwise floor for negative numbers
+    double exp_int = (double)xi;
+    double frac = x - exp_int;
+    // Minimax polynomial for 2^frac on [0, 1]
+    double p = frac * (0.6931471805599453 + frac * (0.2402265069591007 + frac * 0.05550410866482158));
+    double mant_approx = 1.0 + p;
     ml_fp_cast c;
-    // Construct the double directly from integer parts
-    c.u = ((uint64_t)(exp_int + 1023) << 52) | (uint64_t)(mant_frac * 4503599627370496.0);
-    return c.d;
+    c.u = ((uint64_t)((long long)exp_int + 1023) << 52);
+    return c.d * mant_approx;
 }
 #endif

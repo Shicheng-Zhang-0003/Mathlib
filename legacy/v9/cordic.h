@@ -1,6 +1,7 @@
 #ifndef LIBMATHC_CORDIC_H
 #define LIBMATHC_CORDIC_H
 #include "ml_core.h"
+#include "payne_hanek.h"
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -20,7 +21,7 @@ static const double cordic_atan[] = {
 
 static inline void ml_cordic_sincos(double theta, double *sin_out, double *cos_out) {
     // 1. Range reduction to [-pi, pi]
-    theta = ml_fmod(theta, 2.0 * M_PI);
+    theta = ml_reduce_payne_hanek(theta);
     if (theta > M_PI) theta -= 2.0 * M_PI;
     if (theta < -M_PI) theta += 2.0 * M_PI;
 

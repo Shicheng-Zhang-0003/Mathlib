@@ -204,8 +204,7 @@ static inline double* ml_matrix_eigen_qr(ml_matrix A, int max_iter) {
         double sign_delta = (delta_w >= 0) ? 1.0 : -1.0;
         double denom = delta_w + sign_delta * ml_sqrt(delta_w * delta_w + b_w * b_w);
         double mu = (denom == 0.0) ? c_w : c_w - (b_w * b_w) / denom;
-        ml_matrix I = ml_matrix_identity(n);
-        for(int i=0; i<n; i++) ML_MAT(I, i, i) -= mu; // I = I - mu*I -> actually we need A - mu*I
+        // Shift applied directly to Ak diagonal below
 
         // Shift: Ak = Ak - mu*I
         for(int i=0; i<n; i++) ML_MAT(Ak, i, i) -= mu;
@@ -219,7 +218,7 @@ static inline double* ml_matrix_eigen_qr(ml_matrix A, int max_iter) {
 
         ml_matrix_free(Ak);
         Ak = Ak_next;
-        ml_matrix_free(Q); ml_matrix_free(R); ml_matrix_free(I);
+        ml_matrix_free(Q); ml_matrix_free(R);
     }
 
     double* eigenvalues = (double*)malloc(n * sizeof(double));

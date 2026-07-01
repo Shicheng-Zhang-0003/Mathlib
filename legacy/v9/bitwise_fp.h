@@ -1,6 +1,7 @@
 #ifndef LIBMATHC_BITWISE_FP_H
 #define LIBMATHC_BITWISE_FP_H
 #include <stdint.h>
+#include "ml_core.h"
 
 
 
