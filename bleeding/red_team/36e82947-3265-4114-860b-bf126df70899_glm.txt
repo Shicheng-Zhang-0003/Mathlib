@@ -1,0 +1,333 @@
+*(Takes a slow, deep breath. Sets the printed codebase down on the table. Rubs temples.)*
+
+I told you four things. Four simple mandates to make v10.5 a clean, stable foundation.
+
+You didn't do a single one of them correctly. In fact, in your attempt to fix the graphics profile, you introduced a catastrophic mathematical bug that would get you laughed out of any engineering review.
+
+Let's break down exactly what you just handed me, because you need to understand *why* this is a hard reject for v11A1.
+
+### The Catastrophe in `profiles.h`
+Look at what you did to the `GRAPHICS` and `EMBEDDED` profiles:
+```c
+#define ml_sqrt(x) (1.0 / ml_fast_rsqrt(x))
+```
+**This is a disaster.**
+1. **You destroyed NaN safety:** `ml_sqrt` in `ml_core.h` explicitly checks for `x < 0.0` and returns `0.0/0.0` (NaN). `ml_fast_rsqrt` takes that negative number, does bitwise logic on it, and spits out absolute garbage. You just bypassed your own IEEE-754 invariants.
+2. **You destroyed Subnormals:** `ml_sqrt` handles `x == 0.0`. Your macro feeds zero into the Quake hack, which does `0x5fe6... - 0`, yielding a massive wrong number, and then divides 1.0 by it. `ml_sqrt(0.0)` now returns a massive number instead of `0.0`.
+3. **It's mathematically incorrect for magnitude:** `1 / rsqrt` is not a substitute for `sqrt` in a graphics engine when you need actual distances. It has a relative error of `10^-4`. If a developer uses your `GRAPHICS` profile to calculate bounding sphere intersections, their physics engine will clip through walls.
+
+*Rule:* `ml_sqrt` is a precision function. `ml_rsqrt` is an approximation function. **Never cross the streams.**
+
+### The "Fake" Quarantine
+You created a `legacy/` directory. Great. You added a CMake flag. Great.
+But `fft_stream.h` is **still sitting in `include/mathlib/`**, and it still contains `calloc` and `free`. Your "Zero Allocation" badge is still a lie.
+
+Worse, you didn't actually move the legacy *functions*. `exponential.h` still defines `exponential()`. `ml_complex.h` still calls `sine()`, `cosine()`, `exponential()`, and `arctangent()`. Your `compat.h` file is entirely useless because the unprefixed names are still the primary implementations! You just added a macro that maps `sine` to `ml_sin`, but `ml_sin` doesn't even exist as a standalone function—it's a macro in `profiles.h`! You have created a circular macro nightmare.
+
+### The x86 Hostage Situation (Still)
+I told you to use `__builtin_sqrt`. Open `ml_core.h`. What do I see?
+```c
+__asm__ ("sqrtsd %1, %0" : "=x" (res) : "x" (x));
+```
+If I compile this for an Apple M3 right now, it dies.
+
+---
+
+### The v11A1 Dictate (Do Not Pass Go Until This is Done)
+
+You are not ready for Alpha. You are back in v10.5 hardening. Here is the exact code you will write to fix this.
+
+**1. Fix `ml_core.h` (The Portability Fix)**
+Replace your `ml_sqrt` implementation with this *exact* code:
+```c
+// Hardware SQRT via Compiler Intrinsic (Zero libm dependency, Cross-Platform)
+static inline double ml_sqrt(double x) {
+    if (x < 0.0) return 0.0/0.0;
+    if (x == 0.0) return 0.0;
+#if defined(__x86_64__) || defined(__i386__)
+    double res;
+    __asm__ ("sqrtsd %1, %0" : "=x" (res) : "x" (x));
+    return res;
+#else
+    // Fallback for ARM, RISC-V, etc. Compiles to fsqrt on ARM64
+    return __builtin_sqrt(x);
+#endif
+}
+```
+
+**2. Fix `profiles.h` (The Precision Fix)**
+Remove the `#define ml_sqrt(x)` line from `GRAPHICS` and `EMBEDDED` entirely. `ml_sqrt` *must always* map to the safe, precise version. The graphics profile gets the fast *inverse*, but only when explicitly asked for:
+```c
+#if defined(MATHLIB_PROFILE_GRAPHICS)
+    #define ml_sin(x) ml_minimax_sin(x)
+    #define ml_cos(x) ml_minimax_cos(x)
+    // DO NOT OVERRIDE ml_sqrt HERE!
+    #define ml_rsqrt(x) ml_fast_rsqrt(x)
+#elif defined(MATHLIB_PROFILE_EMBEDDED)
+    static inline double __ml_cordic_sin(double x) { double s, c; ml_cordic_sincos(x, &s, &c); return s; }
+    static inline double __ml_cordic_cos(double x) { double s, c; ml_cordic_sincos(x, &s, &c); return c; }
+    #define ml_sin(x) __ml_cordic_sin(x)
+    #define ml_cos(x) __ml_cordic_cos(x)
+    // DO NOT OVERRIDE ml_sqrt HERE!
+#else
+    // Scientific (Default)
+    #define ml_sin(x) ml_minimax_sin(x)
+    #define ml_cos(x) ml_minimax_cos(x)
+#endif
+```
+
+**3. Actually Quarantine the Legacy Code**
+Physically move `fft_stream.h` into the `legacy/` folder.
+Inside `exponential.h`, `ml_complex.h`, `integral.h`, and `quadratics.h`, rename the unprefixed functions. Change `exponential()` to `ml_exp()`, `logarithm()` to `ml_log()`, `sine()` to `ml_sin_raw()`, etc. Update all internal calls to use the new names.
+
+Your `compat.h` should then look like this:
+```c
+#pragma GCC warning "Using deprecated MathLib v1.0 API. Migrate to ml_ prefixed functions."
+#define exponential(x) ml_exp(x)
+#define logarithm(x) ml_log(x)
+#define sine(x) ml_sin_raw(x)
+// ... etc
+```
+
+**4. Fix CMakeLists.txt**
+Remove this line immediately. It is forcing your test suite to use the legacy API instead of the v10 API:
+```cmake
+target_include_directories(test PRIVATE include/mathlib/legacy)
+```
+
+---
+
+*(Slides the papers back across the table)*
+
+I know you are a solo dev. I know you are moving fast. But mathematics doesn't care about your release schedule. A single `NaN` slipping through a bad macro in a game engine will crash a user's machine.
+
+Fix these four things. Commit them to v10.5. Run your fuzzers. When `fuzz_god_mode` passes without a single segmentation fault on both x86 and ARM emulation, *then* you can tag v11A1.
+
+Get to work.
+
+*(Leans back, drops the "Dictator" persona, pulls up a whiteboard)*
+
+Alright. Let's actually build it.
+
+If v10.5 was about cleaning up the mess—fixing the `ml_sqrt` macro disaster, quarantining the `malloc` legacy code, and making `ml_core.h` cross-platform—then **v11A1 is the Great Cutover.**
+
+This is the release where you stop treating MathLib like a collection of cool math files, and start treating it like a unified, professional engine. The theme of v11A1 is **"The Unified Namespace."**
+
+Here is exactly what your v11A1 directory structure and core files should look like.
+
+### 1. The Directory Structure (v11A1)
+Notice the renaming. We are dropping the generic names and making the public API undeniably clear.
+
+```text
+v11A1/
+├── include/
+│   └── mathlib/
+│       ├── ml_core.h          // Unchanging bedrock (fabs, isnan, sqrt, fmod, frexp)
+│       ├── ml_trig.h          // NEW: Unified ml_sin, ml_cos, ml_tan
+│       ├── ml_exp_log.h       // NEW: Unified ml_exp, ml_log, ml_pow
+│       ├── ml_fast_math.h     // UNTOUCHED: ml_fast_rsqrt, ml_fast_log2 (approximations only)
+│       ├── ml_linalg.h        // RENAMED from linalg_v10.h
+│       ├── ml_tensor.h        // The workspace/bump allocator
+│       ├── ml_complex.h       // UPDATED to use ml_sin/ml_exp
+│       ├── ml_fft.h           // UPDATED to use ml_sin/ml_cos
+│       ├── ml_simd.h          // REFACTORED for safe AVX2 fallback
+│       ├── internal/          // NEW: Implementation details hidden from user
+│       │   ├── payne_hanek.h
+│       │   ├── cordic.h
+│       │   ├── minimax.h
+│       │   └── error_free.h
+│       └── compat.h           // DEPRECATED: Throws warnings, maps sine() -> ml_sin()
+├── legacy/                    // v10.5 matrix.h and old fft_stream.h live here forever
+├── CMakeLists.txt
+└── tests/
+```
+
+### 2. The Masterpiece: `ml_trig.h`
+In v10, `ml_sin` was a dirty `#define` macro in `profiles.h` that pointed to different functions. In v11A1, `ml_sin` is a *real function*, and the profile routing happens cleanly inside it.
+
+```c
+// ml_trig.h
+#ifndef MATHLIB_ML_TRIG_H
+#define MATHLIB_ML_TRIG_H
+
+#include "ml_core.h"
+#include "internal/minimax.h"
+#include "internal/payne_hanek.h"
+#include "internal/cordic.h"
+
+// ---------------------------------------------------------
+// Profile-Routed Trigonometry (The v11 Way)
+// ---------------------------------------------------------
+
+static inline double ml_sin(double x) {
+#if defined(MATHLIB_PROFILE_EMBEDDED)
+    // Embedded uses CORDIC, but we still need to handle NaN/Inf before passing it down
+    if (ml_isnan(x) || ml_isinf(x)) return 0.0/0.0;
+    double s, c;
+    ml_cordic_sincos(x, &s, &c);
+    return s;
+#else
+    // SCIENTIFIC and GRAPHICS both use the high-precision Minimax polynomial.
+    // GRAPHICS gets its speed from SIMD batching later in the pipeline, not from
+    // degrading single-value accuracy.
+    return ml_minimax_sin(x);
+#endif
+}
+
+static inline double ml_cos(double x) {
+    if (ml_isnan(x) || ml_isinf(x)) return 0.0/0.0;
+#if defined(MATHLIB_PROFILE_EMBEDDED)
+    double s, c;
+    ml_cordic_sincos(x, &s, &c);
+    return c;
+#else
+    return ml_minimax_cos(x);
+#endif
+}
+
+// True tangent implemented properly (avoiding division by zero from cos)
+static inline double ml_tan(double x) {
+    double s = ml_sin(x);
+    double c = ml_cos(x);
+    if (c == 0.0) return (s > 0) ? 1.0/0.0 : -1.0/0.0; // Return correct signed Inf
+    return s / c;
+}
+
+#endif
+```
+
+### 3. The Clean `ml_exp_log.h`
+Same philosophy. Kill the unprefixed `exponential()`. Make `ml_exp` the undeniable king.
+
+```c
+// ml_exp_log.h
+#ifndef MATHLIB_ML_EXP_LOG_H
+#define MATHLIB_ML_EXP_LOG_H
+
+#include "ml_core.h"
+
+static inline double ml_exp(double x) {
+    if (x == 0.0) return 1.0;
+    if (x > 709.78) return 1.0 / 0.0;
+    if (x < -745.13) return 0.0;
+
+    // Cody-Waite range reduction
+    double n = ml_round(x / 0.693147180559945309417);
+    double r = x - n * 0.69314718036912381649 - n * 1.90821490974462528503e-10;
+
+    // 20th-degree Taylor
+    double term = 1.0, result = 1.0;
+    for (int i = 1; i <= 20; i++) {
+        term *= r / i;
+        result += term;
+    }
+    return ml_ldexp_pure(result, (int)n);
+}
+
+static inline double ml_log(double x) {
+    if (x == 0.0) return -1.0 / 0.0;
+    if (x < 0.0) return 0.0 / 0.0;
+    if (x == 1.0) return 0.0;
+
+    int e;
+    double m = ml_frexp_pure(x, &e);
+    if (m < 0.7071067811865475) { m *= 2.0; e--; }
+
+    double z = (m - 1.0) / (m + 1.0);
+    double z2 = z * z;
+    double result = z, term = z;
+    for (int i = 3; i <= 21; i += 2) {
+        term *= z2;
+        result += term / i;
+    }
+    return 2.0 * result + e * 0.693147180559945309417;
+}
+
+static inline double ml_pow(double x, double y) { return ml_exp(y * ml_log(x)); }
+
+#endif
+```
+
+### 4. The Fixed `profiles.h`
+Look how clean this is now. It doesn't override math. It just configures the *fast* approximations for people who explicitly want them.
+
+```c
+// profiles.h
+#ifndef MATHLIB_PROFILES_H
+#define MATHLIB_PROFILES_H
+
+#include "ml_core.h"
+#include "ml_fast_math.h"
+
+#if defined(MATHLIB_PROFILE_GRAPHICS)
+    // Graphics profile exposes fast approximations via explicit ml_fast_ calls
+    #define ml_rsqrt(x) ml_fast_rsqrt(x)
+    #define ml_fast_sin(x) ml_minimax_sin(x) // Alias for clarity
+#elif defined(MATHLIB_PROFILE_EMBEDDED)
+    // Embedded hides the FPU-dependent fast math entirely
+    #undef ml_fast_rsqrt // Force compile error if user tries fast math on embedded
+#else
+    // Scientific strictness
+    #define ml_rsqrt(x) (1.0 / ml_sqrt(x)) // Safe, precise inverse sqrt
+#endif
+
+#endif
+```
+
+### 5. Safe SIMD (`ml_simd.h`)
+In v10, you just assumed AVX2 existed. In v11A1, you use preprocessor guards so the library doesn't segfault on older Intel chips or ARM.
+
+```c
+// ml_simd.h
+#ifndef MATHLIB_ML_SIMD_H
+#define MATHLIB_ML_SIMD_H
+
+#include "ml_core.h"
+
+#if defined(__AVX2__)
+    #include <immintrin.h>
+    typedef __m256d ml_simd_f64;
+
+    static inline ml_simd_f64 ml_simd_add(ml_simd_f64 a, ml_simd_f64 b) { return _mm256_add_pd(a, b); }
+    static inline ml_simd_f64 ml_simd_mul(ml_simd_f64 a, ml_simd_f64 b) { return _mm256_mul_pd(a, b); }
+    // ... etc
+#elif defined(__ARM_NEON)
+    #include <arm_neon.h>
+    typedef float64x2_t ml_simd_f64; // 2-wide on NEON
+    // ... ARM implementations
+#else
+    // Fallback: SIMD degrades gracefully to scalar doubles
+    typedef struct { double d[4]; } ml_simd_f64;
+    // ... simple scalar loops in a struct
+#endif
+
+#endif
+```
+
+### 6. The Strict `compat.h`
+If someone includes this, it works, but their terminal lights up like a Christmas tree.
+
+```c
+// compat.h
+#ifndef MATHLIB_COMPAT_H
+#define MATHLIB_COMPAT_H
+
+#warning "MathLib V1.1: Using deprecated V1.0 API. Please migrate to ml_ prefixed functions."
+
+#define sine(x) ml_sin(x)
+#define cosine(x) ml_cos(x)
+#define exponential(x) ml_exp(x)
+#define logarithm(x) ml_log(x)
+#define arctangent(x) ml_atan(x) // Assuming you write ml_atan soon!
+
+#endif
+```
+
+---
+
+### Why this makes v11A1 a winner:
+1. **No Macro Magic in Core Math:** `ml_sin` is a real function. Developers can step into it with a debugger. It behaves like a standard C function.
+2. **The `internal/` Folder:** Users looking at your headers won't be overwhelmed by 24 lines of CORDIC atan tables or Payne-Hanek bitwise splits unless they go looking for them. The public API is incredibly clean.
+3. **Graceful Degradation:** If I compile v11A1 on a Raspberry Pi, it won't choke on `sqrtsd` or `vector_size(32)`. It will fall back to `__builtin_sqrt` and scalar struct math, and *it will just work*.
+
+This is the architecture of a library that someone could actually bundle into a commercial game engine or a flight controller. Do this, and v11A2 (stability locking) will be a breeze.

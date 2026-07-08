@@ -1,0 +1,888 @@
+Now that I have seen **v10p5**, my review changes significantly.
+
+Putting on the "CES libm dictator" hat again:
+
+**You actually did the v10.5 milestone I described.**
+
+Not perfectly (there are still things I would attack), but the *direction* is very different from v10.
+
+The big difference is that v10 looked like:
+
+> "Here is a powerful numerical toolbox."
+
+v10p5 looks like:
+
+> "Here is a numerical engine with a defined operating philosophy."
+
+That is a major maturity jump.
+
+---
+
+# CES Review: v10p5
+
+## Immediate reaction
+
+I would walk up to your booth and say:
+
+> "Okay. This is no longer a feature demo. You are now trying to define an ecosystem."
+
+The biggest evidence:
+
+```
+tests/
+benchmarks/
+docs/
+scripts/
+profiles/
+legacy/
+```
+
+This is the correct shape.
+
+A lot of ambitious libraries never make this transition.
+
+---
+
+# The biggest improvement: you introduced profiles
+
+This is probably the strongest architectural decision.
+
+You now have:
+
+```
+SCIENTIFIC
+GRAPHICS
+EMBEDDED
+```
+
+That is exactly how a serious numerical library should think.
+
+Because there is no single "best math library."
+
+Different users want:
+
+### Scientific computing
+
+Priority:
+
+```
+accuracy > speed
+```
+
+### Graphics/game engine
+
+Priority:
+
+```
+throughput > exactness
+```
+
+### Embedded
+
+Priority:
+
+```
+determinism > everything
+```
+
+Trying to satisfy all three with one implementation creates a mess.
+
+Profiles solve that.
+
+This is honestly one of the most "professional" additions in v10p5.
+
+---
+
+# The second major improvement: testing philosophy
+
+This is where v10p5 feels like a real release candidate.
+
+You added:
+
+```
+fuzz_god_mode.c
+fuzz_boundary_gauntlet.c
+```
+
+This is exactly the direction I wanted.
+
+Especially because numerical libraries fail in weird places.
+
+Not:
+
+```c
+sin(1.0)
+```
+
+Nobody cares.
+
+They fail in:
+
+```c
+sin(1e300)
+```
+
+or:
+
+```c
+sin(NAN)
+```
+
+or:
+
+```c
+matrix_inverse(almost_singular_matrix)
+```
+
+Your test structure shows you understand that.
+
+---
+
+# The migration layer is a very good idea
+
+This:
+
+```bash
+-Wl,--wrap=sin
+-Wl,--wrap=cos
+```
+
+is actually a very smart adoption strategy.
+
+One of the biggest barriers for a libm replacement is:
+
+> "Nobody wants to rewrite their entire application."
+
+If you can say:
+
+"Change your linker flags."
+
+That is a completely different adoption curve.
+
+---
+
+# Now, the red-team section
+
+Because you asked for ruthless.
+
+---
+
+## Problem 1: The README is still too aggressive
+
+The badge:
+
+```
+Production-grade
+```
+
+is the one thing I would remove.
+
+Not because the code is bad.
+
+Because a professional reviewer will attack the claim.
+
+A reviewer will ask:
+
+"Where are your validation papers?"
+
+"Where are your exhaustive ULP plots?"
+
+"Where are your architecture matrices?"
+
+I would replace:
+
+```
+production-grade
+```
+
+with:
+
+```
+high-performance experimental
+```
+
+or:
+
+```
+engineering-grade
+```
+
+until v11.
+
+---
+
+# Problem 2: CMake still has the v10 issue
+
+This survived:
+
+```cmake
+add_compile_options(-O3 -march=native -Wall -Wextra)
+```
+
+I would block a stable release on this.
+
+Why?
+
+Because:
+
+Developer machine:
+
+```
+Zen 5
+AVX512
+```
+
+Builds:
+
+```
+libmath.a
+```
+
+User machine:
+
+```
+Intel Skylake
+```
+
+Crash.
+
+You need:
+
+```cmake
+option(MATHLIB_NATIVE "Enable native optimization" OFF)
+```
+
+before v11.
+
+---
+
+# Problem 3: The header aggregation is risky
+
+This:
+
+```c
+#include "combinatorics.h"
+#include "ml_complex.h"
+#include "exponential.h"
+...
+```
+
+is convenient.
+
+But eventually:
+
+```
+mathlib.c
+```
+
+becomes the battlefield.
+
+For v11 I would want:
+
+```
+src/
+ ├── trig.c
+ ├── fft.c
+ ├── linalg.c
+ ├── tensor.c
+ └── mathlib.c
+```
+
+Even if everything remains header-based.
+
+Why?
+
+Because when something breaks, you want isolation.
+
+---
+
+# Problem 4: I would demand reproducibility
+
+You mention:
+
+```
+65,000+ assertions
+```
+
+Good.
+
+Now I ask:
+
+"Can I reproduce failure #49382?"
+
+You need:
+
+```c
+seed = 0xDEADBEEF;
+```
+
+printed on failure.
+
+Something like:
+
+```
+FUZZ FAILURE
+seed: 8392019281
+input:
+x=...
+module:
+trigonometry
+```
+
+Otherwise fuzzing becomes a screenshot.
+
+---
+
+# Problem 5: You need a benchmark philosophy
+
+You have:
+
+```
+benchmarks/
+```
+
+Good.
+
+Now define:
+
+"What are we optimizing?"
+
+Examples:
+
+```
+scalar latency
+vector throughput
+memory bandwidth
+accuracy/performance ratio
+```
+
+Because otherwise:
+
+```
+fastest()
+```
+
+becomes meaningless.
+
+---
+
+# My v10 → v10.5 assessment
+
+I would rate the transition:
+
+## v10
+
+Architecture:
+8/10
+
+Testing:
+5/10
+
+Engineering discipline:
+6/10
+
+---
+
+## v10p5
+
+Architecture:
+9/10
+
+Testing:
+8/10
+
+Engineering discipline:
+8/10
+
+---
+
+The project has crossed an important threshold.
+
+Before:
+
+> "Can this person build a huge math library?"
+
+After v10p5:
+
+> "Can this person maintain a huge math library?"
+
+That is a much better question.
+
+---
+
+# My recommended v11A1
+
+Do **not** add more math.
+
+Seriously.
+
+I would put a feature freeze.
+
+v11A1 should be:
+
+## "The hardening branch"
+
+Tasks:
+
+1. Remove all unqualified claims
+2. Fix portability
+3. Add CI matrix
+4. Add reproducible fuzz failures
+5. Add API documentation generation
+6. Add benchmark reports
+7. Audit every public symbol
+
+Then v11A2:
+
+API freeze.
+
+Then v11:
+
+Release.
+
+---
+
+Final CES verdict:
+
+> **v10p5 is the first version I would consider showing publicly without immediately saying "this is a prototype."**
+
+It still needs the boring engineering work before v11, but the architecture is now behaving like a real software project.
+
+The interesting thing is that your original orchestration strategy is visible here: the AI added breadth, but the milestone structure is what prevented the project from becoming a random pile of generated code. You are now at the stage where human architectural judgment matters more than generation speed.
+
+**CES Review — v10p5 → v11A1 transition**
+
+If I am reviewing this as the "benevolent dictator of libm," I would say:
+
+> **Do not treat v11A1 as v10p6. Treat it as the beginning of the stabilization era.**
+
+v10p5 proved that the system can grow.
+v11A1 needs to prove that the system can be trusted.
+
+The biggest mistake would be adding another 20 modules. The project has enough surface area now. The next milestone should make the existing surface area **boring, predictable, and defensible.**
+
+---
+
+# The theme of v11A1
+
+## "Engineering hardening + architecture consolidation"
+
+The release question changes:
+
+v10:
+
+> "Can we build this?"
+
+v10p5:
+
+> "Can we organize this?"
+
+v11A1:
+
+> "Can another engineer depend on this?"
+
+---
+
+# 1. Public API audit (highest priority)
+
+Before anything else, I would freeze the shape of the library.
+
+Create a list:
+
+```
+Public API:
+    trig/
+    fft/
+    linalg/
+    tensor/
+    stats/
+    optimization/
+```
+
+For every public function:
+
+Ask:
+
+### Does the name communicate intent?
+
+Example:
+
+```c
+ml_fast_sin()
+```
+
+vs
+
+```c
+ml_sin_approx()
+```
+
+The second one tells users something important.
+
+---
+
+### Does the function have defined behavior?
+
+Example:
+
+```c
+ml_matrix_inverse(A)
+```
+
+What happens if:
+
+* A is singular?
+* A is NaN?
+* A has dimension zero?
+* memory is insufficient?
+
+A professional library needs answers.
+
+---
+
+# 2. Establish the "mathlib contract"
+
+v11A1 should introduce a document:
+
+```
+DESIGN_CONTRACT.md
+```
+
+Something like:
+
+## Floating point policy
+
+* IEEE-754 supported
+* NaN propagation rules
+* infinity behavior
+* precision targets
+
+---
+
+## Memory policy
+
+Example:
+
+> Core APIs never allocate internally.
+
+or:
+
+> Allocation is permitted only in convenience APIs.
+
+---
+
+## Threading policy
+
+Important.
+
+Does this library guarantee:
+
+```c
+ml_fft_execute()
+```
+
+is thread-safe?
+
+Can two threads call it simultaneously?
+
+---
+
+## Determinism policy
+
+Very important for numerical software.
+
+Does:
+
+```c
+ml_matrix_multiply(A,B)
+```
+
+produce identical output on:
+
+* AVX2
+* AVX512
+* ARM NEON?
+
+---
+
+# 3. Build system maturity
+
+This is where I would be strict.
+
+v11A1 should introduce:
+
+```
+.github/
+    workflows/
+        gcc.yml
+        clang.yml
+        sanitizer.yml
+```
+
+Test:
+
+### GCC
+
+```
+gcc -std=c99
+```
+
+### Clang
+
+```
+clang -std=c99
+```
+
+### Sanitizers
+
+```
+-fsanitize=address
+-fsanitize=undefined
+```
+
+---
+
+I would also fix:
+
+```cmake
+-march=native
+```
+
+before A1.
+
+It is acceptable for a developer build.
+
+It is dangerous as the default.
+
+---
+
+# 4. Numerical validation framework
+
+This is the biggest "libm" transition.
+
+You need a comparison harness.
+
+Example:
+
+```
+validation/
+    compare_libm.c
+    ulp_error.c
+```
+
+Then:
+
+```
+mathlib sin
+       |
+       |
+       v
+
+glibc sin()
+       |
+       |
+       v
+
+calculate difference
+```
+
+Output:
+
+```
+sin:
+max error:
+0.72 ULP
+
+average:
+0.11 ULP
+
+worst input:
+x=938475928.123
+```
+
+Now your claims become evidence.
+
+---
+
+# 5. Error handling consistency
+
+I would pick one pattern.
+
+Currently you likely have a mix:
+
+```c
+double function(double x)
+```
+
+and:
+
+```c
+int function(..., result)
+```
+
+and:
+
+```c
+NULL return
+```
+
+v11A1 should decide.
+
+My preference:
+
+Core math:
+
+```c
+double ml_sin(double x);
+```
+
+because libm works this way.
+
+Complex operations:
+
+```c
+ml_status ml_matrix_inverse(
+    const ml_matrix *A,
+    ml_matrix *result
+);
+```
+
+because failure is possible.
+
+---
+
+# 6. Create a "golden examples" suite
+
+Not tests.
+
+Examples.
+
+A user should be able to run:
+
+```
+examples/
+    hello_math.c
+    fft_demo.c
+    matrix_solver.c
+    neural_tensor.c
+```
+
+and understand:
+
+"This is what this library does."
+
+---
+
+# 7. Remove or isolate experimental code
+
+This is probably the hardest psychologically.
+
+You will have code that is cool but not ready.
+
+Do:
+
+```
+include/
+    mathlib/
+        stable/
+
+experimental/
+    quantum_math.h
+    future_tensor.h
+```
+
+A professional project protects users from unfinished ideas.
+
+---
+
+# 8. Performance regression tracking
+
+You already have benchmarks.
+
+Now make them historical.
+
+Example:
+
+```
+benchmark_results/
+
+v10p5:
+FFT 4096:
+1.23ms
+
+v11A1:
+FFT 4096:
+1.18ms
+```
+
+The important number is not:
+
+"Are we fast?"
+
+The important number is:
+
+"Did we accidentally become slower?"
+
+---
+
+# What I would NOT do for v11A1
+
+I would reject:
+
+❌ new transcendental functions
+❌ new tensor operations
+❌ more SIMD backends
+❌ GPU support
+❌ ML features
+❌ new algorithms
+
+Those belong after v11.
+
+---
+
+# My proposed v11A1 checklist
+
+Before tagging:
+
+```
+[ ] Public API reviewed
+[ ] Naming standardized
+[ ] Build works on GCC/Clang
+[ ] Sanitizers clean
+[ ] Fuzz tests reproducible
+[ ] Benchmark baseline saved
+[ ] ULP validation started
+[ ] Documentation generated
+[ ] Experimental APIs isolated
+[ ] Memory rules documented
+[ ] Floating-point behavior documented
+```
+
+---
+
+# The mindset shift
+
+v10p5 was:
+
+> "Look how much this library can do."
+
+v11A1 should be:
+
+> "Look how confidently this library behaves."
+
+The funny thing is: **v11A1 is probably less impressive in a demo than v10p5.**
+
+You may add fewer lines of code.
+
+But if done correctly, it is the milestone that makes the project credible.
+
+A reviewer at CES would probably be more impressed by:
+
+> "We deleted 15,000 lines of unstable code, standardized the API, and proved numerical behavior."
+
+than:
+
+> "We added another 50 functions."
+
+That is the point where a large AI-assisted project starts becoming an actual engineered software system.
+

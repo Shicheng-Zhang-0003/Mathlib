@@ -16,4 +16,3 @@
 #include "profiles.h"
 #include "simd_batch.h"
 #include "quaternion.h"
-#include "fft_stream.h"

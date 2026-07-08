@@ -32,9 +32,13 @@ static inline int ml_isinf(double x) {
 static inline double ml_sqrt(double x) {
     if (x < 0.0) return 0.0/0.0;
     if (x == 0.0) return 0.0;
+#if defined(__x86_64__) || defined(__i386__)
     double res;
     __asm__ ("sqrtsd %1, %0" : "=x" (res) : "x" (x));
     return res;
+#else
+    return __builtin_sqrt(x);
+#endif
 }
 
 // Pure C Software Fmod (Zero libm dependency)

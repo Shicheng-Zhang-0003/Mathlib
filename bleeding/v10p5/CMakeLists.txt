@@ -11,7 +11,12 @@ elseif(MATHLIB_PROFILE STREQUAL "EMBEDDED")
     add_compile_definitions(MATHLIB_PROFILE_EMBEDDED)
 endif()
 
-add_compile_options(-O3 -march=native -Wall -Wextra)
+option(MATHLIB_NATIVE "Enable -march=native (Warning: Breaks binary portability)" OFF)
+if(MATHLIB_NATIVE)
+    add_compile_options(-O3 -march=native -Wall -Wextra -fno-fast-math -ffp-contract=off)
+else()
+    add_compile_options(-O3 -Wall -Wextra -fno-fast-math -ffp-contract=off)
+endif()
 
 add_library(mathc STATIC src/mathlib.c)
 target_include_directories(mathc PUBLIC 
@@ -41,4 +46,3 @@ if(MATHLIB_ENABLE_LEGACY)
     target_include_directories(mathc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/legacy)
 endif()
 
-target_include_directories(test PRIVATE include/mathlib/legacy)

@@ -5,7 +5,7 @@
 #include <string.h>
 #include <time.h>
 
-// Include the entire v11 engine
+// Include the entire v10.5 engine
 #include "ml_core.h"
 #include "bitwise_fp.h"
 #include "combinatorics.h"
@@ -321,7 +321,7 @@ void test_simd_and_bare_metal() {
     }
 
     for(int i=0; i<1024; i+=4) {
-        ml_simd_batch_rml_sqrt(&in[i], &out_simd[i]);
+        ml_simd_batch_rsqrt(&in[i], &out_simd[i]);
     }
     for(int i=0; i<1024; i++) {
         double tol_simd = ml_fabs(out_scalar[i]) * 1e-5 + 1e-12;
@@ -330,7 +330,7 @@ void test_simd_and_bare_metal() {
 
     double out_avx[4] __attribute__((aligned(32)));
     __m256d v_in = _mm256_load_pd(in);
-    __m256d v_out = ml_avx2_fast_rml_sqrt(v_in);
+    __m256d v_out = ml_avx2_fast_rsqrt(v_in);
     _mm256_store_pd(out_avx, v_out);
     for(int i=0; i<4; i++) {
         CHECK_NEAR(out_avx[i], out_scalar[i], 1e-3, "AVX2 bare metal rsqrt");
@@ -342,7 +342,7 @@ void test_fixed_point_cordic() {
     for(int i=0; i<1000; i++) {
         double angle = rand_double();
         // O(1) range reduction to prevent infinite loop on massive inputs
-        angle = fmod(angle, 2.0 * 3.14159265358979323846);
+        angle = ml_fmod(angle, 2.0 * 3.14159265358979323846);
         if (angle > 3.14159265358979323846) angle -= 2.0 * 3.14159265358979323846;
         if (angle < -3.14159265358979323846) angle += 2.0 * 3.14159265358979323846;
 
@@ -359,7 +359,9 @@ void test_fixed_point_cordic() {
 }
 
 int main() {
-    srand(time(NULL));
+    unsigned int seed = time(NULL);
+    srand(seed);
+    printf("Fuzz Seed: %u\n", seed);
     printf("=========================================================\n");
     printf("   MATHLIB v1.0: GOD-MODE DYNAMIC FUZZING GAUNTLET\n");
     printf("=========================================================\n\n");

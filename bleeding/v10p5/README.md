@@ -4,7 +4,7 @@
 ![Invariant Audited](https://img.shields.io/badge/Fuzzer-65,000%2B%20Assertions-orange.svg)
 ![Bare Metal](https://img.shields.io/badge/SIMD-AVX2%20Optimized-red.svg)
 
-**MathLib V1.0** is a production-grade, zero-dependency, bare-metal C99 scientific computing engine. 
+**MathLib V1.0** is a high-performance bare-metal, zero-dependency, bare-metal C99 scientific computing engine. 
 
 Engineered to eliminate `<math.h>` dependencies, eradicate heap allocations in hot loops, and provide cycle-accurate determinism for high-throughput pipelines.
 

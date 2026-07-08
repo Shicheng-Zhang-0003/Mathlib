@@ -1,7 +1,7 @@
 #ifndef MATHLIB_TEST_HARNESS_H
 #define MATHLIB_TEST_HARNESS_H
 #include <stdio.h>
-#include <math.h>
+#include "ml_core.h"
 #include <stdlib.h>
 
 static int g_passed = 0;
@@ -12,7 +12,7 @@ static int g_failed = 0;
     else { g_failed++; printf("  [FAIL] %s (Line %d)\n", msg, __LINE__); } \
 } while(0)
 
-#define ASSERT_NEAR(a, b, eps, msg) ASSERT_TRUE(fabs((double)(a) - (double)(b)) < (eps), msg)
+#define ASSERT_NEAR(a, b, eps, msg) ASSERT_TRUE(ml_ml_ml_ml_fabs((double)(a) - (double)(b)) < (eps), msg)
 
 static inline int test_harness_summary(const char* suite_name) {
     printf("[%s] Passed: %d, Failed: %d\n", suite_name, g_passed, g_failed);
