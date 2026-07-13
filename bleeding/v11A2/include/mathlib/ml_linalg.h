@@ -4,6 +4,7 @@
 #include "ml_tensor.h"
 #include "ml_core.h"
 #include "ml_types.h"
+#include "cpu_dispatch.h"
 
 // Zero-Allocation LU Decomposition with Partial Pivoting
 // L and U are packed into a single workspace buffer to save memory.

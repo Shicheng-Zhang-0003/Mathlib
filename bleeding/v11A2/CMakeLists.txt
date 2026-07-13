@@ -24,7 +24,7 @@ if(MATHLIB_HARDENED)
     add_compile_definitions(MATHLIB_PROFILE_HARDENED)
     message(STATUS "Hardened perimeter enabled")
 endif()
-add_library(mathc STATIC src/mathlib.c)
+add_library(mathc STATIC src/mathlib.c src/cpu_dispatch.c)
 target_include_directories(mathc PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/mathlib>
     $<INSTALL_INTERFACE:include/mathlib>

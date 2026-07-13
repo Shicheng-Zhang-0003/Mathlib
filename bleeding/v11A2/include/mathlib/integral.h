@@ -2,7 +2,6 @@
 #define LIBMATHC_INTEGRAL_H
 
 #include "ml_exp_log.h"
-#include "ml_exp_log.h"
 #include "profiles.h"
 
 #ifndef M_PI

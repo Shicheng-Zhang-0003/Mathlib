@@ -1,7 +1,7 @@
 #ifndef MATHLIB_V10_SIMD_BARE_METAL_H
 #define MATHLIB_V10_SIMD_BARE_METAL_H
 
-#if defined(__AVX__) || defined(__AVX2__)
+#if defined(__AVX2__)
 #include <immintrin.h>
 
 // True Bare-Metal AVX2 Fast RSqrt
@@ -27,6 +27,6 @@ static inline __m256d ml_avx2_fast_rsqrt(__m256d v) {
     return _mm256_mul_pd(y, sub);
 }
 
-#endif // __AVX__ || __AVX2__
+#endif // __AVX2__
 
 #endif // MATHLIB_V10_SIMD_BARE_METAL_H

@@ -4,8 +4,6 @@
 //Library header file for complex numbers
 #include "ml_core.h"
 #include "ml_exp_log.h"
-#include "ml_exp_log.h"
-#include "ml_trig.h"
 #include "ml_trig.h"
 typedef struct { double real; double imag; } cplx;
 static inline cplx cplx_add (cplx a, cplx b);

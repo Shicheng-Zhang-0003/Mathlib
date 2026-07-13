@@ -3,7 +3,6 @@
 
 #include "profiles.h"
 #include "ml_trig.h"
-#include "ml_trig.h"
 #include "ml_core.h"
 
 typedef struct { double w, x, y, z; } ml_quat;

@@ -11,8 +11,6 @@
 #include "quadratics.h"
 #include "statistics.h"
 #include "ml_trig.h"
-#include "ml_trig.h"
-#include "ml_exp_log.h"
 #include "ml_linalg.h"
 #include "ml_tensor.h"
 #include "ml_types.h"

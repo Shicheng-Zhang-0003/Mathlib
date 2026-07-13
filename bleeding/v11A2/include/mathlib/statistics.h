@@ -5,7 +5,6 @@
 #include "ml_core.h"
 #include "combinatorics.h"
 #include "ml_exp_log.h"
-#include "ml_exp_log.h"
 static inline double mean (double *data, int n);
 static inline double mean (double *data, int n) {
     double sum = 0;

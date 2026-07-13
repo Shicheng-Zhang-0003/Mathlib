@@ -3,7 +3,7 @@
 
 #include "profiles.h"
 
-#if defined(__AVX__) || defined(__AVX2__)
+#if defined(__AVX2__)
 #include <immintrin.h>
 typedef double ml_vec4d __attribute__((aligned(32), vector_size(32)));
 
