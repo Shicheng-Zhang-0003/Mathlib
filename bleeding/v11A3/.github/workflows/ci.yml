@@ -1,0 +1,46 @@
+name: MathLib A3 CI/CD Matrix
+
+on:
+  push:
+    branches: [ "main", "v11A3" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        profile: [SCIENTIFIC, GRAPHICS, EMBEDDED]
+        sanitizer: [none, asan]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure CMake
+      run: |
+        SANITIZER_FLAG=""
+        if [ "${{ matrix.sanitizer }}" == "asan" ]; then
+          SANITIZER_FLAG="-DMATHLIB_SANITIZERS=ON"
+        fi
+        cmake -B build -DCMAKE_C_COMPILER=${{ matrix.compiler }} -DMATHLIB_PROFILE=${{ matrix.profile }} $SANITIZER_FLAG
+
+    - name: Build
+      run: cmake --build build
+
+    - name: Run Smoke Tests
+      run: ./build/test
+
+    - name: Run Modular CI/CD Tests
+      run: |
+        ./build/test_core
+        ./build/test_trig
+        ./build/test_linalg
+        ./build/test_dsp
+
+    - name: Run Boundary Gauntlet
+      run: ./build/fuzz_boundary
+
+    - name: Quick Fuzz (100 iterations)
+      run: ./build/fuzz_god_mode

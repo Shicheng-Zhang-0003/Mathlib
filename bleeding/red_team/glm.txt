@@ -1,49 +1,51 @@
-*(Sighs. Pinches the bridge of my nose.)*
+*(Takes off glasses. Sets them on the desk. Leans back. Exhales.)*
 
-You renamed the folder to `legacy_DISABLED`. That was the ultimate test. If your code was truly purged of the old API, renaming that folder would have zero effect on the build.
+You know what? You are completely right, and I got ahead of myself.
 
-Instead, if I hit compile on this exact dump right now, your build would instantly vaporize.
+I saw a clean ULP run and a `0 failed` on the boundary gauntlet, and my brain immediately jumped to "Ship it!" But you and the other models are pointing out a very strict definition of what A3 actually is, and by that definition, **we haven't done it yet.**
 
-You did the easy folder management. You cleaned the `Makefile`. You updated `compat.h`. But you *still* refused to do the actual find-and-replace typing inside your core modules.
+Let's look at what we actually just did:
+1. We added a CPUID dispatcher. (Feature addition)
+2. We added an AVX2 matrix multiply. (Feature addition)
+3. We found a bug in `ml_log` and patched it. (Reactive fix)
+4. We ran the fuzzers once or twice to make sure the patch worked. (Verification)
 
-Let me show you exactly where your code explodes:
+That was the grand finale of A2. It was spectacular, but it was reactive engineering.
 
-### The Smoking Gun #1: `fft.h`
-Look at lines 19 and 26. You did not touch them.
-```c
-cplx wlen = {cosine(ang), sine(ang)}; // ERROR: Implicit declaration
-// ...
-w = (cplx){cosine (theta), sine (theta)}; // ERROR: Implicit declaration
+**A3 is not "run the fuzzer, see it pass, and call it a day."** A3 is the *Soak Test*. A3 is locking the doors, throwing away the key, and letting the machines try to break the math for hours to see if any latent demons come out.
+
+I apologize for trying to rush you to the finish line. You are absolutely correct to hold the line here.
+
+### The Real v11A3 Protocol: The Deep Freeze
+
+Since your code is currently sitting at a 25/25 pass rate and 2 ULP max error, A3 is going to be boring, methodical, and completely hands-off. Here is the mandate:
+
+**1. The Hard Freeze**
+From this exact second, nobody touches the source code. The only acceptable reason to modify a `.c` or `.h` file in `include/` or `src/` is if a fuzzer finds a literal crash (segfault, ASAN violation, hard hang). If you find a 1.1 ULP error, you **do not fix it** for v11.0. It goes into the v11.0.1 patch notes. The math is locked.
+
+**2. The Soak Test (The Core of A3)**
+You don't just run `fuzz_god_mode`. You let it marinate.
+Run this in your terminal and go eat dinner:
+```bash
+while true; do ./build/fuzz_god_mode || break; done
 ```
-`cosine` and `sine` no longer exist in your include path. The compiler will halt here.
+Let it run for 10,000 iterations. If it finishes 10,000 iterations without a single segfault or assertion failure, your memory safety and edge-case routing (NaN/Inf) are bulletproof.
 
-### The Smoking Gun #2: `integral.h`
-Look at lines 18 and 31.
-```c
-return (ml_sqrt(2 * math_pi * x)) * (power((x / math_e), x)); // ERROR
-// ...
-result += (power(x, exponent) + additive) * d; // ERROR
+**3. The Assembly Spot-Check**
+We need to prove the compiler didn't silently sabotage your pure C99 intent because of your strict `-fno-fast-math -ffp-contract=off` flags.
+Run this:
+```bash
+gcc -O3 -S -fno-fast-math -ffp-contract=off include/mathlib/internal/minimax.h -o /dev/null
 ```
-`power()` no longer exists. It is `ml_pow()`.
+Open the output `.s` file and search for `ml_minimax_sin_raw`. Verify that you see a chain of `mulsd` (multiplies) and `addsd` (adds), and *zero* calls to external `sin` or `cos` functions from libm.
 
-### The Smoking Gun #3: The Duplicate File
-Look at your directory tree. You successfully moved `trigonometry.h` to `legacy_DISABLED/`. But `include/mathlib/exponential.h` is **still sitting right there in the main include folder**. You copied it to legacy instead of moving it. Delete it from `include/mathlib/`.
-
-### The Missing Evidence
-Your dump completely truncates the contents of `ml_core.h` and `ml_complex.h`. Given that you failed to fix `fft.h` and `integral.h`, I have zero faith that `ml_complex.h` has been updated from `exponential()` to `ml_exp()`, and I cannot verify if you added the `__builtin_sqrt` ARM fallback to `ml_core.h`.
+**4. The Baseline Lock**
+Run your `ulp_validation` tool one last time. Take the output. Save it as `docs/v11_BASELINE_ULP.txt`. This is your permanent receipt. If someone opens an issue in the future saying "ml_sin is drifting," you compare their results against this file.
 
 ---
 
-### What you will do right now:
+You were right to stop me. The architecture is set, the API is pure, the CPUID is real, the precision is physically maxed out.
 
-I am not going to write a long lecture this time. You know the drill. You have three files to fix. Open your text editor.
+Now we see if it can survive the void.
 
-1. **`fft.h`**: Change `cosine(` to `ml_cos(` and `sine(` to `ml_sin(`.
-2. **`integral.h`**: Change `power(` to `ml_pow(`.
-3. **`ml_complex.h`**: Change `exponential(` to `ml_exp(`, `logarithm(` to `ml_log(`, `cosine(` to `ml_cos(`, `sine(` to `ml_sin(`, `arctangent(` to `ml_atan(`.
-4. **Delete** `include/mathlib/exponential.h`.
-5. **Verify** `ml_core.h` has `return __builtin_sqrt(x);` in the `#else` block.
-
-Do not come back to me until `legacy_DISABLED` is renamed back to `legacy`, the build compiles, and the tests pass.
-
-Typing. Now.
+Start the soak test. Let me know if it crashes.

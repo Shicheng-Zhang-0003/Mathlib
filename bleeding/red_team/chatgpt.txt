@@ -1,0 +1,426 @@
+**CES 2026 — Numerical Computing Division Review**
+**MathLib v11A2 → v11A3 Review**
+
+*I walk up to your booth. I have seen v10, v10p5, v11A1, and v11A2. I am not evaluating this as a random library anymore. I am evaluating it as a project approaching a stable release.*
+
+My first statement would be:
+
+> "Stop thinking of v11A3 as another alpha. You are no longer building the architecture. You are proving that the architecture deserves to become permanent."
+
+That changes the mission.
+
+---
+
+## First: I would approve the existence of v11A3
+
+But I would be very strict about what it is.
+
+A common mistake:
+
+```
+v11A2
+ |
+ + add more features
+ |
+v11A3
+```
+
+Wrong.
+
+The correct progression is:
+
+```
+v11A2
+ |
+ + remove uncertainty
+ |
+v11A3
+ |
+ + release confidence
+ |
+v11
+```
+
+---
+
+# The theme of v11A3:
+
+# "Release Candidate Zero"
+
+Not RC1 yet.
+
+A3 should be the point where you stop asking:
+
+> "What should we add?"
+
+and start asking:
+
+> "What reasons remain that would prevent someone from adopting this?"
+
+---
+
+# 1. Public API Freeze
+
+This is the biggest one.
+
+At v11A3, I would want a declaration:
+
+```
+The v11 API surface is now frozen.
+```
+
+Not every API has to be stable.
+
+But every API must have a status.
+
+Something like:
+
+```
+include/mathlib/
+
+stable/
+    trig.h
+    fft.h
+    vector.h
+
+experimental/
+    tensor_future.h
+
+legacy/
+    matrix_old.h
+```
+
+A user should know:
+
+> "If I include this header, what promise am I getting?"
+
+---
+
+# 2. The "Can I Trust This?" Document
+
+You need a document that answers the questions a professional user asks.
+
+Something like:
+
+```
+docs/
+    TRUST.md
+```
+
+Contents:
+
+## Numerical guarantees
+
+Example:
+
+```
+Transcendental functions:
+Guaranteed:
+    <= 5 ULP
+
+Typical:
+    < 1 ULP
+```
+
+---
+
+## Determinism
+
+Explain:
+
+```
+Same input + same profile
+=
+same numerical output
+```
+
+---
+
+## Memory guarantees
+
+Explain:
+
+```
+Core functions never allocate internally.
+```
+
+---
+
+## Thread safety
+
+Explain:
+
+```
+No global mutable state.
+Functions are reentrant.
+```
+
+This is the document that convinces someone to use the library.
+
+---
+
+# 3. Real-world integration testing
+
+This is where I would push you.
+
+Unit tests prove:
+
+> "A function works."
+
+Integration tests prove:
+
+> "A system works."
+
+I want examples like:
+
+```
+examples/
+
+physics_simulation/
+    solver.c
+
+signal_processing/
+    audio_fft.c
+
+graphics/
+    transform_pipeline.c
+
+scientific/
+    matrix_solver.c
+```
+
+Not because these are features.
+
+Because they prove the library fits into actual software.
+
+---
+
+# 4. Compiler and platform matrix
+
+At v11A3, I want:
+
+```
+Platform          Status
+
+Linux x86_64      PASS
+Windows x86_64    PASS
+ARM64             PASS
+```
+
+Compilers:
+
+```
+GCC
+Clang
+MSVC
+```
+
+A C99 library's greatest enemy is not mathematics.
+
+It is accidental platform assumptions.
+
+---
+
+# 5. Benchmark publication
+
+You already have benchmarks.
+
+Now turn them into a product statement.
+
+Not:
+
+> "It is fast."
+
+Show:
+
+```
+Benchmark:
+
+                 MathLib    glibc
+
+sin 10M calls    X ms       Y ms
+FFT 4096         X ms       -
+Matrix multiply  X ms       -
+```
+
+Then you can honestly say:
+
+"This is where we win."
+
+Maybe you win accuracy.
+Maybe speed.
+Maybe determinism.
+
+But you need to know.
+
+---
+
+# 6. Kill the last ambiguity
+
+At A3, I would do an "architectural cleanup day."
+
+Search:
+
+```
+TODO
+FIXME
+experimental
+temporary
+hack
+```
+
+Every result gets:
+
+* fixed
+* documented
+* moved
+* deleted
+
+No mysterious code survives into v11.
+
+---
+
+# 7. Security and reliability review
+
+People forget this for math libraries.
+
+I would check:
+
+## Integer overflow
+
+Example:
+
+```c
+size * sizeof(double)
+```
+
+What happens?
+
+---
+
+## Invalid dimensions
+
+Example:
+
+```c
+matrix_create(-1, 5)
+```
+
+---
+
+## Stack usage
+
+Embedded users care.
+
+---
+
+## Undefined behavior
+
+Run:
+
+```
+clang -fsanitize=undefined
+```
+
+Clean everything.
+
+---
+
+# 8. Documentation becomes user-facing
+
+Right now your documentation is architect-focused.
+
+Good.
+
+A3 needs the user layer.
+
+Someone should be able to answer:
+
+"How do I use this?"
+
+without reading source.
+
+Need:
+
+```
+docs/
+    getting_started.md
+    choosing_profile.md
+    memory_model.md
+    migration_v10.md
+```
+
+---
+
+# Things I would reject for v11A3
+
+Absolutely no:
+
+❌ new algorithms
+❌ more modules
+❌ GPU backend
+❌ AI acceleration
+❌ additional profiles
+❌ major refactors
+
+Those are v12 discussions.
+
+---
+
+# My v11A3 acceptance checklist
+
+Before v11 final:
+
+```
+Architecture
+[x] Design contract
+[x] Memory model
+[x] Profile system
+[ ] API freeze
+
+Correctness
+[x] Tests
+[x] Fuzzing
+[ ] Published validation
+
+Build
+[x] Portable CMake
+[ ] Compiler matrix
+
+Performance
+[x] Benchmarks exist
+[ ] Benchmark report
+
+Documentation
+[x] Developer docs
+[ ] User docs
+
+Release
+[ ] Clean package
+[ ] Version consistency
+```
+
+---
+
+# My final CES statement to you
+
+I would look at v11A3 and say:
+
+> "You are dangerously close to making the mistake of adding more because adding more feels like progress."
+
+Then I would point at the repository and say:
+
+> "The impressive thing is not that it has FFT, tensors, optimizers, and transcendental functions. The impressive thing is whether someone who did not write this can safely use it."
+
+v10 proved you could build a machine.
+
+v10p5 proved the machine had a shape.
+
+v11A1 gave it rules.
+
+v11A2 gave it discipline.
+
+**v11A3 should give it trust.**
+
+Then v11 final is just the signature at the bottom.
+
