@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch16,
+
+title = {16. The Sylvester Equation},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {305-319},
+doi = {10.1137/1.9780898718027.ch16},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch16},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch16},
+    abstract = { We must commence, not with a square, but with an oblong arrangement of terms consisting, suppose, of m lines and n columns. This will not in itself represent a determinant, but is, as it were, a Matrix out of which we may form various systems of determinants by fixing upon a number p, and selecting at will p lines and p columns, the squares corresponding to which may be termed determinants of the pth order. — J. J. SYLVESTER, Additions to the Articles, “On a New Class of Theorems,” and “On Pascal's Theorem” (1850) I have in previous papers defined a “Matrix” as a rectangular array of terms, out of which different systems of determinants may be engendered, as from the womb of a common parent; these cognate determinants being by no means isolated in their relations to one another, but subject to certain simple laws of mutual dependence and simultaneous deperition. — J. J. SYLVESTER, On the Relation Between the Minor Determinants of Linearly Equivalent Quadratic Functions (1851) The linear matrix equation AX−XB=C, 16.1 where A ∈ ℝm × m, B ∈ ℝn × n, and C ∈ ℝm × n are given and X ∈ ℝm × n is to be determined, is called the Sylvester equation. It is of pedagogical interest because it includes as special cases several important linear equation problems: 1. linear system: Ax = c, 2. multiple right-hand side linear system: AX = C, 3. matrix inversion: AX = I, 4. eigenvector corresponding to given eigenvalue b: (A − bI)x = 0, 5. commuting matrices: AX − XA = 0. The Sylvester equation arises in its full generality in various applications. For example, the equations [I−X0I] [A−C0B] [IX0I] =[AAX−XB−C0B] show that block-diagonalizing a block triangular matrix is equivalent to solving a Sylvester equation. The Sylvester equation can also be produced from finite difference discretization of a separable elliptic boundary value problem on a rectangular domain, where A and B represent application of a difference operator in the “y” and “x” directions, respectively [1059, 1991]. That (16.1) is merely a linear system is emphasized by writing it in the form ( In ⊗A− BT ⊗ Im )vec (X) =vec (C), 16.2 where A ⊗ B := (aijB) is a Kronecker product and the vec operator stacks the columns of a matrix into one long vector. For future reference, we note the useful relation vec (AXB) = ( BT ⊕ A) vec (X). (See Horn and Johnson [637, 1991, Chap. 4] for a detailed presentation of properties of the Kronecker product and the vec operator.) The mn × mn coefficient matrix in (16.2) has a very special structure, illustrated for n = 3 by [A− b11 I− b21 I− b31 I− b12 IA− b22 I− b32 I− b13 I− b23 IA− b33 I] . In dealing with the Sylvester equation it is vital to consider this structure and not treat (16.2) as a general linear system. Since the mn eigenvalues of In ⊗ A − BT ⊗ Im are given by λij ( In ⊗A− BT ⊗ Im )= λi (A) − λj (B), i=1:m,j=1:n, 16.3 the Sylvester equation is nonsingular precisely when A and B have no eigenvalues in common. }
+}

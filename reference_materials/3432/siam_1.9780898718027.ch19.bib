@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch19,
+
+title = {19. QR Factorization},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {353-380},
+doi = {10.1137/1.9780898718027.ch19},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch19},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch19},
+    abstract = { Any orthogonal matrix can be written as the product of reflector matrices. Thus the class of reflections is rich enough for all occasions and yet each member is characterized by a single vector which serves to describe its mirror. — BERESFORD N. PARLETT, The Symmetric Eigenvalue Problem (1998) A key observation for understanding the numerical properties of the modified Gram-Schmidt algorithm is that it can be interpreted as Householder QR factorization applied to the matrix A augmented with a square matrix of zero elements on top. These two algorithms are not only mathematically … but also numerically equivalent. This key observation, apparently by Charles Sheffield, was relayed to the author in 1968 by Gene Golub . — ÅKE BJöRCK, Numerics of Gram-Schmidt Orthogonalization (1994) The great stability of unitary transformations in numerical analysis springs from the fact that both the ℓ2-norm and the Frobenius norm are unitarily invariant. This means in practice that even when rounding errors are made, no substantial growth takes place in the norms of the successive transformed matrices. — J. H. WILKINSON, Error Analysis of Transformations Based on the Use of Matrices of the Form I − 2wwH (1965) The QR factorization is a versatile computational tool that finds use in linear equation, least squares and eigenvalue problems. It can be computed in three main ways. The Gram-Schmidt process, which sequentially orthogonalizes the columns of A, is the oldest method and is described in most linear algebra textbooks. Givens transformations are preferred when A has a special sparsity structure, such as band or Hessenberg structure. Householder transformations provide the most generally useful way to compute the QR factorization. We explore the numerical properties of all three methods in this chapter. We also examine the use of iterative refinement on a linear system solved with a QR factorization and consider the inherent sensitivity of the QR factorization. 19.1. Householder Transformations A Householder matrix (also known as a Householder transformation, or Householder reflector) is a matrix of the form P=I− 2 υT υ υ υT ,0≠υ ∈ ℝn . It enjoys the properties of symmetry and orthogonality, and, consequently, is involutary (P2 = I). The application of P to a vector yields Px=x− ( 2 υT x υT υ ) υ. Figure 19.1 illustrates this formula and makes it clear why P is sometimes called a Householder reflector: it reflects x about the hyperplane span(v)⊥. Householder matrices are powerful tools for introducing zeros into vectors. Consider the question, “Given x and y can we find a Householder matrix P such that Px = y?” Since P is orthogonal we clearly require that ‖x‖2 = ‖y‖2. Now Px=y ⇔x−2 ( υT x υT υ ) υ=y, and this last equation has the form αυ = x − y for some α. But P is independent of the scaling of υ, so we can set α = 1. With υ = x − y we have υT υ= xT x+ yT y=2 xT y, and, since xTx = yTy, υT x= xT x− yT x= 1 2 υT υ. Therefore Px=x−υ=y, as required. We conclude that, provided ‖x‖2 = ‖y‖2, we can find a Householder matrix P such that Px = y. (Strictly speaking, we have to exclude the case x = y, which would require υ = 0, making P undefined.) }
+}

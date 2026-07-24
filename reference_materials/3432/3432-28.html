@@ -1,0 +1,463 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "https://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="https://www.w3.org/1999/xhtml/"><!-- InstanceBegin template="/Templates/mathsAlgebra.dwt" codeOutsideHTMLIsLocked="false" --><head>
+<!-- InstanceBeginEditable name="doctitle" --> 
+<title>Maths - SLERP - Martin Baker</title>
+<script type="text/javascript"><!--
+function slerp(input)
+{
+	input.status.value = "working";
+ 	var cosHalfTheta = input.aw.value * input.bw.value
+	  + input.ax.value * input.bx.value
+	  + input.ay.value * input.by.value
+	  + input.az.value * input.bz.value;
+	// if qa=qb or qa=-qb then theta = 0 and we can return qa
+	if (Math.abs(cosHalfTheta) >= 1.0){
+		input.qw.value = input.aw.value;
+		input.qx.value = input.ax.value;
+		input.qy.value = input.ay.value;
+		input.qz.value = input.az.value;
+		input.status.value = "a=b";
+		return;
+	}
+	// Calculate temporary values.
+	var halfTheta = Math.acos(cosHalfTheta);
+	var sinHalfTheta = Math.sqrt(1.0 - cosHalfTheta*cosHalfTheta);
+	// if theta = 180 degrees then result is not fully defined
+	// we could rotate around any axis normal to qa or qb
+	if (Math.abs(sinHalfTheta) < 0.001){ // fabs is floating point absolute
+		input.qw.value = (input.aw.value * 0.5 + input.bw.value * 0.5);
+		input.qx.value = (input.ax.value * 0.5 + input.bx.value * 0.5);
+		input.qy.value = (input.ay.value * 0.5 + input.by.value * 0.5);
+		input.qz.value = (input.az.value * 0.5 + input.bz.value * 0.5);
+		input.status.value = "theta=180";
+		return;
+	}
+	var ratioA = Math.sin((1.0 - input.t.value) * halfTheta) / sinHalfTheta;
+	var ratioB = Math.sin(input.t.value * halfTheta) / sinHalfTheta; 
+	//calculate Quaternion.
+	input.qw.value = (input.aw.value * ratioA + input.bw.value * ratioB);
+	input.qx.value = (input.ax.value * ratioA + input.bx.value * ratioB);
+	input.qy.value = (input.ay.value * ratioA + input.by.value * ratioB);
+	input.qz.value = (input.az.value * ratioA + input.bz.value * ratioB);
+	input.status.value = "done";
+}
+//--></script>
+<!-- InstanceEndEditable -->
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<!-- InstanceBeginEditable name="keywords" -->
+<meta name="Keywords" content="maths math rotation orthogonal quaternions slerp interpolation">
+<!-- InstanceEndEditable -->
+<link href="3432-28_files/navigation_uHRK.css" rel="stylesheet" type="text/css">
+<!-- InstanceParam name="books" type="boolean" value="true" -->
+<style type="text/css">
+<!--
+.style1 {font-weight: bold}
+-->
+</style>
+
+</head>
+<body>
+<nav>
+<table width="644" border="0" cellspacing="0" id="nav">
+  <tbody><tr id="nav">
+  <td id="algebraNavx"><a href="https://www.euclideanspace.com/maths/algebra/index.htm" title="algebra" target="_top">algebra</a></td>
+  <td id="geomNav"><a href="https://www.euclideanspace.com/maths/geometry/index.htm" title="geometry" target="_top">geometry</a></td>
+  <td id="topoNav"><a href="https://www.euclideanspace.com/maths/topology/index.htm" title="topology" target="_top">topology</a></td>
+  <td id="abstNav"><a href="https://www.euclideanspace.com/maths/discrete/index.htm" title="abstract maths" target="_top">abstract</a></td>
+  <td id="mathNav"><a href="https://www.euclideanspace.com/maths/proof/index.htm" title="mathematical proofs" target="_top">proofs</a></td>
+  <td id="softwareNav"><a href="https://www.euclideanspace.com/software/index.htm" title="computing mathematical structures" target="_top">computing</a></td>
+  <td id="artNav"><a href="https://www.euclideanspace.com/applications/index.htm" title="related topics" target="_top">applications</a></td>
+  <td id="copyrightNav"><a href="https://www.euclideanspace.com/site/index.htm" title="about site" target="_top">about site</a></td>
+  </tr>
+</tbody></table>
+<!-- InstanceBeginEditable name="banner" -->
+<pre id="nav"><img id="nav" src="3432-28_files/banner16_uHRK.gif"></pre>
+<table width="644" border="0" cellpadding="0" cellspacing="0" id="nav">
+<tbody><tr id="nav">
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/index.htm" title="index" target="_top"><img src="3432-28_files/upMath_uHRK.png" alt="up"></a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/equations/index.htm" title="equations" target="_top">equations</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/multidimensional/index.htm" title="multi-dimensional algebra" target="_top">multi-dim</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/vectors/index.htm" title="vector algbra" target="_top">vector</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/matrix/index.htm" title="matrix algbra" target="_top">matrix</a></td>
+<td id="algebraNavx"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/index.htm" title="complex numbers and quaternions" target="_top">complex</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/clifford/index.htm" title="clifford / goemetric algebra" target="_top">clifford</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/universal/index.htm" title="universal algebra" target="_top">universal</a></td>
+</tr></tbody></table>
+<pre id="nav"><img id="nav" src="3432-28_files/banner63_uHRK.gif"></pre>
+<table width="644" border="0" cellpadding="0" cellspacing="0" id="nav">
+<tbody><tr id="nav">
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/index.htm" title="index" target="_top"><img src="3432-28_files/upMath_uHRK.png" alt="up"></a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/complex/index.htm" title="complex numbers" target="_top">complex</a></td>
+<td id="algebraNavx"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/index.htm" title="quaternions" target="_top">quaternions</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/octonion/index.htm" title="octonion" target="_top">octonion</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/other/index.htm" title="other algebras related to complex numbers" target="_top">other</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/hypercomplex/index.htm" title="generating hypercomplex algebras" target="_top">hypercomplex</a></td>
+<td id="algebraNave">&nbsp;</td>
+<td id="algebraNave">&nbsp;</td>
+</tr>
+</tbody></table><pre id="nav"><img id="nav" src="3432-28_files/banner36_uHRK.gif"></pre>
+<table width="644" border="0" cellpadding="0" cellspacing="0" id="nav">
+<tbody><tr id="nav">
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/index.htm" title="index" target="_top"><img src="3432-28_files/upMath_uHRK.png" alt="up"></a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm" title="transforms" target="_top"><br>transforms</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/arithmetic/index.htm" title="quaternion arithmetic" target="_top"><br>arithmetic</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/functions/index.htm" title="functions" target="_top"><br>functions</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/geometric/index.htm" title="geometric properties" target="_top"><br>geometric</a></td>
+<td id="algebraNavx"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/index.htm" title="SLERP" target="_top"><br>SLERP</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/code/index.htm" title="code" target="_top"><br>code</a></td>
+<td id="algebraNav"><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/notations/index.htm" title="alternative notations" target="_top">alternative notations</a></td>
+</tr>
+</tbody></table><!-- InstanceEndEditable -->
+</nav>
+<h1><!-- InstanceBeginEditable name="title" -->Maths - Quaternion Interpolation (SLERP)<!-- InstanceEndEditable --></h1>
+<div id="topContent">
+<!-- InstanceBeginEditable name="contents" -->
+<div id="main"> 
+<p>How do we interpolate between two quaternions representing rotations? For instance 
+  we may want to fill in some gaps between calculated rotations to make an animation 
+  less jerky.</p>
+<p><img src="3432-28_files/arc_uHRK.gif" width="305" height="223"></p>
+<p>if q is the quaternion which 
+  rotates from qa to qb then:<br>
+  qb = qa * q<br>
+  <br>
+  multiplying both sides by conj(qa) gives:<br>
+  q = conj(qa) * qb<br>
+  <br>
+  The real part of a multiplication is:<br>
+  real((qa.w + i qa.x + j qa.y + k qa.z)*(qb.w + i qb.x + j qb.y + k qb.z)) = 
+  qa.w * qb.w - qa.x*qb.x - qa.y*qb.y- qa.z*qb.z<br>
+  <br>
+  So using the conjugate of qa gives:<br>
+  real((qa.w - i qa.x - j qa.y - k qa.z)*(qb.w + i qb.x + j qb.y + k qb.z)) = 
+  qa.w*qb.w + qa.x*qb.x + qa.y*qb.y+ qa.z*qb.z<br>
+  <br>
+  real(q) = cos(t/2)<br>
+  <br>
+  Therefore<br>
+cos(theta/2) = qa.w*qb.w + qa.x*qb.x + qa.y*qb.y+ qa.z*qb.z</p>
+<p>(It is interesting that this looks like a vector dot product).</p>
+<p>&nbsp;</p>
+<p>So what is the equation that allows us to calculate the interpolated quaternion?</p>
+<p>There seems to be a paper about this which everyone quotes: [Ken Shoemake, 
+  Animating rotation with quaternion curves in SIGGraph '85 proceedings]. However 
+  this seems to require membership so I have not read this.</p>
+<p><img src="3432-28_files/formula_uHRK.gif" width="310" height="64"></p>
+<p>where:</p>
+<ul>
+  <li>qm = interpolated quaternion</li>
+  <li>qa = quaternion a (first quaternion to be interpolated between)</li>
+  <li>qb = quaternion b (second quaternion to be interpolated between)</li>
+  <li>t = a scalar between 0.0 (at qa) and 1.0 (at qb)</li>
+  <li>θ is half the angle between qa 
+    and qb</li>
+</ul>
+<p>How do we convert from cos(theta) to sin(theta)</p>
+<p>is it best to use:</p>
+<p>sin(theta) = sin(acos(cos(theta)))</p>
+<p>or</p>
+<p>sin(theta) = sqrt(1-cos(theta)<sup>2</sup>)</p>
+<table width="100%" border="1">
+  <tbody><tr> 
+    <td bgcolor="#FFFF99"> 
+      <h4>Example 2</h4>
+      <p>Let us take the 90 degree rotation in <a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm">example 
+        1 on transforms page</a> and calculate two interpolated points. </p>
+      <p><img src="3432-28_files/example2_uHRK.gif" width="264" height="265"></p>
+      <h3>First method: axis-angle</h3>
+      <p>Since the angles are simple we can calculate the result from q = cos(t/2) 
+        + i ( x1 * sin(t/2)) + j (y1 * sin(t/2)) + k ( z1 * sin(t/2))</p>
+      <p>So the quaternions represented the two interpolated points are:</p>
+      <p>q1 = 0.966 + i 0 + j 0 + k 0.259</p>
+      <p>q2 = 0.866 + i 0 + j 0 + k 0.5</p>
+      <h3>Second method: using SLERP</h3>
+      <p>Try spherical interpolating between the rotated value (0.7071 + k 0.7071) 
+        and the non-rotated, identity, value (1).</p>
+      <p>theta = 90 degrees</p>
+      <p>using the above method cos(theta) = 0.7071 therefore theta = 45 degrees</p>
+      <p>sin(theta) = 1</p>
+      <p>for q1 t = 0.33, for q2 t = 0.66</p>
+      <p>q1 = ((1) sin ((1-t) theta) + (0.7071 + k 0.7071) sin (t theta)) / sin(theta 
+        )</p>
+      <p>= (sin(30 degrees) + (0.7071 + k 0.7071) sin (15 degrees)) / sin( 45 
+        degrees)</p>
+      <p>q1 =( 0.5 + 0.7071 * 0.2588 + k (0.7071 * 0.2588))/0.7071</p>
+      <p>q1 = (0.68299748 + k 0.18299748 )/0.7071</p>
+      <p>q1 = 0.9659 + k 0.2588 </p>
+      <p>This is theresult for q1, now calculate the result for q2,</p>
+      <p>q2 = ((1) sin ((1-t) theta) + (0.7071 + k 0.7071) sin (t theta)) / sin(theta 
+        )</p>
+      <p>= ((1) sin(15 degrees) + (0.7071 + k 0.7071) sin (30 degrees)) / sin( 
+        45 degrees)</p>
+      <p>q2 = (0.2588 + 0.7071* 0.5 + k (0.7071* 0.5))/0.7071</p>
+      <p>q2 = (0.61235 + k 0.35355) /0.7071</p>
+      <p>q2 = 0.866 + k 0.5</p>
+      <p>this gives gives the same answer, but only if theta = angle between quaternions 
+        /2 </p>    </td>
+  </tr>
+</tbody></table>
+</div>
+<h2>code</h2>
+<p>The following code generates a quaternion between two given 
+quaternions in proportion to the variable t, if t=0 then qm=qa, if t=1 
+then qm=qb, if t is between them then qm will interpolate between them. </p>
+<p>This is based on code sent to me by <a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/slerpForum.htm">Anthony(Prospero)</a>. Also thanks to Josh for sending a number of improvements. </p>
+<pre>quat slerp(quat qa, quat qb, double t) {
+	// quaternion to return
+	quat qm = new quat();
+	// Calculate angle between them.
+	double cosHalfTheta = qa.w * qb.w + qa.x * qb.x + qa.y * qb.y + qa.z * qb.z;
+	// if qa=qb or qa=-qb then theta = 0 and we can return qa
+	if (abs(cosHalfTheta) &gt;= 1.0){
+		qm.w = qa.w;qm.x = qa.x;qm.y = qa.y;qm.z = qa.z;
+		return qm;
+	}
+	// Calculate temporary values.
+	double halfTheta = acos(cosHalfTheta);
+	double sinHalfTheta = sqrt(1.0 - cosHalfTheta*cosHalfTheta);
+	// if theta = 180 degrees then result is not fully defined
+	// we could rotate around any axis normal to qa or qb
+	if (fabs(sinHalfTheta) &lt; 0.001){ // fabs is floating point absolute
+		qm.w = (qa.w * 0.5 + qb.w * 0.5);
+		qm.x = (qa.x * 0.5 + qb.x * 0.5);
+		qm.y = (qa.y * 0.5 + qb.y * 0.5);
+		qm.z = (qa.z * 0.5 + qb.z * 0.5);
+		return qm;
+	}
+	double ratioA = sin((1 - t) * halfTheta) / sinHalfTheta;
+	double ratioB = sin(t * halfTheta) / sinHalfTheta; 
+	//calculate Quaternion.
+	qm.w = (qa.w * ratioA + qb.w * ratioB);
+	qm.x = (qa.x * ratioA + qb.x * ratioB);
+	qm.y = (qa.y * ratioA + qb.y * ratioB);
+	qm.z = (qa.z * ratioA + qb.z * ratioB);
+	return qm;
+}
+</pre>
+When theta is 180 degrees the result is undefined because there is no 
+shortest direction to rotate, I don't think this situation is handled 
+correctly yet, it would be better if we choose some arbitrary axis that 
+is normal to qa or qb, I would appreciate any ideas for the best way to 
+do this.
+<h2>Other Issues </h2>
+<p>There is an easy way to interpolate a rotation into 2 equal halves, <a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/halfAngle.htm">as 
+  explained here</a>.</p>
+<h4>Inverting Quaternions</h4>
+<p>Thank you to Martin aus Chemnitz for letting me know about this. </p>
+<p>You may need to add the following code after cosHalfTheta is calculated. </p>
+<pre>if (cosHalfTheta &lt; 0) {
+  qb.w = -qb.w; qb.x = -qb.x; qb.y = -qb.y; qb.z = qb.z;
+  cosHalfTheta = -cosHalfTheta;
+}</pre>
+<p>Since (w,x,y,z) and (-w,-x,-y,-z) represent the same rotation we 
+should make sure that are not sensitive to whether the positive of 
+inverted form of the quaternion are used. Since:</p>
+<pre>cosHalfTheta = qa.w * qb.w + qa.x * qb.x + qa.y * qb.y + qa.z * qb.z</pre>
+<p>inverting either of the quaternions (qa or qb) will invert cosHalfTheta, but then we call acos, according to <a href="https://www.euclideanspace.com/maths/geometry/trig/inverse/index.htm">this page</a>.<br>
+  acos always returns a value between 0 and 90 degrees (0 and Pi/2) for 
+ positive inputs and 90 to 180 degrees (Pi/2 to Pi) for negative 
+inputs.&nbsp;<br>
+  But sinHalfTheta will be the same if it is inverted or not.&nbsp;<br>
+  &nbsp;<br>
+  We want to return the shortest angle, i.e.&nbsp;<br>
+  &nbsp;<br>
+  0 &gt; halfTheta &lt; 90deg&nbsp;<br>
+  0 &gt; theta &lt; 180deg&nbsp;<br>
+  therefore we need cosHalfTheta to be positive.&nbsp;<br>
+  but should we invert qa or qb? Since they represent the same rotation, I guess it doesn't matter which we invert.&nbsp;<br>
+  &nbsp;<br>
+  I think there is another way of looking at this. If qa is our starting
+  orientation (say along the x axis) and we start to rotate qb away from
+  it, cosHalfTheta will start at 1.0 and when we get to 180 degrees then
+  cosHalfTheta will be zero, if we rotate beyond 180 degrees then  
+cosHalfTheta will become negative and when we have rotated by 360  
+degrees then cosHalfTheta will be -1.0. cosHalfTheta wont be back to  
+its original value until qb has rotated through 720 degrees.&nbsp;<br>
+  So we may want this to operate either way, if qb has rotated 360  
+degrees we may want to interpolate through a complete rotation or we  
+may want to treat it as 0 degrees and so all the interpolated rotations 
+ will be zero.&nbsp;<br>
+  &nbsp;<br>
+  It might be best if this modification is optional? </p>
+<h2>Alternative Methods - such as nlerp</h2>
+<p>There is a very good article on <a href="http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/">this web site</a>.  (thanks very much to ovillellas for letting me know about this).</p>
+<h2>SLERP Calculator</h2>
+<p>The following calculator allows you to interpolate between two 
+quaternions using the SLERP algorithm. Enter the values into the top two
+ quaternion and t then press SLERP to display the result in the bottom 
+quaternion: </p>
+<form>
+  <table border="0">
+    <tbody><tr>
+      <td><table border="1">
+        <tbody><tr>
+          <td>real</td>
+          <td>i</td>
+          <td>j</td>
+          <td>k</td>
+        </tr>
+        <tr>
+          <td><input name="aw" type="text" value="1"></td>
+          <td><input name="ax" type="text" value="0"></td>
+          <td><input name="ay" type="text" value="0"></td>
+          <td><input name="az" type="text" value="0"></td>
+        </tr>
+      </tbody></table></td>
+    </tr>
+    <tr>
+      <td><table border="1">
+        <tbody><tr>
+          <td>real</td>
+          <td>i</td>
+          <td>j</td>
+          <td>k</td>
+        </tr>
+        <tr>
+          <td><input name="bw" type="text" value="1"></td>
+          <td><input name="bx" type="text" value="0"></td>
+          <td><input name="by" type="text" value="0"></td>
+          <td><input name="bz" type="text" value="0"></td>
+        </tr>
+      </tbody></table></td>
+    </tr>
+    <tr>
+      <td><div align="center">
+	  t=
+        <input name="t" type="text" value="0">
+        <input type="button" name="SLERP" id="SLERP" value="slerp" onclick="slerp(this.form)">
+      </div></td>
+    </tr>
+    <tr>
+      <td><table border="1">
+        <tbody><tr>
+          <td>real</td>
+          <td>i</td>
+          <td>j</td>
+          <td>k</td>
+        </tr>
+        <tr>
+          <td><input name="qw" type="text" value="1"></td>
+          <td><input name="qx" type="text" value="0"></td>
+          <td><input name="qy" type="text" value="0"></td>
+          <td><input name="qz" type="text" value="0"></td>
+        </tr>
+      </tbody></table></td>
+    </tr>
+	<tr>
+          <td>status:<input name="status" type="text" value="."></td>
+      </tr>
+  </tbody></table>
+</form>
+<!-- InstanceEndEditable -->
+<!-- InstanceBeginEditable name="sidebar" -->
+  <div id="sidebar">
+<h3><a href="https://www.euclideanspace.com/" alt="home" target="_top">EuclideanSpace</a></h3>
+  <p><a href="https://www.euclideanspace.com/" target="_top" class="style2" alt="home">home</a></p><!-- #BeginLibraryItem "/Library/bobMathTransforms.lbi" -->
+	<h2 class="bobMathHeader">Transforms </h2>
+<aside>
+	<div class="sidebarBlock"> 
+	  <p><img src="3432-28_files/velocityfield_uHRK.gif" alt="rotate" width="158" height="153"></p>
+	  <p>A transform maps every point in a vector space to a possibly different point.</p>
+	  <p><img src="3432-28_files/square_uHRK.png" alt="square" width="250" height="229"> </p>
+	  <p>When transforming a computer model we transform all the vertices.</p>
+	  <p>To model this using mathematics we can use <a href="https://www.euclideanspace.com/maths/algebra/matrix/transforms/index.htm">matrices</a>, <a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm">quaternions</a> or other algebras which can represent multidimensional linear equations.  </p>
+	  <p><a href="https://www.euclideanspace.com/maths/geometry/transform/index.htm">This page</a> explains this. </p>
+	</div>
+</aside><!-- #EndLibraryItem --><p><a href="https://www.euclideanspace.com/maths/discrete/groups/lie/spinor/index.htm"><img src="3432-28_files/logo150_uHRK.jpg" width="216" height="150" border="0"></a></p>
+<!-- #BeginLibraryItem "/Library/bobMathSpinor.lbi" -->
+	<h2 class="bobMathHeader">Spinor</h2>
+	<aside>
+	<div class="sidebarBlock"> 
+	  <p>A spinor represents a transform where a rotation of 360° inverts 
+the object. To restore the object to its original orientation we need to
+ rotate by 720°.</p>
+	  <p><img src="3432-28_files/walk360degSmall_uHRK.gif" alt="spinor" width="467" height="200"></p>
+	  <p><a href="https://www.euclideanspace.com/maths/discrete/groups/lie/spinor/index.htm">This page</a> explains this. </p>
+	</div>
+</aside><!-- #EndLibraryItem --><!-- #BeginLibraryItem "/Library/bobMathGoogleAd.lbi" --> <!-- #EndLibraryItem --><!-- #BeginLibraryItem "/Library/bobMathNoelHughes.lbi" -->
+	<h2 class="bobMathHeader">Quaternion Papers</h2>
+<aside>
+	<div class="sidebarBlock"> 
+	  <p>Noel Hughes has kindly sent me some papers with quaternion 
+training and how this can be applied to spacecraft based on his work in 
+that area. He enjoys challenges, mathematical, operational, 
+developmental or whatever. He is also available for consulting.</p>
+	  <p><img src="3432-28_files/nhughes_uHRK.gif" alt="nhughes" width="183" height="16"></p>
+	  <p>His papers can be downloaded here:</p>
+	  <ul>
+	    <li>	    Quaternion introduction and application to spacecraft: <a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/geometric/quaternionTraining001.pdf">quaternionTraining001.pdf</a></li>
+	    <li>Quaternion interpolation: <a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/nhughes/ThoughtsOnQuaternion.pdf">ThoughtsOnQuaternion.pdf</a></li>
+        <li>Quaternion to Euler conversion: <a href="https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/quat_2_euler_paper_ver2-1.pdf">quat_2_euler_paper_ver2-1.pdf</a></li>
+	    <li>Quaternion to DCM conversion: <a href="https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/quat2DCM.pdf">quat2DCM.pdf</a></li>
+	    <li>Euler to  Quaternion conversion: <a href="https://www.euclideanspace.com/maths/geometry/rotations/conversions/eulerToQuaternion/Euler%20to%20quat.pdf">Euler to quat.pdf</a></li>
+	    <li>DCM to  Quaternion conversion: <a href="https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/DCM2quat.pdf">DCM2quat.pdf</a></li>
+	  </ul>
+    </div>
+</aside><!-- #EndLibraryItem --><p>&nbsp;</p>
+</div>
+<!-- InstanceEndEditable -->
+</div>
+
+<hr>
+<table width="100%" border="0">
+  <tbody><tr bgcolor="#FFCC00"> 
+    <td colspan="2"> 
+      <div align="center"><b>metadata block</b></div>    </td>
+  </tr>
+  <tr bgcolor="#FFCC00" bordercolor="#FF0000"> 
+    <td colspan="2"></td>
+  </tr>
+  <tr bgcolor="#FFCC00" bordercolor="#FF0000"> 
+    <td><b>see also:</b></td>
+    <td> <!-- InstanceBeginEditable name="also" --> 
+      <p>other sites:</p>
+      <ul>
+        <li><a href="http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/">Alternatives to SLERP</a>. </li>
+      </ul>
+      <!-- InstanceEndEditable --></td>
+  </tr>
+  <tr bgcolor="#FFCC00" bordercolor="#FF0000"> 
+    <td><b>Correspondence about this page</b></td>
+    <td><!-- InstanceBeginEditable name="corr" -->
+      <ul>
+        <li><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/halfAngle.htm">minorlogic</a></li>
+        <li><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/forum.htm">forum</a></li>
+        <li><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/peter.htm">Peter</a></li>
+        <li><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/slerpForum.htm">forum discussion 2</a></li>
+      </ul>
+      <!-- InstanceEndEditable --></td>
+  </tr>
+  <tr bgcolor="#FFCC00" bordercolor="#FF0000"> 
+    <td> 
+      <p><b>Book Shop - <!-- InstanceBeginEditable name="fread" --><a href="https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/books.htm" target="_top">Further reading</a><!-- InstanceEndEditable -->.</b></p>
+      <p>Where I can, I have put links to Amazon for books that are relevant to 
+        the subject, click on the appropriate country flag to get more details 
+        of the book or to buy it from them.</p>    </td>
+    <td><!-- InstanceBeginEditable name="books" --> 
+      <p>&nbsp;</p>
+      <!-- #BeginLibraryItem "/Library/quaternionsandrotationsequences.lbi" --> 
+<p><a href="https://www.amazon.com/exec/obidos/ASIN/0691058725/martinb-20" target="_top"><img src="3432-28_files/0691058725.02.TZZZZZZZ_uHRK.jpg" border="0" alt="cover" hspace="3" vspace="3" width="69" height="90"></a> 
+  <a href="https://www.amazon.com/exec/obidos/ASIN/0691058725/martinb-20" target="_top"><img src="3432-28_files/us50_uHRK.gif" alt="us" width="30" height="19" border="0"></a> 
+  <a href="https://www.amazon.co.uk/exec/obidos/ASIN/0691058725/martinb-21" target="_top"><img src="3432-28_files/amazon-uk-flag-small_uHRK.gif" alt="uk" width="30" height="19" border="0"></a> 
+  <a href="https://www.amazon.de/exec/obidos/ASIN/0691058725/martinb0b-21" target="_top"><img src="3432-28_files/amazon-de-flag-small_uHRK.gif" alt="de" width="30" height="19" border="0"></a> 
+  <a href="https://www.amazon.co.jp/exec/obidos/ASIN/0691058725/martinb-22" target="_top"><img src="3432-28_files/amazon-jp-flag-small_uHRK.gif" alt="jp" width="30" height="19" border="0"></a> 
+  <a href="https://www.amazon.fr/exec/obidos/ASIN/0691058725/martinb06-21" target="_top"><img src="3432-28_files/amazon-fr-flag-small_uHRK.gif" alt="fr" width="30" height="19" border="0"></a> 
+  <a href="https://www.amazon.ca/exec/obidos/ASIN/0691058725/martinb0e-20"><img src="3432-28_files/ca-flag_uHRK.gif" alt="ca" width="30" height="19" border="0"></a> 
+  Quaternions and Rotation Sequences. </p>
+
+<!-- #EndLibraryItem --><!-- InstanceEndEditable --></td>
+  </tr>
+  <tr bgcolor="#FFCC00" bordercolor="#FF0000"> 
+    <td> 
+      <p><span class="style1"><a href="https://www.euclideanspace.com/maths/standards/notation/index.htm">Terminology</a> and <a href="https://www.euclideanspace.com/maths/standards/notation/index.htm">Notation</a></span></p>
+      <p>Specific to this page here:</p>    </td>
+    <td> <!-- InstanceBeginEditable name="terminolgy" --> 
+      <p>&nbsp;</p>
+      <!-- InstanceEndEditable --></td>
+  </tr>
+</tbody></table>
+<p>This site may have errors. Don't use for critical systems.</p>
+<p>Copyright (c) 1998-2026 Martin John Baker - All rights reserved - <a href="https://www.euclideanspace.com/site/privacy/index.htm">privacy policy</a>.</p>
+
+
+</body><!-- InstanceEnd --></html>

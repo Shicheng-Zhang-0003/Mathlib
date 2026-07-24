@@ -1,0 +1,319 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<!--Converted with LaTeX2HTML 98.1 release (February 19th, 1998)
+originally by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<html><head>
+<title>Runge-Kutta Methods</title>
+<meta name="description" content="Runge-Kutta Methods">
+<meta name="keywords" content="lec24">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<link rel="STYLESHEET" href="3432-30_files/lec24_mgJm.css">
+<link rel="next" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">
+<link rel="previous" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<link rel="up" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<link rel="next" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">
+</head>
+<body>
+<!--Navigation Panel-->
+<a name="tex2html65" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">
+<img width="37" height="24" align="BOTTOM" border="0" alt="next" src="3432-30_files/next_motif_mgJm.gif"></a> 
+<a name="tex2html63" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<img width="26" height="24" align="BOTTOM" border="0" alt="up" src="3432-30_files/up_motif_mgJm.gif"></a> 
+<a name="tex2html57" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<img width="63" height="24" align="BOTTOM" border="0" alt="previous" src="3432-30_files/previous_motif_mgJm.gif"></a>   
+<br>
+<b> Next:</b> <a name="tex2html66" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">Adams Methods</a>
+<b> Up:</b> <a name="tex2html64" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">Higher Order Methods</a>
+<b> Previous:</b> <a name="tex2html58" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">Higher Order Methods</a>
+<br>
+<br>
+<!--End of Navigation Panel-->
+
+<h2><a name="SECTION00031000000000000000">
+Runge-Kutta Methods</a>
+</h2> 
+In the forward Euler method, we used the information on the slope or the derivative of <i>y</i> 
+at the given time step to extrapolate the solution to the next time-step. The LTE for the 
+method is O(<i>h</i><sup>2</sup>), resulting in a first order numerical technique. Runge-Kutta methods 
+are a class of methods which judiciously uses the information on the 'slope' at more than one point 
+to extrapolate the solution to the future time step. Let's discuss first the derivation of 
+the <em>second</em> order RK method where the LTE is O(<i>h</i><sup>3</sup>).  
+
+<p>
+Given the IVP of Eq. 6, and a time step <i>h</i>, and the solution <i>y</i><sub><i>n</i></sub> at the <i>n</i>th time step, 
+let's say that we wish to compute <i>y</i><sub><i>n</i>+1</sub> in the following fashion:
+<br>
+</p><div align="CENTER">
+
+<!-- MATH: \begin{eqnarray}
+&& k_1 = hf(y_n,t_n)\nonumber \\
+&& k_2 = hf(y_n+\beta k_1, t_n + \alpha h) \nonumber \\
+&& y_{n+1} = y_n + ak_1 + bk_2,
+\end{eqnarray} -->
+
+<table align="CENTER" cellpadding="0" width="100%">
+<tbody><tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><i>k</i><sub>1</sub> = <i>hf</i>(<i>y</i><sub><i>n</i></sub>,<i>t</i><sub><i>n</i></sub>)</td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><img width="224" height="37" align="MIDDLE" border="0" src="3432-30_files/img33_mgJm.gif" alt="$\displaystyle k_2 = hf(y_n+\beta k_1, t_n + \alpha h)$"></td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><i>y</i><sub><i>n</i>+1</sub> = <i>y</i><sub><i>n</i></sub> + <i>ak</i><sub>1</sub> + <i>bk</i><sub>2</sub>,</td>
+<td width="10" align="RIGHT">
+(12)</td></tr>
+</tbody></table></div>
+<br clear="ALL"><p></p>
+where the constants <img width="17" height="17" align="BOTTOM" border="0" src="3432-30_files/img34_mgJm.gif" alt="$\alpha$">,
+<img width="16" height="34" align="MIDDLE" border="0" src="3432-30_files/img35_mgJm.gif" alt="$\beta$">,
+<i>a</i> and <i>b</i> have to be evaluated so that <em>the 
+resulting method has a LTE O(</em><i>h</i><sup>3</sup><em>)</em>. Note that if <i>k</i><sub>2</sub>=0 and <i>a</i>=1, then Eq. 13 reduces 
+to the forward Euler method.  
+
+<p>
+Now, let's write down the Taylor series expansion of <i>y</i> in the neighborhood of <i>t</i><sub><i>n</i></sub> correct to 
+the <i>h</i><sup>2</sup> term i.e., 
+<br></p><p></p>
+<div align="CENTER">
+
+<!-- MATH: \begin{equation}
+y(t_{n+1}) = y(t_n) + h \frac{dy}{dt}|_{t_n} + \frac {h^2}{2} \frac{d^2y}{dt^2}|_{t_n}  + {\mbox{O}}(h^3).
+\end{equation} -->
+
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap="nowrap"><img width="368" height="48" src="3432-30_files/img36_mgJm.gif" alt="\begin{displaymath}y(t_{n+1}) = y(t_n) + h \frac{dy}{dt}\vert _{t_n} + \frac {h^2}{2} \frac{d^2y}{dt^2}\vert _{t_n} + {\mbox{O}}(h^3).
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(13)</td></tr>
+</tbody></table>
+</div>
+<br clear="ALL"><p></p>
+However, we know from the IVP (Eq. 6)  that 
+
+<!-- MATH: $dy/dt  = f(y,t)$ -->
+<i>dy</i>/<i>dt</i>  = <i>f</i>(<i>y</i>,<i>t</i>) so that 
+<br><p></p>
+<div align="CENTER">
+
+<!-- MATH: \begin{equation}
+\frac{d^2y}{dt^2} = \frac{df(y,t)}{dt} = \frac{\partial f}{\partial t} + \frac{\partial f}{\partial y}\frac{dy}{dt} =
+\frac{\partial f}{\partial t} + f \frac{\partial f}{\partial y}.
+\end{equation} -->
+
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap="nowrap"><img width="354" height="52" src="3432-30_files/img37_mgJm.gif" alt="\begin{displaymath}\frac{d^2y}{dt^2} = \frac{df(y,t)}{dt} = \frac{\partial f}{\p...
+...rac{\partial f}{\partial t} + f \frac{\partial f}{\partial y}.
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(14)</td></tr>
+</tbody></table>
+</div>
+<br clear="ALL"><p></p>
+So from the above analysis, i.e., Eqs. 14 and 15, we get 
+<br><p></p>
+<div align="CENTER">
+
+<!-- MATH: \begin{equation}
+y_{n+1} = y_n + h f(y_n,t_n) + \frac{h^2}{2} \left[ \frac{\partial f}{\partial t} + f \frac{\partial f}{\partial y}\right](y_n,t_n)
++ {\mbox{O}}(h^3).
+
+\end{equation} -->
+
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap="nowrap"><img width="468" height="54" src="3432-30_files/img38_mgJm.gif" alt="\begin{displaymath}y_{n+1} = y_n + h f(y_n,t_n) + \frac{h^2}{2} \left[ \frac{\pa...
+...ac{\partial f}{\partial y}\right](y_n,t_n)
++ {\mbox{O}}(h^3).
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(15)</td></tr>
+</tbody></table>
+</div>
+<br clear="ALL"><p></p>
+However, the term <i>k</i><sub>2</sub> in the proposed RK method of Eq. 13 can be expanded correct to O(<i>h</i><sup>3</sup>) as 
+<br>
+<div align="CENTER">
+
+<!-- MATH: \begin{eqnarray}
+&& k_2 = hf(y_n+\beta k_1, t_n + \alpha h) \nonumber \\
+&& = h\left( f(y_n,t_n) + \alpha h\frac{\partial f}{\partial t} (y_n, t_n) + \beta k_1 \frac{\partial f}{\partial t} (y_n, t_n)\right)
++ {\mbox{O}}(h^3). 
+
+\end{eqnarray} -->
+
+<table align="CENTER" cellpadding="0" width="100%">
+<tbody><tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><img width="224" height="37" align="MIDDLE" border="0" src="3432-30_files/img33_mgJm.gif" alt="$\displaystyle k_2 = hf(y_n+\beta k_1, t_n + \alpha h)$"></td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><img width="471" height="65" align="MIDDLE" border="0" src="3432-30_files/img39_mgJm.gif" alt="$\displaystyle = h\left( f(y_n,t_n) + \alpha h\frac{\partial f}{\partial t} (y_n...
+... + \beta k_1 \frac{\partial f}{\partial t} (y_n, t_n)\right)
++ {\mbox{O}}(h^3).$"></td>
+<td width="10" align="RIGHT">
+(16)</td></tr>
+</tbody></table></div>
+<br clear="ALL"><p></p>
+Now, substituting for <i>k</i><sub>2</sub> from Eq. 17 in Eq. 13, we get                
+<br><p></p>
+<div align="CENTER">
+
+<!-- MATH: \begin{equation}
+y_{n+1} = y_n + (a+b) h f(y_n,t_n) + bh^2(\alpha \frac {\partial f}{\partial t} + \beta f
+\frac {\partial f}{\partial y})(y_n,t_n) + {\mbox{O}}(h^3).
+
+\end{equation} -->
+
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap="nowrap"><img width="541" height="50" src="3432-30_files/img40_mgJm.gif" alt="\begin{displaymath}y_{n+1} = y_n + (a+b) h f(y_n,t_n) + bh^2(\alpha \frac {\part...
+...f
+\frac {\partial f}{\partial y})(y_n,t_n) + {\mbox{O}}(h^3).
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(17)</td></tr>
+</tbody></table>
+</div>
+<br clear="ALL"><p></p>
+
+<p>
+Comparing the terms with identical coefficients in Eqs. 16 and 18 gives us the following system of equations to 
+determine the constants:
+<br>
+</p><div align="CENTER">
+
+<!-- MATH: \begin{eqnarray}
+&& a+b=1\nonumber \\
+&& \alpha b = \frac{1}{2} \nonumber \\
+&& \beta b = \frac{1}{2}.
+\end{eqnarray} -->
+
+<table align="CENTER" cellpadding="0" width="100%">
+<tbody><tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><i>a</i>+<i>b</i>=1</td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><img width="63" height="58" align="MIDDLE" border="0" src="3432-30_files/img41_mgJm.gif" alt="$\displaystyle \alpha b = \frac{1}{2}$"></td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><img width="68" height="58" align="MIDDLE" border="0" src="3432-30_files/img42_mgJm.gif" alt="$\displaystyle \beta b = \frac{1}{2}.$"></td>
+<td width="10" align="RIGHT">
+(18)</td></tr>
+</tbody></table></div>
+<br clear="ALL"><p></p>
+There are infinitely many choices of <i>a</i>, <i>b</i>, <img width="17" height="17" align="BOTTOM" border="0" src="3432-30_files/img34_mgJm.gif" alt="$\alpha$">
+and <img width="16" height="34" align="MIDDLE" border="0" src="3432-30_files/img35_mgJm.gif" alt="$\beta$">
+which satisfy Eq. 19, we can choose for instance
+
+<!-- MATH: $\alpha = \beta = 1$ -->
+<img width="88" height="34" align="MIDDLE" border="0" src="3432-30_files/img43_mgJm.gif" alt="$\alpha = \beta = 1$">
+and <i>a</i>=<i>b</i>=1/2. With this choice, we have the classical second order accurate Runge-Kutta 
+method (RK2) which is summarized as follows.  
+<br>
+<div align="CENTER">
+
+<!-- MATH: \begin{eqnarray}
+&& k_1 = hf(y_n,t_n)\nonumber \\
+&& k_2 = hf(y_n+k_1, t_n + h) \nonumber \\
+&& y_{n+1} = y_n + (k_1 + k_2)/2, \:\:\: {\mbox{Second Order Runge-Kutta Method (RK2).}}
+\end{eqnarray} -->
+
+<table align="CENTER" cellpadding="0" width="100%">
+<tbody><tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><i>k</i><sub>1</sub> = <i>hf</i>(<i>y</i><sub><i>n</i></sub>,<i>t</i><sub><i>n</i></sub>)</td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><i>k</i><sub>2</sub> = <i>hf</i>(<i>y</i><sub><i>n</i></sub>+<i>k</i><sub>1</sub>, <i>t</i><sub><i>n</i></sub> + <i>h</i>)</td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><img width="573" height="37" align="MIDDLE" border="0" src="3432-30_files/img44_mgJm.gif" alt="$\displaystyle y_{n+1} = y_n + (k_1 + k_2)/2, \:\:\: {\mbox{Second Order Runge-Kutta Method (RK2).}}$"></td>
+<td width="10" align="RIGHT">
+(19)</td></tr>
+</tbody></table></div>
+<br clear="ALL"><p></p> 
+
+<p>
+In a similar fashion Runge-Kutta methods of higher order can be developed. One of the most widely used methods for the 
+solution of IVPs is the <em>fourth order Runge-Kutta</em> (RK4) technique. The LTE of this method is order <i>h</i><sup>5</sup>. 
+The method is given below. 
+<br>
+</p><div align="CENTER">
+
+<!-- MATH: \begin{eqnarray}
+&& k_1 = hf(y_n,t_n)\nonumber \\
+&& k_2 = hf(y_n+k_1/2, t_n + h/2) \nonumber \\
+&& k_3 = hf(y_n+k_2/2, t_n + h/2) \:\: \: {\mbox{Fourth Order Runge-Kutta Method (RK4).}} \nonumber \\
+&& k_4 = h(y_n+k_3, t_n + h) \nonumber \\
+&& y_{n+1} = y_n + (k_1 + 2k_2 + 2k_3 + k_4)/6.
+\end{eqnarray} -->
+
+<table align="CENTER" cellpadding="0" width="100%">
+<tbody><tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><i>k</i><sub>1</sub> = <i>hf</i>(<i>y</i><sub><i>n</i></sub>,<i>t</i><sub><i>n</i></sub>)</td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><i>k</i><sub>2</sub> = <i>hf</i>(<i>y</i><sub><i>n</i></sub>+<i>k</i><sub>1</sub>/2, <i>t</i><sub><i>n</i></sub> + <i>h</i>/2)</td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><img width="603" height="37" align="MIDDLE" border="0" src="3432-30_files/img45_mgJm.gif" alt="$\displaystyle k_3 = hf(y_n+k_2/2, t_n + h/2) \:\: \: {\mbox{Fourth Order Runge-Kutta Method (RK4).}}$"></td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><i>k</i><sub>4</sub> = <i>h</i>(<i>y</i><sub><i>n</i></sub>+<i>k</i><sub>3</sub>, <i>t</i><sub><i>n</i></sub> + <i>h</i>)</td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><i>y</i><sub><i>n</i>+1</sub> = <i>y</i><sub><i>n</i></sub> + (<i>k</i><sub>1</sub> + 2<i>k</i><sub>2</sub> + 2<i>k</i><sub>3</sub> + <i>k</i><sub>4</sub>)/6.</td>
+<td width="10" align="RIGHT">
+(20)</td></tr>
+</tbody></table></div>
+<br clear="ALL"><p></p>
+Note that the RK methods are explicit techniques, hence they are only conditionally stable. 
+
+<p>
+</p><hr>
+<!--Navigation Panel-->
+<a name="tex2html65" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">
+<img width="37" height="24" align="BOTTOM" border="0" alt="next" src="3432-30_files/next_motif_mgJm.gif"></a> 
+<a name="tex2html63" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<img width="26" height="24" align="BOTTOM" border="0" alt="up" src="3432-30_files/up_motif_mgJm.gif"></a> 
+<a name="tex2html57" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<img width="63" height="24" align="BOTTOM" border="0" alt="previous" src="3432-30_files/previous_motif_mgJm.gif"></a>   
+<br>
+<b> Next:</b> <a name="tex2html66" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">Adams Methods</a>
+<b> Up:</b> <a name="tex2html64" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">Higher Order Methods</a>
+<b> Previous:</b> <a name="tex2html58" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">Higher Order Methods</a>
+<!--End of Navigation Panel-->
+<address>
+<i>Michael Zeltkevic</i>
+<br><i>1998-04-15</i>
+</address>
+
+
+</body></html>

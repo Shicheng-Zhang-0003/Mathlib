@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch21,
+
+title = {21. Underdetermined Systems},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {407-414},
+doi = {10.1137/1.9780898718027.ch21},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch21},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch21},
+    abstract = { I'm thinking of two numbers. Their average is 3. What are the numbers? — CLEVE B. MOLER, The World's Simplest Impossible Problem (1990) This problem arises in important algorithms used in mathematical programming … In these cases, B is usually very large and sparse and, because of storage difficulties, it is often uneconomical to store and access Q1 … Sometimes it has been thought that [the seminormal equations method] could be disastrously worse than [the Q method] … It is the purpose of this note to show that such algorithms are numerically quite satisfactory. — C. C. PAIGE, An Error Analysis of a Method for Solving Matrix Equations (1973) Having considered well-determined and over determined linear systems, we now turn to the remaining class of linear systems: those that are underdetermined. 21.1. Solution Methods Consider the underdetermined system Ax = b, where A ∈ ℝm × n with m ≤ n. The system can be analysed using a QR factorization AT =Q [R0] , 21.1 where Q ∈ ℝn × n is orthogonal and R ∈ ℝm × m is upper triangular. (We could, alternatively, use an LQ factorization of A, but we will keep to the standard notation.) We have b=Ax= [ RT 0] QT x= RT y1 , 21.2 where y= y1 y2 = QT x, y1 ∈ ℝm . If A has full rank then y1 = R−Tb is uniquely determined and all solutions of Ax = b are given by x=Q y1 y2 , y2 ∈ ℝn−m arbitrary. The unique solution xLS that minimizes ‖x‖2 is obtained by setting y2 = 0. We have xLS =Q [ R−T b0] 21.3 =Q R0 R−1 R−T b=Q R0 ( RT R)−1 b = AT (A AT )−1 b= A+ b, 21.4 where A+ = AT(AAT)−1 is the pseudo-inverse of A. Hence xLS can be characterized as xls = ATy, where y solves the normal equations AATy = b. Equation (21.3) defines one way to compute xLS. We will refer to this method as the “Q method”. When A is large and sparse it is desirable to avoid storing and accessing Q, which can be expensive. An alternative method with this property uses the QR factorization (21.1) but computes xLS as xLS = ATy, where RT Ry=b 21.5 (cf. (21.4)). These latter equations are called the seminormal equations (SNE). As the “semi” denotes, however, this method does not explicitly form AAT , which would be undesirable from the standpoint of numerical stability. Note that equations (21.5) are different from the equations RTRx = ATb for an overdetermined least squares (LS) problem, where A = Q[RT 0]T ∈ ℝm × n with m ≥ n, which are also called seminormal equations (see §20.6). }
+}

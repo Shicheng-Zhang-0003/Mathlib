@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch22,
+
+title = {22. Vandermonde Systems},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {415-431},
+doi = {10.1137/1.9780898718027.ch22},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch22},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch22},
+    abstract = { We began, 25 years ago, to take up [the conditioning of] the class of Vandermonde matrices. The original motivation came from unpleasant experiences with the computation of Gauss type quadrature rules from the moments of the underlying weight function. — WALTER GAUTSCHI, How (Un)stable Are Vandermonde Systems? (1990) Extreme ill-conditioning of the [Vandermonde] linear systems will eventually manifest itself as n increases by yielding an error curve which is not sufficiently levelled on the current reference … or more seriously fails to have the correct number of sign changes. — M. ALMACANY, C. B. DUNHAM, and J. WILLIAMS, Discrete Chebyshev Approximation by Interpolating Rationals (1984) A Vandermonde matrix is defined in terms of scalars α0, α1, …, αn ∈ ℂ by V=V ( α0 , α1 ,… , αn ) = [11…1 α0 α0 … αn ⋮⋮⋮ α 0 n α 1 n … α n n ] ∈ ℂ (n+1)× (n+1) . Vandermonde matrices play an important role in various problems, such as in polynomial interpolation. Suppose we wish to find the polynomial pn(x) = anxn + an − 1xn − 1 + ⋯ + a0 that interpolates to the data ( αi , ƒi ) i=0 n , for distinct points αi, that is, pn(αi) = fi, i = 0:n. Then the desired coefficient vector a = [a0, a1, …, an]T is the solution of the dual Vandermonde system VT a=ƒ (dual) . The primal system Vx=b (primal) represents a moment problem, which arises, for example, when determining the weights for a quadrature rule: given moments bi find weights xi such that ∑ j=0 n xj α j i = bi ,i=0:n . Because a Vandermonde matrix depends on only n + 1 parameters and has a great deal of structure, it is possible to perform standard computations with reduced complexity. The easiest algorithm to derive is for matrix inversion. 22.1. Matrix Inversion Assume that V is nonsingular and let V−1 =W= ( wij ) i,j=0 n . The ith row of the equation WV = I may be written ∑ j=0 n wij α k j = δik ,k=0:n. These equations specify a fundamental interpolation problem that is solved by the Lagrange basis polynomial: ∑ j=0 n wij xj = Π k=0 n k≠i ( x− αk αi − αk ) ≕ li (x) . 22.1 The inversion problem is now reduced to finding the coefficients of li(x). It is clear from (22.1) that V is nonsingular iff the αi are distinct. }
+}

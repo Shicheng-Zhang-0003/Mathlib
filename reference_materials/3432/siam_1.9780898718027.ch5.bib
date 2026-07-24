@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch5,
+
+title = {5. Polynomials},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {93-104},
+doi = {10.1137/1.9780898718027.ch5},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch5},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch5},
+    abstract = { The polynomial (z − 1)(z − 2) … (z − 20) is not a ‘difficult’ polynomial per se … The ‘difficulty’ with the polynomial Π(z − i) is that of evaluating the explicit polynomial accurately. If one already knows the roots, then the polynomial can be evaluated without any loss of accuracy. — J. H. WILKINSON, The Perfidious Polynomial (1984) I first used backward error analysis in connection with simple programs for computing zeros of polynomials soon after the PILOT ACE came into use. — J. H. WILKINSON, The State of the Art in Error Analysis (1985) The Fundamental Theorem of Algebra asserts that every polynomial equation over the complex field has a root. It is almost beneath the dignity of such a majestic theorem to mention that in fact it has precisely n roots. — J. H. WILKINSON, The Perfidious Polynomial (1984) It can happen … that a particular polynomial can be evaluated accurately by nested multiplication, whereas evaluating the same polynomial by an economical method may produce relatively inaccurate results. — C. T. FIKE, Computer Evaluation of Mathematical Functions (1968) Two common tasks associated with polynomials are evaluation and interpolation: given the polynomial find its values at certain arguments, and given the values at certain arguments find the polynomial. We consider Horner's rule for evaluation and the Newton divided difference polynomial for interpolation. A third task not considered here is finding the zeros of a polynomial. Much research was devoted to polynomial zero finding up until the late 1960s; indeed, Wilkinson devotes a quarter of Rounding Errors in Algebraic Processes [1232, 1963] to the topic. Since the development of the QR algorithm for finding matrix eigenvalues there has been less demand for polynomial zero finding, since the problem either arises as, or can be converted to (see §28.6 and [383, 1995], [1144, 1994]), the matrix eigenvalue problem. 5.1. Horner's Method The standard method for evaluating a polynomial p (x) = a0 + a1 x+⋯+ an xn 5.1 is Horner's method (also known as Horner's rule and nested multiplication), which consists of the following recurrence: qn (x)= an for i=n−1:−1:0 qi (x)=x qi+1 (x)+ ai endp (x) = q0 (x) The cost is 2n flops, which is n less than the more obvious method of evaluation that explicitly forms powers of x (see Problem 5.2). To analyse the rounding errors in Horner's method it is convenient to use the relative error counter notation <k> (see (3.10)). We have q ̑ n−1 = (x q ̑ n <1>+ an−1 )<1> = x an <2>+ an−1 <1> , q ̑ n−2 = (x q ̑ n−1 <1>+ an−2 )<1> = x2 an <4>+ xan−1 <3>+ an−2 <1>. It is easy to either guess or prove by induction that q ̑ 0 = a0 <1>+ a1 x<3>+⋯+ an−1 xn−1 <2n−1>+ an xn <2n>= (1+ θ1 ) a0 + (1+ θ3 ) a1 x+⋯+ (1+ θ2n−1 ) an−1 xn−1 + (1+ θ2n ) an xn , 5.2 where we have used Lemma 3.1, and where |θk| ≤ ku/(l − ku) ≕ γk. This result shows that Horner's method has a small backward error: the computed q̑0 is the exact value at x of a polynomial obtained by making relative perturbations of size at most γ2n to the coefficients of p(x). }
+}

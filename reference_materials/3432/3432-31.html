@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<!--Converted with LaTeX2HTML 98.1 release (February 19th, 1998)
+originally by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<html><head>
+<title>Adams Methods</title>
+<meta name="description" content="Adams Methods">
+<meta name="keywords" content="lec24">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<link rel="STYLESHEET" href="3432-31_files/lec24_keC6.css">
+<link rel="next" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node7.html">
+<link rel="previous" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node5.html">
+<link rel="up" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<link rel="next" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node7.html">
+</head>
+<body>
+<!--Navigation Panel-->
+<a name="tex2html75" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node7.html">
+<img width="37" height="24" align="BOTTOM" border="0" alt="next" src="3432-31_files/next_motif_keC6.gif"></a> 
+<a name="tex2html73" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<img width="26" height="24" align="BOTTOM" border="0" alt="up" src="3432-31_files/up_motif_keC6.gif"></a> 
+<a name="tex2html67" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node5.html">
+<img width="63" height="24" align="BOTTOM" border="0" alt="previous" src="3432-31_files/previous_motif_keC6.gif"></a>   
+<br>
+<b> Next:</b> <a name="tex2html76" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node7.html">Predictor-Corrector Methods</a>
+<b> Up:</b> <a name="tex2html74" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">Higher Order Methods</a>
+<b> Previous:</b> <a name="tex2html68" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node5.html">Runge-Kutta Methods</a>
+<br>
+<br>
+<!--End of Navigation Panel-->
+
+<h2><a name="SECTION00032000000000000000">
+Adams Methods</a>
+</h2> 
+From the IVP of Eq. 6, we can write 
+<br><p></p>
+<div align="CENTER">
+
+<!-- MATH: \begin{equation}
+y_{n+1} = y_n + \int_{t_n}^{t_{n+1}} \frac{dy}{dt} dt =  y_n + \int_{t_n}^{t_{n+1}} f(y,t) dt.
+\end{equation} -->
+
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap="nowrap"><img width="375" height="48" src="3432-31_files/img46_keC6.gif" alt="\begin{displaymath}y_{n+1} = y_n + \int_{t_n}^{t_{n+1}} \frac{dy}{dt} dt = y_n + \int_{t_n}^{t_{n+1}} f(y,t) dt.
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(21)</td></tr>
+</tbody></table>
+</div>
+<br clear="ALL"><p></p>
+Adams methods are based on the idea of approximating the integrand with a polynomial within the interval 
+<!-- MATH: $(t_n, t_{n+1})$ -->
+(<i>t</i><sub><i>n</i></sub>, <i>t</i><sub><i>n</i>+1</sub>).  
+Using a <i>k</i>th order polynomial results in a <i>k</i>+1th order method. There are two types of Adams methods, the explicit and 
+the implicit types. The explicit type is called the Adams-Bashforth (AB) methods and the implicit type is called the 
+Adams-Moulton (AM) methods.     
+
+<p>
+The first order AB and AM methods are simply the forward and the backward Euler methods respectively. The second order 
+versions (obtained by using a linear interpolant) 
+of these methods are quite popular. The second order Adams-Bashforth (AB2) method is given by 
+<br></p><p></p>
+<div align="CENTER">
+
+<!-- MATH: \begin{equation}
+y_{n+1} = y_n + \frac{h}{2}(3 f(y_n,t_n - f(y_{n-1}, t_{n-1})). \:\: {\mbox{Second Order AB method.}}
+\end{equation} -->
+
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap="nowrap"><img width="554" height="46" src="3432-31_files/img47_keC6.gif" alt="\begin{displaymath}y_{n+1} = y_n + \frac{h}{2}(3 f(y_n,t_n - f(y_{n-1}, t_{n-1})). \:\: {\mbox{Second Order AB method.}}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(22)</td></tr>
+</tbody></table>
+</div>
+<br clear="ALL"><p></p>
+Note that the AB2 method is explicit and hence only conditionally stable. Moreover, the AB2 method requires 
+the solution from the <i>n</i>-1th and the <i>n</i>th steps to find the solution at the <i>n</i>+1th step.  
+
+<p>
+The second order Adams-Moulton (AM2) is an implicit technique, sometimes referred to as the <em>trapezoidal</em> rule. 
+The time-stepping equation for AM2 is given by 
+<br></p><p></p>
+<div align="CENTER">
+
+<!-- MATH: \begin{equation}
+y_{n+1} = y_n + \frac{h}{2}(f(y_{n+1}, t_{n+1}+f(y_n,t_n)). \:\: {\mbox{Second Order AM method.}}
+\end{equation} -->
+
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap="nowrap"><img width="552" height="46" src="3432-31_files/img48_keC6.gif" alt="\begin{displaymath}y_{n+1} = y_n + \frac{h}{2}(f(y_{n+1}, t_{n+1}+f(y_n,t_n)). \:\: {\mbox{Second Order AM method.}}
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(23)</td></tr>
+</tbody></table>
+</div>
+<br clear="ALL"><p></p>
+The implicit nature of the method is evident from Eq. 24. For a non-linear IVP, we have to solve a 
+non-linear algebraic equation at every time step. This is much more expensive as compared to the 
+explicit AB2 method. However, being an implicit technique, AM2 does not suffer from the 
+numerical instability of the AB2 for relatively large values of the time step. Once again, it is 
+a trade-off between stability and computational cost, since both AM2 and AB2 are second order 
+accurate.  
+
+<p>
+</p><hr>
+<!--Navigation Panel-->
+<a name="tex2html75" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node7.html">
+<img width="37" height="24" align="BOTTOM" border="0" alt="next" src="3432-31_files/next_motif_keC6.gif"></a> 
+<a name="tex2html73" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<img width="26" height="24" align="BOTTOM" border="0" alt="up" src="3432-31_files/up_motif_keC6.gif"></a> 
+<a name="tex2html67" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node5.html">
+<img width="63" height="24" align="BOTTOM" border="0" alt="previous" src="3432-31_files/previous_motif_keC6.gif"></a>   
+<br>
+<b> Next:</b> <a name="tex2html76" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node7.html">Predictor-Corrector Methods</a>
+<b> Up:</b> <a name="tex2html74" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">Higher Order Methods</a>
+<b> Previous:</b> <a name="tex2html68" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node5.html">Runge-Kutta Methods</a>
+<!--End of Navigation Panel-->
+<address>
+<i>Michael Zeltkevic</i>
+<br><i>1998-04-15</i>
+</address>
+
+
+</body></html>

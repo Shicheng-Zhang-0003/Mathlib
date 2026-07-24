@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch7,
+
+title = {7. Perturbation Theory for Linear Systems},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {119-137},
+doi = {10.1137/1.9780898718027.ch7},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch7},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch7},
+    abstract = { Our hero is the intrepid, yet sensitive matrix A. Our villain is E, who keeps perturbing A. When A is perturbed he puts on a crumpled hat: Ã = A + E. — G. W. STEWART and JI-GUANG SUN, Matrix Perturbation Theory (1990) The expression ‘ill-conditioned’ is sometimes used merely as a term of abuse applicable to matrices or equations … It is characteristic of ill-conditioned sets of equations that small percentage errors in the coefficients given may lead to large percentage errors in the solution. — A. M. TURING, Rounding-Off Errors in Matrix Processes (1948) In this chapter we are concerned with a linear system Ax = b, where A ∈ ℝn × n. In the context of uncertain data or inexact arithmetic there are three important questions: (1) How much does x change if we perturb A and b; that is, how sensitive is the solution to perturbations in the data? (2) How much do we have to perturb the data A and b for an approximate solution y to be the exact solution of the perturbed system—in other words, what is the backward error of y? (3) What bound should we compute in practice for the forward error of a given approximate solution? To answer these questions we need both normwise and componentwise perturbation theory. 7.1. Normwise Analysis First, we present some classical normwise perturbation results. We denote by ‖ · ‖ any vector norm and the corresponding subordinate matrix norm. As usual, κ(A) = ‖A‖ ‖A−1‖ is the matrix condition number. Throughout this chapter the matrix E and the vector ƒ are arbitrary and represent tolerances against which the perturbations are measured (their role becomes clear when we consider componentwise results). Our first result makes precise the intuitive feeling that if the residual is small then we have a “good” approximate solution. Theorem 7.1 (Rigal and Gaches). The normwise backward error ηE,ƒ (y)≔min {ϵ : (A+ΔA)y=b+Δb, ‖ΔA‖≤ϵ ‖E‖, ‖Δb‖ ≤ϵ ‖ƒ‖ } 7.1 is given by ηE,ƒ (y)= ‖r‖ ‖E‖ ‖y‖ + ‖ƒ‖ , 7.2 where r = b − Ay. Proof. It is straightforward to show that the right-hand side of (7.2) is a lower bound for ηE, ƒ (y). This lower bound is attained for the perturbations Δ Amin = ‖E‖ ‖y‖ ‖E‖ ‖y‖ + ‖ƒ‖ rzT ,Δ bmin = ‖ƒ‖ ‖E‖ ‖y‖ + ‖ƒ‖ r, 7.3 where z is a vector dual to y (see §6.1). For the particular choice E = A and ƒ = b, ηE, ƒ(y) is called the normwise relative backward error. The next result measures the sensitivity of the system. Theorem 7.2. Let Ax = b and (A + ΔA)y = b + Δb, where ‖ΔA‖ ≤ ϵ‖E‖ and ‖Δb‖ ≤ ϵ‖ ƒ ‖, and assume that ϵ‖ A−1‖ ‖E‖ < 1. }
+}

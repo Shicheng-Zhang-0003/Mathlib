@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch2,
+
+title = {2. Floating Point Arithmetic},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {35-60},
+doi = {10.1137/1.9780898718027.ch2},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch2},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch2},
+    abstract = { From 1946–1948 a great deal of quite detailed coding was done. The subroutines for floating-point arithmetic were … produced by Alway and myself in 1947 … They were almost certainly the earliest floating-point subroutines. — J. H. WILKINSON, Turing's Work at the National Physical Laboratory … (1980) MATLAB's creator Cleve Moler used to advise foreign visitors not to miss the country's two most awesome spectacles: the Grand Canyon, and meetings of IEEE p754. — MICHAEL L. OVERTON, Numerical Computing with IEEE Floating Point Arithmetic (2001) Arithmetic on Cray computers is interesting because it is driven by a motivation for the highest possible floating-point performance … Addition on Cray computers does not have a guard digit, and multiplication is even less accurate than addition … At least Cray computers serve to keep numerical analysts on their toes! — DAVID GOLDBERG, Computer Arithmetic (1996) It is rather conventional to obtain a “realistic” estimate of the possible overall error due to k roundoffs, when k is fairly large, by replacing k by k in an expression for (or an estimate of) the maximum resultant error. — F. B. HILDEBRAND, Introduction to Numerical Analysis (1974) 2.1. Floating Point Number System A floating point number system F ⊂ ℝ is a subset of the real numbers whose elements have the form y=±m× βe−t . 2.1 The system F is characterized by four integer parameters: • the base β (sometimes called the radix), • the precision t, and • the exponent range emin ≤ e ≤ emax. The significand m is an integer satisfying 0 ≤ m ≤ βt − 1. To ensure a unique representation for each nonzero y ∈ F it is assumed that m ≥ βt−1 if y ≠ 0, so that the system is normalized. The number 0 is a special case in that it does not have a normalized representation. The range of the nonzero floating point numbers in F is given by βemin − 1 ≤ |y| ≤ βemax(l − β−t). Values of the parameters for some machines of historical interest are given in Table 2.1 (the unit roundoff u is defined on page 38). Note that an alternative (and more common) way of expressing y is y=± βe ( d1 β + d2 β2 +⋯+ dt βt ) =± βe ×. d1 d2 … dt , 2.2 where each digit di satisfies 0 ≤ di ≤ β − 1, and d1 ≠ 0 for normalized numbers. We prefer the more concise representation (2.1), which we usually find easier to work with. This “nonpositional” representation has pedagogical advantages, being entirely integer based and therefore simpler to grasp. In the representation (2.2), d1 is called the most significant digit and dt the least significant digit. It is important to realize that the floating point numbers are not equally spaced. If β = 2, t = 3, emin = −1, and emax = 3 then the nonnegative floating point numbers are 0,0.25,0.3125,0.3750,0.4375,0.5,0.625,0.750,0.875,1.0,1.25,1.50,1.75,2.0,2.5,3.0,3.5,4.0,5.0,6.0,7.0. }
+}

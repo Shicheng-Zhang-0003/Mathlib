@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch24,
+
+title = {24. The Fast Fourier Transform and Applications},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {451-457},
+doi = {10.1137/1.9780898718027.ch24},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch24},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch24},
+    abstract = { Once the [FFT] method was established it became clear that it had a long and interesting prehistory going back as far as Gauss. But until the advent of computing machines it was a solution looking for a problem. — T. W. KöRNER, Fourier Analysis (1988) Life as we know it would be very different without the FFT. — CHARLES F. VAN LOAN, Computational Frameworks for the Fast Fourier Transform (1992) 24.1. The Fast Fourier Transform The matrix-vector product y = Fnx, where Fn = (exp (−2πi (r−1) (s−1)/n ) ) r,s=1 n , is the key computation in the numerical evaluation of Fourier transforms. If the product is formed in the obvious way then O(n2) operations are required. The fast Fourier transform (FFT) is a way to compute y in just O(nlogn) operations. This represents a dramatic reduction in complexity. The FFT is best understood (at least by a numerical analyst!) by interpreting it as the application of a clever factorization of the discrete Fourier transform (DFT) matrix Fn. Theorem 24.1 (Cooley-Tukey radix 2 factorization). If n = 2t then the DFT matrix Fn may be factorized as Fn = At … A1 Pn , 24.1 where Pn is a permutation matrix and Ak = I 2t−k ⊗ B 2k , B 2k = Ir Ωr Ir − Ωr , r= 2k−1 , Ωr =diag (1, ωk ,…, ω k r−1 ), ωk =exp (−2πi/ 2k ) . Proof. See Van Loan [1182, 1992, Thm. 1.3.3]. The theorem shows that we can write y = Fnx as y= At … A1 Pn x, which is formed as a sequence of matrix-vector products. It is the sparsity of the Ak (two nonzeros per row) that yields the O(n log n) operation count. We will not consider the implementation of the FFT, and therefore we do not need to define the “bit reversing” permutation matrix Pn in (24.1). However, the way in which the weights ω k j are computed does affect the accuracy. We will assume that computed weights ω ^ k j are used that satisfy, for all j and k, w ̑ k j = w k j + ϵkj ,| ϵkj |≤μ. 24.2 Among the many methods for computing the weights are ones for which we can take μ = cu, μ = cu log j, and μ = cuj, where c is a constant that depends on the method; see Van Loan [1182, 1992, §1.4]. We are now ready to prove an error bound. }
+}

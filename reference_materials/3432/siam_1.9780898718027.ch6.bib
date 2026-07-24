@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch6,
+
+title = {6. Norms},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {105-117},
+doi = {10.1137/1.9780898718027.ch6},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch6},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch6},
+    abstract = { While it is true that all norms are equivalent theoretically, only a homely one like the ∞-norm is truly useful numerically — J. H. WILKINSON, Lecture at Stanford University (1984) Matrix norms are defined in many different ways in the older literature, but the favorite was the Euclidean norm of the matrix considered as a vector in n2-space. Wedderburn (1934) calls this the absolute value of the matrix and traces the idea back to Peano in 1887. — ALSTON S. HOUSEHOLDER, The Theory of Matrices in Numerical Analysis (1964) Norms are an indispensable tool in numerical linear algebra. Their ability to compress the mn numbers in an m × n matrix into a single scalar measure of size enables perturbation results and rounding error analyses to be expressed in a concise and easily interpreted form. In problems that are badly scaled, or contain a structure such as sparsity, it is often better to measure matrices and vectors componentwise. But norms remain a valuable instrument for the error analyst, and in this chapter we describe some of their most useful and interesting properties. 6.1. Vector Norms A vector norm is a function ‖ · ‖ : ℂn → ℝ satisfying the following conditions: 1. ‖x‖ ≥ 0 with equality iff x = 0. 2. ‖αx‖ = |α| ‖x‖ for all α ∈ ℂ, x ∈ ℂn. 3. ‖x + y‖ ≤ ‖x‖ + ‖y‖ for all x, y ∈ ℂn (the triangle inequality). The three most useful norms in error analysis and in numerical computation are ‖x ‖1 = ∑ i=1 n | xi | ,"Manhattan" or "taxi cab" norm,‖x ‖2 = ( ∑ i=1 n | xi |2 )1/2 = (x*x)1/2 ,Euclidean length,‖x ‖∞ = max 1≤i≤n | xi | . These are all special cases of the Hölder p-norm: ‖x ‖p = ( ∑ i=1 n | xi |p )1/p , p≥1. The 2-norm has two properties that make it particularly useful for theoretical purposes. First, it is invariant under unitary transformations, for if Q*Q = I, then ‖Qx ‖ 2 2 =x*Q*Qx=x*x= ‖x ‖ 2 2 . Second, the 2-norm is differentiable for all x, with gradient vector ∇‖x‖2 = x/ ‖x‖2. A fundamental inequality for vectors is the Hölder inequality (see, for example, [547, 1967, App. 1]) |x*y|≤ ‖x ‖p ‖y ‖q , 1 p + 1 q =1. 6.1 This is an equality when p, q > 1 if the vectors (|xi|p) and (|yi|q) are linearly dependent and xiyi lies on the same ray in the complex plane for all i; equality is also possible when p = 1 and p = ∞, as is easily verified. The special case with p = q = 2 is called the Cauchy-Schwarz inequality: |x*y|≤ ‖x ‖2 ‖y ‖2 . }
+}

@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<!--Converted with LaTeX2HTML 98.1 release (February 19th, 1998)
+originally by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<html><head>
+<title>Predictor-Corrector Methods</title>
+<meta name="description" content="Predictor-Corrector Methods">
+<meta name="keywords" content="lec24">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<link rel="STYLESHEET" href="3432-33_files/lec24_8IBL.css">
+<link rel="previous" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">
+<link rel="up" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<link rel="next" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node8.html">
+</head>
+<body>
+<!--Navigation Panel-->
+<a name="tex2html83" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node8.html">
+<img width="37" height="24" align="BOTTOM" border="0" alt="next" src="3432-33_files/next_motif_8IBL.gif"></a> 
+<a name="tex2html81" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<img width="26" height="24" align="BOTTOM" border="0" alt="up" src="3432-33_files/up_motif_8IBL.gif"></a> 
+<a name="tex2html77" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">
+<img width="63" height="24" align="BOTTOM" border="0" alt="previous" src="3432-33_files/previous_motif_8IBL.gif"></a>   
+<br>
+<b> Next:</b> <a name="tex2html84" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node8.html">IVP with Systems of</a>
+<b> Up:</b> <a name="tex2html82" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">Higher Order Methods</a>
+<b> Previous:</b> <a name="tex2html78" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">Adams Methods</a>
+<br>
+<br>
+<!--End of Navigation Panel-->
+
+<h2><a name="SECTION00033000000000000000">
+Predictor-Corrector Methods</a>
+</h2> 
+
+<p>
+The idea behind the predictor-corrector methods is to use a suitable combination of an explicit and an implicit 
+technique to obtain a method with better convergence characteristics. The combination 
+of the FE and the AM2 methods is employed often. Here, we use the FE as a predictor equation to get <i>y</i><sup><i>p</i></sup><sub><i>n</i>+1</sub> and subsequently use 
+the AM2 as a corrector equation to get the final computed  solution <i>y</i><sub><i>n</i>+1</sub>. The method, 
+referred to as the <em>Euler-Trapezoidal</em> method is given below.
+<br>
+</p><div align="CENTER">
+
+<!-- MATH: \begin{eqnarray}
+&& y^p_{n+1} = y_n + h f(y_n,t_n)\:\: {\mbox{Predictor}} \nonumber \\
+&& y_{n+1}   = y_n + \frac{h}{2}\left[ f(y^p_{n+1},t_{n+1})+f(y_n,t_n)\right]\:\:{\mbox{Corrector}}.
+\end{eqnarray} -->
+
+<table align="CENTER" cellpadding="0" width="100%">
+<tbody><tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><img width="270" height="37" align="MIDDLE" border="0" src="3432-33_files/img49_8IBL.gif" alt="$\displaystyle y^p_{n+1} = y_n + h f(y_n,t_n)\:\: {\mbox{Predictor}}$"></td>
+<td width="10" align="RIGHT">
+&nbsp;</td></tr>
+<tr valign="MIDDLE"><td nowrap="nowrap" align="RIGHT">&nbsp;</td>
+<td>&nbsp;</td>
+<td align="LEFT" nowrap="nowrap"><img width="423" height="60" align="MIDDLE" border="0" src="3432-33_files/img50_8IBL.gif" alt="$\displaystyle y_{n+1} = y_n + \frac{h}{2}\left[ f(y^p_{n+1},t_{n+1})+f(y_n,t_n)\right]\:\:{\mbox{Corrector}}.$"></td>
+<td width="10" align="RIGHT">
+(24)</td></tr>
+</tbody></table></div>
+<br clear="ALL"><p></p>
+Note that in the second (corrector) step, the implicit term for the AM2, 
+<!-- MATH: $f(y_{n+1},t_{n+1})$ -->
+<i>f</i>(<i>y</i><sub><i>n</i>+1</sub>,<i>t</i><sub><i>n</i>+1</sub>) is replaced with 
+
+<!-- MATH: $f(y^p_{n+1},t_{n+1})$ -->
+<i>f</i>(<i>y</i><sup><i>p</i></sup><sub><i>n</i>+1</sub>,<i>t</i><sub><i>n</i>+1</sub>), i.e., the value of <i>f</i> evaluated at the predicted <i>y</i><sup><i>p</i></sup><sub><i>n</i>+1</sub> is used. Hence, the predictor-corrector 
+method described above is an explicit method. <br> <br>  
+<b>Exercise Problem</b>
+<br> <br>
+Consider the IVP 
+<br><p></p>
+<div align="CENTER">
+
+<!-- MATH: \begin{equation}
+\frac{dy}{dt} = -y^2,  \:\:\: y(0) = 1.
+\end{equation} -->
+
+<table width="100%" align="CENTER">
+<tbody><tr valign="MIDDLE"><td align="CENTER" nowrap="nowrap"><img width="172" height="46" src="3432-33_files/img51_8IBL.gif" alt="\begin{displaymath}\frac{dy}{dt} = -y^2, \:\:\: y(0) = 1.
+\end{displaymath}"></td>
+<td width="10" align="RIGHT">
+(25)</td></tr>
+</tbody></table>
+</div>
+<br clear="ALL"><p></p>
+Write C programs to compute <i>y</i>(<i>t</i>) in the interval [0,2] using (a). the forward Euler method  
+(b) the AB2 method (c). the Euler-Trapezoidal (predictor-corrector) method and (d). the RK4 method.  
+Plot your numerically computed solutions with <i>h</i>=0.1 along with the exact solution <i>y</i>=1/(1+<i>t</i>). 
+Compare the convergence properties of each one of the above methods by plotting the absolute error  
+for <i>y</i>(2) for <i>h</i>=0.001, 0.01 and 0.1. How do the stability characteristics of these methods 
+compare with one another?     
+
+<p>
+</p><hr>
+<!--Navigation Panel-->
+<a name="tex2html83" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node8.html">
+<img width="37" height="24" align="BOTTOM" border="0" alt="next" src="3432-33_files/next_motif_8IBL.gif"></a> 
+<a name="tex2html81" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">
+<img width="26" height="24" align="BOTTOM" border="0" alt="up" src="3432-33_files/up_motif_8IBL.gif"></a> 
+<a name="tex2html77" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">
+<img width="63" height="24" align="BOTTOM" border="0" alt="previous" src="3432-33_files/previous_motif_8IBL.gif"></a>   
+<br>
+<b> Next:</b> <a name="tex2html84" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node8.html">IVP with Systems of</a>
+<b> Up:</b> <a name="tex2html82" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node4.html">Higher Order Methods</a>
+<b> Previous:</b> <a name="tex2html78" href="https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node6.html">Adams Methods</a>
+<!--End of Navigation Panel-->
+<address>
+<i>Michael Zeltkevic</i>
+<br><i>1998-04-15</i>
+</address>
+
+
+</body></html>

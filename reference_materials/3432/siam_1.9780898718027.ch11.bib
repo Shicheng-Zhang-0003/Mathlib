@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch11,
+
+title = {11. Symmetric Indefinite and Skew-Symmetric Systems},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {213-229},
+doi = {10.1137/1.9780898718027.ch11},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch11},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch11},
+    abstract = { Unfortunately, there is no stable scheme exactly analogous to Gaussian elimination with partial pivoting; one cannot construct an algorithm for which there is a bound on the element growth of the sequence A(k) when at each stage only one column of A(k) is examined. — JAMES R. BUNCH and LINDA KAUFMAN, Some Stable Methods for Calculating Inertia and Solving Symmetric Linear Systems (1977) The comparison count is much less … than for the complete pivoting scheme, and in practice this fact has had a much larger impact than originally anticipated, sometimes cutting the execution time by about 40\%. — JAMES R. BUNCH and LINDA KAUFMAN, Some Stable Methods for Calculating Inertia and Solving Symmetric Linear Systems (1977) This fixed inertia property is why skew-symmetric matrices are easier to decompose than symmetric indefinite matrices. — JAMES R. BUNCH, A Note on the Stable Decomposition of Skew-Symmetric Matrices (1982) A symmetric matrix A ∈ ℝn × n is indefinite if (xTAx)(yTAy) < 0 for some x, y ∈ ℝn, or, equivalently, if A has both positive and negative eigenvalues. Linear systems with symmetric indefinite coefficient matrices arise in many applications, including least squares problems, optimization, and discretized incompressible Navier-Stokes equations. How can we solve Ax = b efficiently? Gaussian elimination with partial pivoting (GEPP) can be used to compute the factorization PA = LU, but it does not take advantage of the symmetry to reduce the cost and storage. We might try to construct a factorization A = LDLT, where L is unit lower triangular and D is diagonal. But this factorization may not exist, even if symmetric pivoting is allowed, and if it does exist its computation may be unstable. For example, consider A≡ PAPT = [ϵ11ϵ]=[101/ϵ1] [ϵ00ϵ−1/ϵ] [11/ϵ01]. There is arbitrarily large element growth for 0 < ϵ ≪ 1, and the factorization does not exist for ϵ = 0. For solving dense symmetric indefinite linear systems Ax = b, two types of factorization are used. The first is the block LDLT factorization (or symmetric indefinite factorization) PAPT = LDLT , 11.1 where P is a permutation matrix, L is unit lower triangular, and D is block diagonal with diagonal blocks of dimension 1 or 2. This factorization is essentially a symmetric block form of GE, with symmetric pivoting. Note that by Sylvester's inertia theorem, A and D have the same inertia, which is easily determined from D (see Problem 11.2). The second factorization is that produced by Aasen's method, PAPT = LTLT , where P is a permutation matrix, L is unit lower triangular with first column e1, and T is tridiagonal. Aasen's factorization is much less widely used than block LDLT factorization, but it is mathematically interesting. We describe both factorizations in this chapter. A matrix A ∈ ℝn × n is skew-symmetric if AT = −A. In the final section of this chapter we describe a form of block LDLT factorization specialized to skew-symmetric matrices. }
+}

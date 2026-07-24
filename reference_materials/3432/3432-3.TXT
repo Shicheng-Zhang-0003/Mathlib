@@ -1,0 +1,644 @@
+
+    LOG10HAF.txt                                                9 Aug. 2004
+
+                        A Logarithm Too Clever by Half
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                   W. Kahan
+
+    MATLAB's  log10  function computes the base-ten logarithm of its binary
+    floating-point argument inaccurately despite first appearances.  For
+    instance,  smooth graphs of  log(10)*log10(x)/(x-1)  and  log(x)/(x-1)
+    plotted at values  x  scattered densely near but not at  x = 1  ought
+    to be almost indistinguishable,  but they aren't.  They reveal  log10's
+    error at  x = 1 + eps  to be near  4%  in  MATLAB 6.5  on  PCs.  Values
+    x  far from  1  incur subtler errors measured in  ULPs  (see FOOTNOTE 1
+    below).  These subtle errors revive a long-standing question worrysome
+    to conscientious implementors of run-time mathematical libraries that
+    compute  log,  exp,  cos,  y^x,  ...:
+
+                       How accurate is accurate enough?
+
+    We must distinguish the implemented function  LOG10(x)  from the ideal
+    function  log10(x) .  They differ by at least one rounding error since,
+    with rare exceptions,  log10(x)  is irrational  (really transcendental)
+    for arguments  x  rational like all floating-point numbers.  Those rare
+    exceptions provide the occasion for this case-study in error analysis.
+
+    For which binary floating-point arguments  w  can  LOG10(10.0^w) == w ?
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    If  LOG10  differed from  log10  by always less than half an  ulp,  and
+    if the computed value of  10.0^w  were also rounded correctly,  also
+    within half an  ulp,  we would find   LOG10(10.0^w) == w   for ...
+          -----------------------------------------------------------
+          |     all  |w| > 1/2  unless  10.0^w  over/underflows,    |
+          |             1/4 < w < log10(2) = 0.30103... ,           |
+          |      -0.3622... = -log10(log(10)) < w < -log10(2) ,     |
+          -----------------------------------------------------------
+    and for many other values of  w  including  w = 0 .  But not for _all_.
+
+    Why not for all  |w| < 1/2  too?  Then many a computed value of  10.0^w
+    can repeat among computed values of  10.0^w  for several consecutive
+    floating-point numbers  w .  For instance,  10.0^w  rounds to the same
+    value for four arguments in the interval  1/8 - 4*ulp(1/8) < w <= 1/8 ;
+    and then this value's  log10  rounds correctly to  1/8 - ulp(1/8) .
+    Such repetitions become vastly more abundant as  |w|  gets tinier.
+
+    No such repetitions should occur if  w  lies in the intervals exhibited
+    in the box above.  Therein the two rounding errors in  LOG10(10.0^w)
+    would cancel each other out  _provided_  LOG10  and  10.0^w  were
+    _always_  rounded correctly --  each within half an  ulp.
+
+    Could  LOG10  and  10.0^w  be implemented so well that they were always
+    rounded correctly?  Yes and no.  Yes if you are willing to suffer speed
+    penalties of at least about  20%  on average and perhaps  800%  or more
+    occasionally.  No if  10.0^w  is computed by invoking the math. library
+    program  Y^W  ( Y**W  in  Fortran,  POW(Y,W)  in  C).  Nobody knows how
+    much it would cost to compute  y^w  correctly rounded for  _every_  two
+    floating-point arguments at which it does not over/underflow.  Instead,
+    reputable math. libraries compute elementary transcendental functions
+    mostly within slightly more than half an  ulp  and almost always well
+    within one  ulp.
+
+    Why can't  Y^W  be rounded within half an  ulp  like  SQRT ?  Because
+    nobody knows how much computation it would cost to resolve what I long
+    ago christened  "The Table-Maker's Dilemma".  Here is an instance of it
+    derived from phenomena descried by  D.H. Lehmer  in the early  1940s:
+
+    Let's try to compute  C := cosh(pi*sqrt(163))/8 - (2^53 - 1)  correctly
+    rounded to  Matlab's  working precision of  53  sig. bits using binary
+    floating-point variables  8  bytes wide.  Matlab's versions  3.5,  4.2,
+    5.3 and 6.5  on  Intel-based  PCs,  and versions  3.5,  4.2 and 5.2  on
+    both  Power-Macs  and old  68040-based Macs,  all produce the integer
+    result  C = 7401389035307025  though they display it differently.  Its
+    last two digits  "25"  are wrong.  The error comes mostly from roundoff
+    in the argument  pi*sqrt(163)  passed to  cosh(...) .  I know  Matlab's
+    C  is wrong because it differs from the result computed by my  Fortran
+    program that used the  PC's  extra-precise arithmetic registers  (10
+    bytes wide,  64 sig. bits):   C = 7401389035307056  fit into  53 sig.
+    bits,  but its  "6"  was wrong.  C = 7401389035307055.5000  to  64 sig.
+    bits before it was rounded to  53.  Its last  ".5000"  misleads.  With
+    Digits := 25  MAPLE Vr5  gets    C = 7401389035307055.49999978 .  With
+    Digits := 30  MAPLE Vr5  gets    C = 7401389035307055.5000000000015 .
+
+    Is it time to quit yet?  That's the  Table-Maker's Dilemma.  No general
+    way exists to predict how many extra digits will have to be carried to
+    compute a transcendental expression and round it  _correctly_  to some
+    preassigned number of digits.  Even the fact  (if true)  that a finite
+    number of extra digits will ultimately suffice may be a deep theorem.
+
+    MAPLE Vr5  can compute  C = 7401389035307055.49999999999995313...  well
+    enough to round it correctly to  53 sig. bits,  to  16 sig. dec.,  only
+    by carrying at least twice that number of decimal  Digits  during the
+    computation.  Any other way to round  C  correctly is hard to imagine.
+
+    For every transcendental function like  log(x)  and  exp(x)  arguments
+    x  may exist for which the function cannot be rounded correctly to  53
+    sig. bits without first knowing rather more than the first hundred sig.
+    bits of its value.  Many such arguments have been tabulated in  France
+    by  Jean-Michel Muller's  students,  who claim to have computed  _all_
+    such arguments  x  for each of several of the elementary transcendental
+    functions.  Y^W  is not yet among them and probably never will be,  nor
+    will most of the named non-elementary functions of  Statistics  and of
+    Mathematical Physics,  for example  Bessel  functions  J(n, x) .
+
+    Besides,  suppose every transcendental function with a conventionally
+    recognized name were implemented perfectly,  correctly rounded within
+    half an  ulp,  instead of within  0.51 ulp,  say.  We should not expect
+    any program composed from them to behave significantly better thanks to
+    their perfection.  Some examples,  notably  x - sin(x) ,  were treated
+    in my paper  "Mathematics Written in Sand ...",  pp. 12-26 of the 1983
+    Statistical Computing Section of the Proceedings of the American
+    Statistical Association.  It has been reproduced and is now posted on
+    my web page  http://www.cs.berkeleu.edu/~wkahan/MathSand.pdf ;  there
+    see  pp. 28 - 30.  In that paper I wrote rashly ...
+
+            "So,  uncompromising adherence to the most rigorous
+             rules for approximate arithmetic will not protect
+             a computer from unpleasant surprises.  Apparently
+             the approximation of the continuum by a discrete
+             set must introduce some irreducible quantum of
+             noise into mathematical thought,  as well as into
+             computed results,  and we don't know how big that
+             quantum is.  If we have to tolerate this unknown
+             noise,  we might as well tolerate a little more."
+
+    Out of context that reads now like a license to toss rocks through the
+    windows of derelict buildings.  I had intended to draw attention to a
+    persistent worry:  If accuracy within half an  ulp  is more accuracy
+    than is reasonable to expect of  _every_  function in our library,  ...
+
+                         How much accuracy is enough?
+
+    A  desideratum  generally acknowledged but not always achieved is ...
+
+         "In error by rather less than an  ulp  if by more than half."
+
+    If that is achieved,  it guarantees that every  _Cardinal Value_  is
+    honored:  Whenever a function's exact value is a floating-point number,
+    this is the computed value of the function too.  That desideratum makes
+          LOG10(100) == 2 ,   COS(0) == 1 ,   9^3.5 == 2187 ,  ... .
+
+    By itself that desideratum is inadequate because it does not guarantee
+    sign symmetry like  tan(-x) = -tan(x) ,  nor weakened monotonicity like
+    log10(x) >= log10(y)  whenever  x > y > 0 ,  nor weak inequalities like
+    arctan(x) <= pi/2  with non-floating-point bounds.  (As luck would have
+    it this last inequality is easy to satisfy in the  8-byte wide IEEE 754
+    arithmetic used by  MATLAB  because its value of  pi  rounded to  53
+    sig. bits  falls below the true  pi  by about  0.27 ulp(pi) .)  Users'
+    reasonable expectations oblige implementors of mathematical libraries
+    to do better than merely keep their handiwork in error by less than one
+    ulp.  The indeterminate extent of this obligation worries many of us.
+
+    MATLAB's  LOG10  can err by too much more than an  ulp.  Its earliest
+    implementation came naively from a formula  log10(x) = log(x)/log(10)
+    whose rounding errors spoiled the identity  log10(10^m) == m  at every
+    m  in the set  { 3, 6, 9, 12, 13, 15, 18, 21 }  despite that  10^m  is
+    computable perfectly for integers  m = 0 to 22 .  Since  LOG10(10.0^m)
+    fell short by an  ulp  in those eight cases,  they generated numbers
+         2.999999...,  5.999999...,  8.999999...,  11.999999...,  etc.
+    instead of the expected integers.  Expressions like  "floor(log10(x))"
+    misbehaved in ways that had to be explained to angry programmers who
+    must have felt betrayed when  MATLAB  displayed  16  instead of the  17
+    sig. dec.  needed to expose  _all_  such numbers as non-integers.  They
+    display on  PCs  thus:
+                 3             6              9            12          etc.
+    All  MATLAB  versions display arrays entirely of integers thus:
+        3      6      9     12      etc.
+    The difference ought to be obvious;  perhaps it's not obvious enough to
+    preclude confusion and demands for tedious explanations and excuses.
+
+    Confusion caused by roundoff is exacerbated by  _Cosmetic Roundings_,
+    designed to conceal approximation performed by the underlying floating-
+    point arithmetic,  when results are displayed.  Another case of mass
+    confusion consequent upon poor policies for numerical displays appears
+    on pp. 12-17  of  "Marketing vs. Mathematics"  posted on my web page at
+    http://www.cs.berkeley.edu/~wkahan/MktgMath.pdf.  Its moral is ...
+
+       Decimal displays of Binary nonintegers cannot always be  WYSIWYG.
+       -----------------------------------------------------------------
+       |    Trying to pretend otherwise afflicts both customers and    |
+       |    implementors with bugs that go mostly misdiagnosed,  so    |
+       |            "fixing"  one bug merely spawns others.            |
+       -----------------------------------------------------------------
+
+    (MATLAB's  users deserve to be able easily to display as few or as many
+    (up to 17)  sig. dec. as they desire.  Nonintegers should  _always_  be
+    displayed with a decimal point,  even if it is followed only by zeros
+    or blanks,  in contrast to integers that never display with a decimal
+    point unless they are so big that their rightmost digits round away.
+    Why this decimal point display convention is followed by  MATLAB 5.2
+    on  Macintoshes  but by no other  MATLAB  versions mystifies me.)
+
+    Tiresomely repeated explanations undermine resistance to temptation.
+
+    MATLAB's  LOG10  had to be changed.  Its successor in  MATLAB 6.5  on
+    PCs  employs tricky  _Cosmetic Rounding_  to force  LOG10(10.0^m) == m
+    for  _every_  integer  m  for which  10.0^m  does not over/underflow.
+    These are  m = -307 to 308 .  Moreover,  if an array  W  is constructed
+    by removing from  [-307: 1/16 :308]  just those floating-point numbers
+    strictly outside the intervals shown boxed above,  thus leaving  9828
+    numbers in  W ,  then  LOG10(10.0.^W) == W .  This coincidence might be
+    construed as testimony that now  LOG10  is nearly correctly rounded.
+
+                 It isn't.  LOG10  can err by almost  3 ulps.
+
+    On an  IBM PC,  MATLAB 6.5  gets  LOG10(54)  too small by  1.513 ulps;
+    this is the case that came to my notice by spoiling one of my programs.
+
+    And now the identity  LOG10(10.0^w) == w  is violated by more than one
+    ulp  for some non-integer arguments  w  drawn from the intervals in the
+    box above.  For instance  LOG10(10.0^w)  is now  2 ulps too small when
+    w = 6411/4096 = 1.565185546875 .  MATLAB  rounds x = 10.0^w = 36.743...
+    correctly,  falling below the true  10^w  by less than  0.48 ulp.  But
+    LOG10(x)  is computed almost  1.82 ulps  too low.  These two shortfalls
+    combine to produce a total shortfall of  2 ulps.  Worse again is an
+    example  x = 0.60411447293839671 = hex 1.354e7e009f12e / 2  for which
+    LOG10(x)  errs by  2.904 ulps.  Evidently  Cosmetic Rounding  intended
+    to cover up some rounding errors can worsen others substantially.
+
+    What is  "Cosmetic Rounding"  and what does it do for  LOG10(10.0^m) ?
+
+    LOG10  plays a clever trick based upon how  IEEE Standard 754  rounds
+    values midway between two adjacent floating-point numbers.  The rounded
+    value is the one of those numbers whose last bit is zero.  This  "round
+    midway cases to nearest even"  policy has advantageous properties.  One
+    is that,  if roundoff were random  (and it often seems that way),  IEEE
+    754's  rounding would be  Statistically Unbiased,  putting the  Law of
+    Averages  to work for us when vastly many independent rounding errors
+    accumulate.  Another advantage is enhanced conservation of mathematical
+    relations.  Here is an esoteric illustration of conservation in action:
+
+    Suppose  m  ranges over integers from  1  to  2^52 = 4503599627370496 ,
+    and  n  ranges over integers in this set of frequently used divisors:
+     { 2, 3, 4, 5, 6, 8, 9, 10, 12, 16, 17, 18, 20, 24, 32, 33, 36, ... } .
+    Display them in binary to see what these divisors have in common.  Next
+    compute  q = m/n  and  p = q*n  in  MATLAB,  which rounds both quotient
+    and product to  IEEE 754's  specifications.  Then  p == m  _always_.
+
+    If arithmetic were not binary,  or if rounding did not conform to  IEEE
+    754,  the predicate  "p == m"  would fail for some pairs  {m, n} .  For
+    instance,  decimal arithmetic produces  (10/3.0)*3 = 9.999...999 < 10 ,
+    unless your calculator rounds cosmetically and must spawn consequent
+    anomalies elsewhere.
+
+    Every binary floating-point operation specified by  IEEE 754  rounds by
+    default correctly,  within half an  ulp.  Still,  there seems to be a
+    bias towards small integers whenever they would be true results absent
+    roundoff,  and also whenever they wouldn't.  This bias tempts tricky
+    programmers irresistibly to try to exploit it,  as in  MATLAB's LOG10.
+
+    LOG10's  trick exploits a bias towards small integers thus:  Constants
+    tl02 = 6.64385618977472436  and  TL02 = 6.64385618977472525  are
+    adjacent  8-byte  floating-point numbers that straddle  2/log10(2) .
+    It exceeds  tl02  by  0.374 ulp  and falls  0.626 ulp  below  TL02.
+
+    Then  LOG10(x) = LOG2(x)/tl02 + LOG2(x)/TL02 .  Here  LOG2  is the base
+    2  logarithm built into  MATLAB  since version  4.  (It has been buggy
+    since then too;  see  FOOTNOTE 2.)  And here is how the trick works:
+
+    In the computation of  LOG10(10.0^m)  each quotient  LOG2(10.0^m)/tl02
+    and  LOG2(10.0^m)/TL02  entails four roundings:  in the constant,  in
+    10.0^m ,  in  LOG2  and in the division.  These very rarely accumulate
+    to as much as  2 ulps  in each quotient,  each of which would be  m/2 ,
+    an integer or half-integer,  if computed without rounding.  Because of
+    the way the constants were chosen,  LOG2(10.0^m)/tl02  is usually high
+    by an  ulp  if not just right,  and  LOG2(10.0^m)/TL02  is usually low
+    by an  ulp  if not just right.  If their sum is not just  m  it is half
+    an  ulp  away most likely;  then  IEEE 754  rounds it to  m  exactly.
+
+    This happens for every relevant  m  from  -307  to  308  as luck would
+    have it,  so  MATLAB's  current  LOG10  appears perfect.  But it isn't.
+
+    We saw that  LOG10(10.0^w)  differs from  w = 6411/4096  by  2  ulps
+    despite that  w  has so many trailing zeros that the last paragraph's
+    reasoning must work.  Yet the trick doesn't work.  Bad luck.  Really!
+
+    To see how big a role luck plays in such tricks,  construct a constant
+    L2 = 0.30102999566398120 = ( log10(2)  rounded to  53 sig. bits).  In
+    fact  L2  matches  log10(2)  to  56 sig. bits,  as luck would have it.
+    Consequently the simple expression  L2*LOG2(x)  runs noticeably faster
+    than the current  LOG10(x)  and is more accurate by at least about an
+    ulp  in their worst cases.  However,  that simple expression violates
+    the identity  log10(10^m) == m  by an  ulp  at some integers  |m| > 22
+    at all of which the computed value of  10.0^m  is already inexact.
+
+    Next,  a trick worsens the simple expression's worst errors practically
+    imperceptibly at the cost of two more multiplies and an add thus:
+
+       Compute  y = 0.25*LOG2(x)  and return  y + 0.20411998265592478*y .
+
+    The long constant converts exactly to  4*L2 - 1 .  The returned value
+    matches  log10(x)  within about  1.4 ulps  and conserves the identity
+    log10(10^m) == m  for all integers  |m| < 59 .  Is this good enough?
+
+    Whoever has to explain that identity's violations will deem  LOG10's
+    accuracy inadequate,  as if in obeisance to a higher principle:
+
+        "If its accuracy has to be explained it's not accurate enough."
+
+    This slogan,  tantamount to despair of explanation's power to overcome
+    oversimplification,  oversimplifies the trade-off of accuracy versus
+    its costs,  mostly performance degradation and protracted development.
+
+    Costs rise steeply with attempts to improve accuracy beyond some point
+    depending upon the available computing resources and ingenuity.  Rather
+    than resort to cosmetic expedients which earn contempt for misplaced
+    ingenuity after the truth they attempted to conceal inevitably becomes
+    exposed,  a better practice is to compare the cost of explanations with
+    the costs of accuracy increased sufficiently to obviate explanation,
+    and then choose.  MATLAB  could have chosen to compute  LOG10  from one
+    of the more accurate expressions above using  L2 ,  and then add to the
+    documentation displayed in response to  "help log10"  something like
+
+      %  Note that MATLAB's binary floating-point arithmetic has to round
+      %  10^m  to something slightly else at integers  m < 0  or  m > 22 .
+      %  And then  log10(10^m)  may differ slightly from  m  if  |m| > 58 .
+
+    This would have educational value too.  Instead,  buried in the text of
+    MATLAB's  current tricky  LOG10.M  is an ambiguous comment ...
+
+      %  Compute  y = log2(x)/log2(10)  with an averaging process so that
+      %  roundoff errors cancel and  log10(10^k) == k  for all integers
+      %  k = -307:308.
+
+    It depends upon what  "and"  means.  Do roundoff errors cancel for  x
+    in general,  or just for  x = 10^k ?  A better comment would say ...
+
+      %  Compute  y = log2(x)/log2(10)  from a tricky average that
+      %  combines rounding errors to force  log10(10^k) == k  at
+      %  every integer  k = -307:308.  Elsewhere  log10  errs by
+      %  less than about three units in its last  (53rd)  sig. bit.
+
+    But we don't have to choose one of the foregoing tricky schemes.  Their
+    ingenuity is misplaced;  "Too Clever by Half"  the  British  would say.
+    MATLAB's  resources afford affordable ways to compute  log10  so well
+    that no apology nor explanation is necessary.  Here is one way:
+
+    . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+    function  y = log10(x)
+    % LOG10  Common  (base ten)  logarithm
+    %  log10(X)  is the base-ten logarithm of the elements of  abs(X)
+    %  computed rather more accurately than  MATLAB's  own  log10(X) .
+    %
+    %  Note that MATLAB's binary floating-point arithmetic has to round
+    %  10^m  to something slightly else at integers  m < 0  or  m > 22 .
+    %  Despite that,  all( log10(10.0.^M) == M )  for  M = [-307:308] .
+    %
+    %   See also LOG, LOG2, POW2, LG2, EXP, LOGM.
+
+    %   For  IEEE 754 floating-point  and  MATLAB  versions 4.x - 6.x.
+
+    %  Constants:
+    %  R10 := 1/2 - 1/log(10)  rounded to  53 sig. bits,  accurate to
+    %       = 0.0657055180967481695  =  hex 1.0D213AB646BC7 / 10 hex
+    %  L2h := log10(2)  rounded to  42  sig. bits
+    %       = 0.301029995663952832  =  hex 1.34413509F7800 / 4
+    %  L2t := ( log10(2) - L2h )  rounded to  53 sig. bits
+    %       = 2.83633945510449644 / 10^14
+    %  R2  := sqrt(1/2)  rounded to  53 sig. bits,  high by  0.44 ulp
+    %       = 0.707106781186547573  =  hex 1.6A09E667F3BCD / 2
+
+    x = abs(x) ;        %... Has complex  log10  an application?
+    [s, k] = log2(x) ;  %...  x = s*2^k ,  1/2 <= s < 1,  like  frexp.
+    %...  k*L2h  will be exact because  -1074 <= integer k <= 1024 .
+
+    %  A bug in  MATLAB 4.2  on  68040-based  Macintoshes  requires ...**
+       j = (k == -65536) ;  if any(j(:)),  k = k + 65536*j ;  end % ...**
+    %  All other versions of  MATLAB  can omit the previous line.   ...**
+
+    %  The segregation of  1/4 <= x < 4  is needed to run this program on
+    %  computers that cannot accumulate the scalar product  y  below to
+    %  64  sig. bits as  IBM PCs  and  68040-based  Macs  can.  On just
+    %  these computers a simpler program produces better results sooner.
+       j = (abs(k-0.5) < 2) ;          %... j = (-2 < k < 3)
+       if any(j(:)),  s(j) = x(j) ;  k(j) = 0*j(j) ;  end
+    %  Now  1/4 <= s(j) = x(j) < 4  and  k(j) = 0 .  Otherwise ...
+
+    j = (~j)&(s < 0.707106781186547573) ;
+    if any(j(:)),  s(j) = 2*s(j) ;  k = k-j ;  end
+    s = log(s) ;  %...  presumed accurate well within an  ulp .
+    y = (( k*2.83633945510449644e-14 - s*0.0657055180967481695 ) ...
+            + s*0.5 ) + k*0.301029995663952832 ;
+
+    %  End of  LOG10.M                        (C) 1995 - 2004  W. Kahan
+    . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+    How accurate is my  LOG10 ?  It's hard to say without knowing how  LOG
+    is implemented since its errors are inherited by  LOG10 .  According to
+    my tests,  MATLAB's  LOG(x)  errs by at worst about  0.8 ulp  over the
+    interval  1/4 <= x <= 4 ,  wherein my  LOG10(x)  errs by at worst about
+    1.7 ulps.  Elsewhere my  LOG10  errs by at most about  0.75 ulps.  As
+    we have seen,  MATLAB's LOG10(x)  can err by almost  3  ulps  anywhere,
+    and when  1 < x < 1.1  its errors can amount to many  GULPs. ...
+
+    -----------------------------------------------------------------------
+
+    FOOTNOTE 1:  What's an  _ULP_ ?  It's a  Unit in the Last Place.  Here
+    is my original  (in 1960,  now obsolete)  definition:
+
+               Ulp(x)  is the gap between the two floating-point
+               numbers nearest  x ,  even if  x  is one of them.
+
+    "Ulp"  was coined to characterize the accuracies of implementations of
+    run-time math. library functions on the  IBM 7090 and 7094.  They were
+    not so accurate nor fast as they should have been in  1960.  By  1964
+    most of their deficiencies had been repaired by contributions to  SHARE
+    (the organized users of  IBM  mainframes),  and especially by the work
+    of  Hirondo Kuki  at the  University of Chicago.
+
+    From time to time well-intentioned attempts to speed up a math. library
+    introduced inaccuries so gross that  Fred Gustavson  at  IBM Yorktown
+    Heights  coined the word  "GULP"  (Giga-Ulp)  to describe them.  Today
+    there is no excuse for a math. library less accurate than the  Freely
+    Distributed Math. Library  fdlibm  promulgated from  Sun Microsystems
+    by mostly graduates from the  Univ. of Calif. at Berkeley  who created
+    the libraries distributed with  4.3 BSD Berkeley UNIX  in the  1980s.
+
+    By then the adoption of  IEEE Standard 754  had made infinities and
+    NaNs  so ubiquitous that the definition of an  ulp  had to be changed:
+
+     Ulp(x)  is the gap between the two  _finite_  floating-point numbers
+     nearest  x ,  even if  x  is one of them.  (But  ulp(NaN)  is  NaN .)
+
+    E.g.,  for  IEEE 754 Double Precision  (8 bytes wide)  as in  MATLAB,
+    ulp(1) = eps/2,  ulp(1.5) = eps,  ulp(inf) = 2^971,  ulp(0) = 2^-1074 .
+
+                               Why  "_finite_" ?
+
+    Without this word we would have  ulp(Infinity) = Infinity ,  which is
+    not too bad but not so good in situations like the following:
+
+    For every finite floating-point number  y  we expect computed values
+       x := ( y - ulp(y) rounded )    and   z := ( y + ulp(y) rounded )
+    to satisfy  " x <= y <= z ".  We cannot expect  " x < y < z "  in every
+    case;  consider the case  y := 1  and remember that by default  IEEE
+    754  rounds midway cases to nearest even so  z = 1 .  These inferences
+    hold for decimal floating-point too though for very different reasons.
+    By defining  ulp(Infinity)  to be finite we sustain these inferences at
+    infinite  y  too;  they would be invalidated there otherwise.  Tighter
+    inferences are available just when  y  is finite;  then
+                " x < y <= z ,   or   x <= y < z ,   or both."
+    Both strict inequalities are false if  y  is infinite;  even so,  no
+    INVALID OPERATON  occurs.  Were  ulp(Infinity) = Infinity ,  an INVALID
+    OPERATION  would occur at  x := y - ulp(y)  producing  NaN,  and again
+    at each comparison of  x  and  y .  Gratuitous  INVALID OPERATIONs
+    like these seem to punish a program cruelly and unusually:  they would
+    wrest control from it in many environmemts,  though not  MATLAB's.
+
+    Here is a vectorized  MATLAB  program to compute  ulp(x)  on machines
+    whose arithmetics conform to  IEEE Standard 754,  as almost all do now.
+
+    . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+   function  u = ulp(x)
+   %  ulp(x)  is the gap between the two finite floating-point numbers
+   %  nearest  x ,  even if  x  is one of them.  ulp(NaN)  is  NaN .  E.g.,
+   %  ulp(1) = eps/2,  ulp(1.5) = eps,  ulp(inf) = 2^971,  ulp(0) = 2^-1074
+
+   u = abs(real(x)) ;                  %... to propagate  NaN
+   k = ( u < 5.0e-308 ) ;              %... copes with  x  too near  0
+   if any(k(:)),  v = k*5.0e-324 ;  u(k) = v(k) ;  end
+   j = ( 9.0e307 < u ) ;               %... copes with  x  near  Infinity
+   if any(j(:)),  v = j*(2^(1024-53)) ;  u(j) = v(j) ;  end
+   j = ~(j|k) ;                        %... copes with the rest
+   if any(j(:))
+       v = u(j) ;  w = (0.7*eps)*v ;   %... "0.7"  works for  IEEE 754
+       u(j) = min( (v+w)-v, (w-v)+v ) ;  end
+   if any(imag(x(:))),  u = u + i*ulp(imag(x)) ;  end % recursive call !
+   %  END of  ULP.M                               (C) 1989  by  W. Kahan
+    . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+    -----------------------------------------------------------------------
+
+    FOOTNOTE 2:  In some ways  log2  is more natural for binary arithmetic
+    than is the  "natural"  log  based upon  e .  Now compatibility with
+    Intel's 8087  designed in  1977  compels hardware/firmware support for
+    log2  in  IBM PCs  and clones.  Why doesn't  MATLAB's  LOG2  use it?
+
+    Instead its  LOG2  has suffered from two bugs.  A bizarre bug only in
+    MATLAB 4.2  on  68040-based Macintoshes  subtracts  2^16 = 65536  from
+    log2(x)  if  1/2 <= |x| < 1 .  The second bug persists in  MATLABs 4, 5
+    and 6  on  PCs  and  Macs  and probably others.  One manifestation of
+    this bug is a difference of  GULPs,  not a few  ulps,  between  1  and
+    the computed value of  z = log(2)*log2(1 + eps)/eps  tabulated here:
+
+                        Computers     MATLABs      z
+                        ~~~~~~~~~~    ~~~~~~~~   ~~~~~~
+                        IBM PCs         4.2      0.9995
+                        IBM PCs       5.3, 6.5   1.04
+                        68K Macs      4.2, 5.2   1.105
+                        Power Macs    4.2, 5.2   1.15
+
+    LOG10  in  MATLAB 6.5  inherits this bug from  LOG2 .  This drastic
+    bug's longevity ought to give somebody pause for serious thought.
+
+    Here is a  MATLAB  program to compute  y = lg2(x)  that should be used
+    instead of  y = log2(x) .  Distinguish this usage from  [y,k] = log2(x)
+    which resembles  C's  function  frexp  and is free from the second bug.
+
+    . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+    function  y = lg2(x)
+    % LG2  Base-two logarithm
+    %  lg2(X) = the base-two logarithm of the elements of  X ,  assuming
+    %  them all to be nonnegative,  without the bug in  MATLAB's log2(x)
+    %  that loses its relative accuracy as  x  decreases towards  1 .
+    %
+    %   See also LOG, LOG2, EXP, LOGM.
+
+    %   For  IEEE 754 floating-point  and  MATLAB  versions 4.x - 6.x.
+
+    %  Constants:
+    %  L2  := 1/log(2) rounded to  53 sig. bits,  accurate to  55
+    %       = 1.44269504088896339  =  1.71547652B82FE hex
+    %  R2  := sqrt(1/2)  rounded to  53 sig. bits,  high by  0.44 ulp
+    %       = 0.707106781186547573  =  hex 1.6A09E667F3BCD / 2
+
+    if any(imag(x))|any(x < 0)   %... Has complex  lg2  any application?
+          error(' lg2(x)  is provided only for  x >= 0 .'),  end
+    [s, k] = log2(x) ;  %...  x = s*2^k ,  1/2 <= s < 1,  like  frexp.
+
+    %  A bug in  MATLAB 4.2  on  68040-based  Macintoshes  requires ...**
+       j = (k == -65536) ;  if any(j(:)),  k = k + 65536*j ;  end % ...**
+    %  All other versions of  MATLAB  can omit the previous line.   ...**
+
+    %  The segregation of  1/4 <= x < 4  is needed to run this program on
+    %  computers that cannot accumulate the scalar product  y  below to
+    %  64  sig. bits as  IBM PCs  and  68040-based  Macs  can.  On just
+    %  these computers a simpler program produces better results sooner.
+       j = (abs(k-0.5) < 2) ;          %... j = (-2 < k < 3)
+       if any(j(:)),  s(j) = x(j) ;  k(j) = 0*j(j) ;  end
+    %  Now  1/4 <= s(j) = x(j) < 4  and  k(j) = 0 .  Otherwise ...
+
+    j = (~j)&(s < 0.707106781186547573) ;
+    if any(j(:)),  s(j) = 2*s(j) ;  k = k-j ;  end
+    y = log(s)*1.44269504088896339 + k ;
+
+    %  End of  LG2.M                            (C) 1995 - 2004  W. Kahan
+    . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+    How accurate is my  LG2 ?  It's hard to say without knowing how  LOG
+    is implemented since its errors are inherited by  LG2 .  According to
+    my tests,  MATLAB's  LOG(x)  errs by at worst about  0.8 ulp  over the
+    interval  1/4 <= x <= 4 ,  wherein my  LG2(x)  errs by at worst about
+    1.5 ulps.  Elsewhere  LG2  errs by at most about  0.7 ulps.  As we have
+    seen,  MATLAB's LOG2(x)  can err by  GULPs  as  x  descends to  1 .
+
+    -----------------------------------------------------------------------
+
+    Ruminations on the (Re)Development Costs of Numerical Software
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Corrections entail changes intended for somebody's benefit;  but every
+    change,  no matter how small,  imposes a cost somewhere upon somebody
+    else who is entitled at least to grumble ...
+
+         "Why couldn't it have been gotten right in the first place?"
+
+    I would prefer to believe that  Eternal Truth  is worth its price no
+    matter how small its benefit seems at first,  though the poet who wrote
+
+             " 'Beauty is truth,  truth beauty,' --  that is all
+                 Ye know on earth,  and all ye need to know. "
+                   ("Ode on a Grecian Urn",  John Keats,  1795-1821)
+
+    had no exposure to cost/benefit analyses.  Certainly he glossed over
+    the costs of first attending to grubby details to ascertain the  Truth
+    or fashion  Beauty,  and then delivering it to deserving destinations.
+
+    Attending to those last few grubby details inflates the development
+    costs of reliable numerical software so badly as recalls to mind the
+    costs of maintaining an old house.  Replacing a worn out wall switch is
+    a task that should entail unfastening six screws and refastening them.
+    But behind that switch is ancient wiring whose insulation has dried out
+    and cracked,  so it must be replaced lest it start a fire.  Access to
+    the wiring inside the wall is blocked by a pipe.  Thus the replacement
+    of a switch costing a dollar turns into jobs for a plumber,  carpenter,
+    electrician,  plasterer and painter,  or else for an exceptionally
+    versatile handyman.  A dripping faucet threatens the budget similarly.
+
+    We all wish someone else had attended to details well enough that they
+    would no longer burden us.  In what working environments can we expect
+    some  "someone else"  to succeed?  Not in environments that oblige her
+    to cope laboriously and repeatedly with exceptions,  boundary cases and
+    gratuitous limits and details that could have been reduced to something
+                 "... as simple as possible,  but no simpler"
+                                (Albert Einstein,  1879-1955)
+    but weren't by whoever built her environment.  Consequently we endure
+    swollen capture-cross-sections for error when trying to write numerical
+    software using today's programming languages and development systems.
+
+    The best numerical programming environment I have known was  SANE,  the
+    Standard Apple Numerical Environment  on old  680x0-based  Macintoshes;
+    look at  "Apple Numerics Manual, Second Edition" (1988) Addison-Wesley,
+    Reading Mass.  Unfortunately,  in  1992,  just as programmers began to
+    express appreciation for  SANE,  it suffered Collateral Damage from the
+    CEO's  "Business Decision"  to switch  Macintoshes  onto an  IBM  Power
+    PC  processor lacking the  68040's  hardware support for  SANE.  This
+    CEO's  "Big Picture"  experience selling carbonated beverages had made
+    him disdainful of minutiae that matter too much in computing.  Now at
+    Hewlett-Packard  a promising numerical programming environment based on
+    Intel's Itanium  processor and the  C99  language  (it's not for a mass
+    market)  is struggling into existence.  Its future is uncertain too.
+
+    I wish the makers of  MATLAB,  recalling their roots,  would rededicate
+    attention to their numerical underpinnings.  Among improvements needed:
+
+
+          Declarable  4-byte,  8-byte  and  (10 or 16)-byte  variables   *
+              but use old  Kernighan-Ritchie C  rather than  Java/Fortran
+              rules for expression-evaluation.
+          Access to  IEEE 754's  flags for trapless exception-handling   *
+          Access to  IEEE 754's  directed roundings as diagnostic aids   *
+          Support for fast  (8 or 10)-byte  64-bit  integer arithmetic
+             because  32-bit  is too narrow for constructing test-data
+             when the accuracy of a floating-point program is under test.
+          Faster and more intelligible interface to  VPA  via  Maple
+
+          Later ...  Support for nascent  Interval Arithmetic  too
+                     Operator Overloading to handle linear space objects
+                       along lines explored by  Dave Meredith's  LINALG
+
+    But all that is a story for another day.
+
+
+    -----------------------------------------------------------------------
+
+    * To read more about the first three improvements requested look at
+      these items posted on  <http://www.cs.berkeley.edu/~wkahan/...>:
+
+      "Marketing vs. Mathematics"  <MktgMath.pdf>
+
+      "How Java's Floating-Point Hurts Everyone Everywhere"  <Javahurt.pdf>
+        (coauthored with  Joe Darcy)
+
+       "Matlab's Loss is Nobody's Gain"  <MxMulEps.pdf>
+
+
+      Questions about the scope and persistence of  MATLAB 6.5's  directive
+      " system_dependent('setprecision', {24|53|64}) "  remain unanswered.
+      It alters the values computed for  10.0.^M ,  but its effects upon
+      log10.m  and  mxmuleps.m  have not yet been figured out.
+
+    -----------------------------------------------------------------------
+

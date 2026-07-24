@@ -1,0 +1,17 @@
+
+
+
+
+
+
+@inbook{doi:10.1137/1.9780898718027.ch25,
+
+title = {25. Nonlinear Systems and Newton's Method},
+booktitle = {Accuracy and Stability of Numerical Algorithms},
+chapter = {},
+pages = {459-469},
+doi = {10.1137/1.9780898718027.ch25},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898718027.ch25},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898718027.ch25},
+    abstract = { Not a single student showed up for Newton's second lecture, and throughout almost every lecture for the next seventeen years … Newton talked to an empty room. — MICHAEL WHITE, Isaac Newton: The Last Sorcerer (1997) [On Newton's method] If we start with an approximation to a zero which is appreciably more accurate than the limiting accuracy which we have just described, a single iteration will usually spoil this very good approximation and produce one with an error which is typical of the limiting accuracy — J. H. WILKINSON, Rounding Errors in Algebraic Processes (1963) 25.1. Newton's Method Newton's method is a key tool in scientific computing for solving nonlinear equations and optimization problems. Our interest in this chapter is in Newton's method for solving algebraic systems of nonlinear equations. Let F : ℝn → ℝn be continuously differentiable and denote by J its Jacobian matrix (∂Fi/∂xj). Given a starting vector x0, Newton's method for finding a solution of F(x) = 0 generates a sequence {xi} defined by J ( xi ) ( xi+1 − xi ) =−F ( xi ) , i≥0. 25.1 The attraction of the method stems from the fact that, under appropriate conditions, it converges rapidly to a solution from any starting vector x0 sufficiently close to that solution. In particular, if the Jacobian is nonsingular at the solution then the rate of convergence is quadratic [333, 1983, Thm. 5.2.1]. Computationally, Newton's method is implemented as solve J ( xi ) di =−F ( xi ) , xi+1 = xi + di . In practical computation rounding and other errors are introduced, so the computed iterates x^ i actually satisfy x ^ i+1 = x ^ i − (J ( x ^ i )+ Ei )−1 (F ( x ^ i )+ ei ) + εi , 25.2 where • ei is the error made when computing the residual F( x^ i), • Ei is the error incurred in forming J( x^ i) and solving the linear system for di, and • εi is the error made when adding the correction d^ i to x^ i. Note that the term Ei in (25.2) enables the model to cover modified Newton methods, in which the Jacobian is held constant for several iterations in order to reduce the cost of the method. The question of interest in this chapter is how the various errors in (25.2) affect the convergence of Newton's method. In particular, it is important to know the limiting accuracy and limiting residual, that is, how small ‖x* − x^ i‖ and ‖F( x^ i)‖ are guaranteed to become as n increases, where x* is the solution to which the iteration would converge in the absence of errors. One might begin an analysis by arguing that (sufficiently small) errors made on a particular iteration are damped out by Newton's method, since the method is locally convergent. However, we are concerned in (25.2) with systematic errors, possibly much larger than the working precision, and how the errors from different iterations interact is not obvious. In the next section we give general error analysis results for Newton's method in floating point arithmetic that cater for a wide variety of situations: they allow for extended precision in computation of the residual and the use of possibly unstable linear system solvers. }
+}
