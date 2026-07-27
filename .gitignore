@@ -1,1 +1,34 @@
-reference_materials/
+# Build artifacts
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Anchored Binaries (prevents ignoring directories named 'test/')
+/test
+/bench
+/fuzz_god_mode
+/fuzz_boundary
+/test_core
+/test_trig
+/test_linalg
+/test_dsp
+/test_oracle
+
+# Object files and libraries
+*.o
+*.a
+*.so
+*.dylib
+
+# GCC Dependency Tracking (from -MMD -MP)
+*.d
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
