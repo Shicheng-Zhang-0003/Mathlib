@@ -26,7 +26,17 @@ int main(void) {
     ASSERT_NEAR(&ctx, ml_atan2(0.0, 0.0), 0.0, 1e-14, "atan2(+0,+0)");
 
     ASSERT_TRUE(&ctx, !ml_isnan(ml_sin(1e10)) && !ml_isinf(ml_sin(1e10)), "sin(1e10) finite");
-    ASSERT_TRUE(&ctx, ml_isnan(ml_sin(1e50)), "sin(1e50) safely NaN");
+    /* MATHLIB_V12A1_PAYNE_HANEK_V2_TEST */
+    /* Payne-Hanek v2: large arguments produce finite results */
+    {
+        double s50 = ml_sin(1e50);
+        double c50 = ml_cos(1e50);
+        ASSERT_TRUE(&ctx, !ml_isnan(s50) && !ml_isinf(s50), "sin(1e50) is finite");
+        ASSERT_TRUE(&ctx, s50 >= -1.0 && s50 <= 1.0, "sin(1e50) in [-1,1]");
+        ASSERT_TRUE(&ctx, !ml_isnan(c50) && !ml_isinf(c50), "cos(1e50) is finite");
+        ASSERT_TRUE(&ctx, c50 >= -1.0 && c50 <= 1.0, "cos(1e50) in [-1,1]");
+        ASSERT_NEAR(&ctx, s50*s50 + c50*c50, 1.0, 1e-10, "sin^2+cos^2 at 1e50");
+    }
 
     return ml_test_summary(&ctx);
 }

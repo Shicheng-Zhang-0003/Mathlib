@@ -61,9 +61,10 @@ int main() {
     /* 3. Integral & Gamma */
     printf("--- Integral & Gamma ---\n");
     ASSERT_NEAR(&ctx, ml_integral_traditional(0, 1, 2.0, 0, 0.001), 1.0/3.0, 1e-3, "integral x^2");
-    ASSERT_NEAR(&ctx, ml_gamma_new(1.0), 1.0, 1e-3, "gamma(1)");
-    ASSERT_NEAR(&ctx, ml_gamma_new(4.0), 6.0, 1e-2, "gamma(4)");
-    ASSERT_NEAR(&ctx, ml_gamma_new(5.0), 24.0, 5e-2, "gamma(5)");
+    /* MATHLIB_V12A1_GAMMA_TIGHT */
+    ASSERT_NEAR(&ctx, ml_gamma_new(1.0), 1.0, 1e-13, "gamma(1)");
+    ASSERT_NEAR(&ctx, ml_gamma_new(4.0), 6.0, 1e-11, "gamma(4)");
+    ASSERT_NEAR(&ctx, ml_gamma_new(5.0), 24.0, 1e-10, "gamma(5)");
 
     /* 4. Trigonometry */
     printf("--- Trigonometry ---\n");

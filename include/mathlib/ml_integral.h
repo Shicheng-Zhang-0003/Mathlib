@@ -15,5 +15,6 @@
 ML_API double ml_factorial_float(double x);
 ML_API double ml_integral_traditional(double a, double b, double exponent, double additive, double d);
 ML_API double ml_gamma_new(double x);
+ML_API double ml_lgamma(double x);
 
 #endif /* MATHLIB_ML_INTEGRAL_H */

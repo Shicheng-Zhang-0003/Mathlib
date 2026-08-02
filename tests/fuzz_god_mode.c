@@ -212,7 +212,7 @@ void test_catastrophic_cancellation() {
     CHECK_NEAR(s, 1e16, 1.0, "Two-Sum large");
     CHECK_NEAR(err, 1.0, 1e-15, "Two-Sum captured lost bit");
 
-    double fma_res = ml_fma(1e16, 1.0, 1.0);
+    double fma_res = ml_fma_soft(1e16, 1.0, 1.0);
     CHECK_NEAR(fma_res, 1e16, 1.0, "FMA large");
 }
 

@@ -50,7 +50,11 @@ ML_API double ml_atan(double x) {
     if (x < -0.5) return -(ML_PI / 4.0) + ml_atan((x + 1.0) / (1.0 - x));
 
     double result = x, term = x, x2 = x * x;
-    for (int i = 3; i <= 21; i += 2) { term *= -x2; result += term / i; }
+    /* MATHLIB_V12A1_ACCURACY_FIXES: extended from 10 to 18 terms.
+     * Old: i <= 21 (10 terms), truncation error ~10^4 ULP at |x|=1/3.
+     * New: i <= 35 (18 terms), truncation error < 0.001 ULP at |x|=1/3.
+     * Affects ml_atan, ml_asin, ml_acos, ml_atan2, ml_acot. */
+    for (int i = 3; i <= 35; i += 2) { term *= -x2; result += term / i; }
     return result;
 }
 
