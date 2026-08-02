@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(mathlib_v11S VERSION 11.0.0 LANGUAGES C)
+project(mathlib_v12A1 VERSION 12.1.0 LANGUAGES C)
 
 # Strict C99 enforcement (No GNU extensions like typeof or statement expressions)
 set(CMAKE_C_STANDARD 99)

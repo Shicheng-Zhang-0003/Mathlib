@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 echo "========================================================="
-echo "  MATHLIB v11S: STRICT CLOSURE GATE"
+echo "  MATHLIB v12A1: DEVELOPMENT GATE"
 echo "========================================================="
 
 CC="${CC:-gcc}"
@@ -40,7 +39,6 @@ echo "[6/7] Running mpmath oracle validation..."
     -o build/oracle_check \
     tests/test_oracle.c \
     -Lbuild -lmathc -lm
-
 ./build/oracle_check
 
 echo "[7/7] Running ultimate fuzzer..."
@@ -50,9 +48,8 @@ echo "[7/7] Running ultimate fuzzer..."
     -o build/ultimate_fuzzer \
     tests/ultimate_fuzzer.c \
     -Lbuild -lmathc -lm
-
 ./build/ultimate_fuzzer "$SEED"
 
 echo "========================================================="
-echo "  STRICT CLOSURE GATE PASSED"
+echo "  v12A1 DEVELOPMENT GATE PASSED"
 echo "========================================================="

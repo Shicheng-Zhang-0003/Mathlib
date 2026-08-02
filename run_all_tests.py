@@ -7,9 +7,9 @@ The Nuclear Option.
 Runs EVERY test, fuzzer, oracle, and gauntlet in the v11S tree.
 No shortcuts. No skips. Everything passes or you know exactly what didn't.
 
-Run from INSIDE the v11S folder:
+Run from INSIDE the v12A1 folder:
 
-    cd v11S
+    cd v12A1
     python3 run_all_tests.py
 
 Options:
@@ -127,7 +127,7 @@ class TestReport:
     def print_summary(self) -> None:
         print()
         print("=" * 72)
-        print("  MATHLIB v11S: FULL TEST SUITE RESULTS")
+        print("  MATHLIB v12A1: FULL TEST SUITE RESULTS")
         print("=" * 72)
 
         current_phase = ""
@@ -148,7 +148,7 @@ class TestReport:
         print("-" * 72)
 
         if self.failed_count == 0:
-            print("  \U0001f389 ALL TESTS PASSED. v11S is clean.")
+            print("  \U0001f389 ALL TESTS PASSED. v12A1 is clean.")
         else:
             print("  \u26a0\ufe0f  FAILURES DETECTED:")
             for r in self.results:
@@ -555,7 +555,7 @@ def phase_python_runner(report: TestReport, verbose: bool, fail_fast: bool) -> N
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="MathLib v11S: Run every test in the tree.",
+        description="MathLib v12A1: Run every test in the tree.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -579,12 +579,12 @@ def main() -> int:
 
     # Verify we're in the right place
     if not Path("src/core.c").exists() or not Path("include/mathlib").is_dir():
-        print("ERROR: Run this script from INSIDE the v11S folder.")
+        print("ERROR: Run this script from INSIDE the v12A1 folder.")
         print("Expected to find: ./src/core.c and ./include/mathlib/")
         return 2
 
     print("=" * 72)
-    print("  MATHLIB v11S: FULL TEST SUITE (THE NUCLEAR OPTION)")
+    print("  MATHLIB v12A1: FULL TEST SUITE (THE NUCLEAR OPTION)")
     print("=" * 72)
     print(f"  Seed:       {args.seed}")
     print(f"  Soak:       {'YES (' + str(args.soak_n) + ' iters)' if args.soak else 'NO'}")

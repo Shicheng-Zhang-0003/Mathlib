@@ -23,15 +23,15 @@ Meaning:
 - next `S` = promoted stable release
 
 Current state:
-
-> v11S is operationally between late A3 and true S.
+> v12A1 early A1 development wave.
+> v11S shipped. Closure documents archived.
 
 Therefore:
-
-- no new features,
-- no new math families,
-- no new public APIs,
-- only correctness, tests, documentation, and closure hygiene.
+- new algorithms are in scope,
+- approximation redesigns are the primary mission,
+- correctness contracts still apply,
+- script-only change policy still applies,
+- zero allocation and thread safety still apply.
 
 ---
 

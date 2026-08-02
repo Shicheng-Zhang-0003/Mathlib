@@ -122,7 +122,7 @@ void test_fft_parseval() {
 
 int main() {
     printf("=========================================================\n");
-    printf("   MATHLIB v11S: BOUNDARY & INVARIANT GAUNTLET\n");
+    printf("   MATHLIB v12A1: BOUNDARY & INVARIANT GAUNTLET\n");
     printf("=========================================================\n");
     test_trig_boundaries();
     test_exp_log_boundaries();

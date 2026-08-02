@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
     srand(seed);
     printf("MATHLIB_FUZZ_SEED=%u\n", seed);
     printf("=========================================================\n");
-    printf("   MATHLIB v11S: THE ULTIMATE FUZZER (ASan + UBSan)\n");
+    printf("   MATHLIB v12A1: THE ULTIMATE FUZZER (ASan + UBSan)\n");
     printf("=========================================================\n");
 
     test_bitwise_ieee754();

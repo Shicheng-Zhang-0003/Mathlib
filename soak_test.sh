@@ -3,7 +3,7 @@
 set -u
 
 echo "========================================================="
-echo "  MATHLIB v11S: DETERMINISTIC SOAK TEST"
+echo "  MATHLIB v12A1: DETERMINISTIC SOAK TEST"
 echo "========================================================="
 
 BASE_SEED=${MATHLIB_SOAK_SEED:-1000000}

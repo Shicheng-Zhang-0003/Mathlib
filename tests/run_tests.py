@@ -6,7 +6,7 @@ tests = ["test_core", "test_trig", "test_linalg", "test_dsp"]
 total_failed = 0
 
 print("\n" + "="*50)
-print("  MATHLIB v11S MODULAR CI/CD TEST RUNNER")
+print("  MATHLIB v12A1 MODULAR CI/CD TEST RUNNER")
 print("="*50)
 
 for t in tests:

@@ -1,13 +1,35 @@
-# v11S Release Documentation
+# MathLib v12A1 Development Tree
 
-v11S is a stability-focused release of the mathlib project.
+v12A1 is the architectural evolution cycle following the v11S stable release.
 
-This release is intended for public consumption with strong engineering guarantees:
+v11S proved the foundations:
 - deterministic C99 implementation
 - strict compiler hygiene
 - explicit numerical contracts
-- documented limitations
+- zero-allocation workspace design
 - reproducible validation workflow
 
-v11S is not intended to be the final expression of every planned optimization.
-Advanced improvements are reserved for the v12A1 development cycle.
+v12A1 replaces approximations with the real thing:
+- true minimax polynomials (replacing Taylor series)
+- true Payne-Hanek range reduction (removing the 1e15 wall)
+- Lanczos gamma function (replacing the degree-8 sketch)
+- extended-precision pow
+- error-free Cody-Waite reductions
+
+## Build
+
+```bash
+cmake -B build -DMATHLIB_PROFILE=SCIENTIFIC
+cmake --build build
+```
+
+## Test
+
+```bash
+python3 run_all_tests.py
+```
+
+## Status
+
+This is a development tree. Nothing here is release-grade yet.
+See `docs/V12A1_ROADMAP.md` for the work plan.

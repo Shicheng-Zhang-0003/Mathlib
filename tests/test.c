@@ -44,7 +44,7 @@ static double test_opt_parabola(double x) { return (x - 3.0) * (x - 3.0) + 1.0; 
 int main() {
     ml_test_ctx_t ctx;
     ml_test_init(&ctx, "Monolithic Smoke Test");
-    printf("=== MathLib v11S: Monolithic Smoke Test ===\n");
+    printf("=== MathLib v12A1: Monolithic Smoke Test ===\n");
 
     /* 1. Combinatorics */
     printf("--- Combinatorics ---\n");

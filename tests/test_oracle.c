@@ -35,7 +35,7 @@ int main() {
     const char* worst_func = "";
 
     printf("=========================================================\n");
-    printf("   MATHLIB v11S: ORACLE VALIDATION (mpmath ground truth)\n");
+    printf("   MATHLIB v12A1: ORACLE VALIDATION (mpmath ground truth)\n");
     printf("=========================================================\n");
 
     /* Validate sin */
@@ -136,7 +136,7 @@ int main() {
 
 #else
     printf("=========================================================\n");
-    printf("   MATHLIB v11S: ORACLE VALIDATION (SKIPPED)\n");
+    printf("   MATHLIB v12A1: ORACLE VALIDATION (SKIPPED)\n");
     printf("=========================================================\n");
     printf("Oracle data not found. Generate it first:\n");
     printf("  pip install mpmath\n");

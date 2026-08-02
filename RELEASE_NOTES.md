@@ -20,3 +20,13 @@ The following are intentionally not part of v11S:
 - next-generation SIMD architecture
 - expanded arbitrary precision paths
 - major API restructuring
+
+## Shipped
+
+v11S closure gate passed. Promoted to stable.
+Ship date: 2026-08-02
+
+---
+
+*This file is the v11S ship record. v12A1 development notes live in
+`docs/V12A1_ROADMAP.md`.*
