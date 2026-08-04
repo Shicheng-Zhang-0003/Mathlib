@@ -1,4 +1,42 @@
-#ifndef LIBMATHC_PAYNE_HANEK_H
+#!/usr/bin/env python3
+"""
+19_payne_hanek_v3_fixed.py
+Run from the folder that CONTAINS the v12A1 working folder.
+
+GIANT ERROR #1: large-argument sin/cos are garbage (up to 2.1e15 ULP).
+
+Root cause in v2:
+  ml_rem_pio2_large accumulates the FULL product q = |x| * (2/pi) in double
+  precision (q_hi + q_lo), then does n = round(q), frac = q - n. For
+  |x| > 1e10 the integer part of q has more digits than double can hold,
+  so the fractional part (which is all we need) is destroyed.
+
+  Additionally, the table window k_end = (E + 53) / 24 is too short: it
+  drops terms whose fractional contribution is still >> 2^-53.
+
+Fix:
+  - Do NOT compute the full q. Instead, for each term, extract the integer
+    contribution mod 4 into the quadrant counter, and Kahan-accumulate ONLY
+    the fractional parts. The fractional accumulator stays small and precise
+    regardless of how huge |x| is.
+  - Widen the window to k_end = (E + 108) / 24 so all terms with fractional
+    contribution >= ~2^-107 are included.
+
+Target:
+  v12A1/src/internal/payne_hanek.h
+
+Usage:
+  python3 19_payne_hanek_v3_fixed.py
+  python3 19_payne_hanek_v3_fixed.py --force
+"""
+from __future__ import annotations
+import shutil
+import sys
+from pathlib import Path
+
+MARKER = "MATHLIB_V12A1_PAYNE_HANEK_V3_FIXED"
+
+NEW_PAYNE_HANEK_H = r"""#ifndef LIBMATHC_PAYNE_HANEK_H
 #define LIBMATHC_PAYNE_HANEK_H
 
 /* MATHLIB_V12A1_PAYNE_HANEK_V3_FIXED */
@@ -173,3 +211,88 @@ static inline int ml_rem_pio2(double x, double *y) {
 }
 
 #endif /* LIBMATHC_PAYNE_HANEK_H */
+"""
+
+
+def fail(message: str) -> None:
+    print("ERROR: " + message)
+    sys.exit(1)
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(content)
+    print(f"  [write] {path}")
+
+
+def locate_v12a1() -> tuple[Path, Path]:
+    root = Path.cwd()
+    candidate = root / "v12A1"
+    if candidate.is_dir():
+        return root, candidate
+    if (root / "src" / "internal" / "payne_hanek.h").is_file():
+        print("  [note] Running from inside v12A1.")
+        return root.parent, root
+    fail("Run from the folder that CONTAINS v12A1/, or from inside v12A1/ itself.")
+
+
+def patch_payne_hanek(v12: Path, force: bool) -> None:
+    path = v12 / "src" / "internal" / "payne_hanek.h"
+    if not path.is_file():
+        fail(f"Missing expected file: {path}")
+    text = path.read_text(encoding="utf-8")
+    if MARKER in text and not force:
+        print(f"  [skip] {path}: already at v3_fixed")
+        return
+    write_text(path, NEW_PAYNE_HANEK_H)
+
+
+def archive_self(v12: Path, force: bool) -> None:
+    try:
+        source = Path(__file__).resolve()
+        dest = v12 / "scripts" / "v12a1" / source.name
+        if source == dest:
+            return
+        if dest.exists() and not force:
+            print(f"  [skip] {dest}: already archived")
+            return
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, dest)
+        print(f"  [archive] {dest}")
+    except NameError:
+        pass
+
+
+def main() -> int:
+    force = "--force" in sys.argv[1:]
+    root, v12 = locate_v12a1()
+    print("=========================================================")
+    print("  MATHLIB v12A1: PAYNE-HANEK v3_fixed (Section 19)")
+    print("=========================================================")
+    print(f"  Root:  {root}")
+    print(f"  v12A1: {v12}")
+    print(f"  Force: {force}")
+    print("---------------------------------------------------------")
+
+    print("\n[1/1] payne_hanek.h — per-term int/frac separation + wide window")
+    patch_payne_hanek(v12, force)
+
+    archive_self(v12, force)
+
+    print("\n---------------------------------------------------------")
+    print("  Payne-Hanek v3_fixed applied.")
+    print("")
+    print("  Verify:")
+    print("    cd v12A1")
+    print("    cmake --build build")
+    print("    ./build/oracle_check")
+    print("")
+    print("  Expected: sin/cos at 1e10..1e300 collapse from ~1e15 ULP to <= 5.")
+    print("  gamma/lgamma will STILL FAIL — that is Section 21.")
+    print("=========================================================")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

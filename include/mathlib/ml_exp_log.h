@@ -6,6 +6,7 @@
 
 ML_API double ml_exp(double x);
 ML_API double ml_log(double x);
+ML_API void ml_log_split(double x, double *log_hi, double *log_lo);
 ML_API double ml_pow(double x, double y);
 ML_API double ml_logb(double x, double b);
 ML_API double ml_sinh(double x);

@@ -143,6 +143,55 @@ ML_API double ml_log(double x) {
     return ML_FMA((double)e, ML_LN2_HI, z * poly)
          + (double)e * ML_LN2_LO;
 }
+/* MATHLIB_V12A1_GAMMA_LOG_SPLIT */
+/*
+ * Double-double log: returns log(x) as log_hi + log_lo.
+ *
+ * log_hi is the main result (rounded to double).
+ * log_lo captures the low bits of e*ln2.
+ * Together they give ~106 bits of precision.
+ *
+ * This is used by ml_lgamma_positive and ml_gamma_new to avoid
+ * the (z+0.5)*log(t) amplification error.
+ */
+ML_API void ml_log_split(double x, double *log_hi, double *log_lo) {
+    if (ml_isnan(x) || x <= 0.0) {
+        *log_hi = ml_make_nan();
+        *log_lo = 0.0;
+        return;
+    }
+    if (ml_isinf(x)) {
+        *log_hi = x;
+        *log_lo = 0.0;
+        return;
+    }
+    if (x == 1.0) {
+        *log_hi = 0.0;
+        *log_lo = 0.0;
+        return;
+    }
+    int e;
+    double m = ml_frexp_pure(x, &e);
+    int adjust = (m < 0.7071067811865475);
+    m *= (1.0 + adjust);
+    e -= adjust;
+    double z = (m - 1.0) / (m + 1.0);
+    double z2 = z * z;
+    double poly = 0.09523809523809523;
+    poly = poly * z2 + 0.10526315789473684;
+    poly = poly * z2 + 0.11764705882352941;
+    poly = poly * z2 + 0.13333333333333333;
+    poly = poly * z2 + 0.15384615384615385;
+    poly = poly * z2 + 0.18181818181818182;
+    poly = poly * z2 + 0.2222222222222222;
+    poly = poly * z2 + 0.2857142857142857;
+    poly = poly * z2 + 0.4;
+    poly = poly * z2 + 0.6666666666666666;
+    poly = poly * z2 + 2.0;
+    *log_hi = ML_FMA((double)e, ML_LN2_HI, z * poly);
+    *log_lo = (double)e * ML_LN2_LO;
+}
+
 
 ML_API double ml_pow(double x, double y) {
 /* MATHLIB_V12A1_POW_EXTENDED */

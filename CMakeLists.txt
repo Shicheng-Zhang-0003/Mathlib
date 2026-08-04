@@ -136,9 +136,12 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mathlibConfig.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mathlib
 )
 
-option(MATHLIB_ORACLE_TESTS "Enable mpmath oracle validation" OFF)
-if(MATHLIB_ORACLE_TESTS)
-    add_executable(test_oracle tests/test_oracle.c)
-    target_compile_definitions(test_oracle PRIVATE MATHLIB_HAS_ORACLE_DATA)
-    target_link_libraries(test_oracle mathc m)
-endif()
+# MATHLIB_V12A1_ORACLE_BUILD_FIX
+# oracle_check is a first-class target, always built.
+# It inherits sanitizer link flags from add_link_options() when
+# MATHLIB_SANITIZERS=ON, eliminating the manual link lines that
+# produced undefined __asan_* / __ubsan_* references.
+add_executable(oracle_check tests/test_oracle.c)
+target_compile_definitions(oracle_check PRIVATE MATHLIB_HAS_ORACLE_DATA)
+target_include_directories(oracle_check PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(oracle_check mathc m)

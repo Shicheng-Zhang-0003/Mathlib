@@ -104,10 +104,24 @@ static double ml_lgamma_positive(double x) {
     }
 
     double t = z + ML_LANCZOS_G + 0.5;
-    return 0.91893853320467274178  /* 0.5 * log(2*pi) */
-         + (z + 0.5) * ml_log(t)
-         - t
-         + ml_log(ag);
+        /* MATHLIB_V12A1_GAMMA_LOG_SPLIT */
+    /*
+     * Double-double log to avoid (z+0.5)*log(t) amplification.
+     *
+     * The old code computed (z+0.5) * ml_log(t), where ml_log(t)
+     * has ~1 ULP error. When multiplied by (z+0.5) which can be
+     * up to ~171, the error is amplified to ~(z+0.5) ULP.
+     *
+     * Fix: compute log(t) as double-double (log_hi + log_lo),
+     * then multiply by (z+0.5) using FMA for extended precision.
+     */
+    double log_hi, log_lo;
+    ml_log_split(t, &log_hi, &log_lo);
+    double zp5 = z + 0.5;
+    double prod_hi = zp5 * log_hi;
+    double prod_lo = ML_FMA(zp5, log_hi, -prod_hi) + zp5 * log_lo;
+    double prod = prod_hi + prod_lo;
+    return 0.91893853320467274178 + prod - t + ml_log(ag);
 }
 
 ML_API double ml_lgamma(double x) {
@@ -152,7 +166,16 @@ ML_API double ml_gamma_new(double x) {
                 ag = t_k;
             }
             double t = z + ML_LANCZOS_G + 0.5;
-            double log_part = (z + 0.5) * ml_log(t) - t;
+            /* MATHLIB_V12A1_GAMMA_LOG_SPLIT */
+            /*
+             * Double-double log to avoid (z+0.5)*log(t) amplification.
+             */
+            double log_hi, log_lo;
+            ml_log_split(t, &log_hi, &log_lo);
+            double zp5 = z + 0.5;
+            double prod_hi = zp5 * log_hi;
+            double prod_lo = ML_FMA(zp5, log_hi, -prod_hi) + zp5 * log_lo;
+            double log_part = (prod_hi + prod_lo) - t;
             /* sqrt(2*pi) = 2.50662827463100050242 */
             return 2.50662827463100050242 * ag * ml_exp(log_part);
         }

@@ -436,29 +436,16 @@ def phase_oracle(report: TestReport, verbose: bool, fail_fast: bool) -> None:
     print("  PHASE 6: MPMATH ORACLE VALIDATION")
     print("=" * 72)
 
-    cc = os.environ.get("CC", "gcc")
+    # MATHLIB_V12A1_ORACLE_BUILD_FIX
+    # oracle_check is a first-class CMake target. It inherits the
+    # sanitizer link flags from the global configuration, so the
+    # manual gcc line (which caused undefined __asan_* references
+    # when flags mismatched) is gone.
     oracle_binary = Path(BUILD_DIR) / "oracle_check"
-    oracle_src = "tests/test_oracle.c"
-
-    if not Path(oracle_src).exists():
-        report.add(TestResult("oracle_check", "Oracle", False, 0.0, error="Source not found"))
-        return
-
-    # Compile with oracle data
-    compile_cmd = (
-        [cc, "-std=c99", "-O3", "-fPIE",
-         "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
-         "-Iinclude/mathlib", "-Isrc",
-         "-DMATHLIB_HAS_ORACLE_DATA",
-         "-o", str(oracle_binary), oracle_src,
-         f"-L{BUILD_DIR}", "-lmathc", "-lm"]
-    )
-    t0 = time.time()
-    rc, stdout, stderr = run_cmd(compile_cmd, timeout=120)
-    if rc != 0:
+    if not oracle_binary.exists():
         report.add(TestResult(
-            "oracle_check (compile)", "Oracle", False,
-            time.time() - t0, error=stderr[-500:]
+            "oracle_check", "Oracle", False, 0.0,
+            error="Binary not found. Run the build phase first."
         ))
         return
 

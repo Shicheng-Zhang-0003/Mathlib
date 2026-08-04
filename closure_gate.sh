@@ -32,15 +32,9 @@ echo "[5/7] Running boundary gauntlet..."
 ./build/fuzz_boundary
 
 echo "[6/7] Running mpmath oracle validation..."
-"$CC" -std=c99 -O3 -fPIE \
-    -fsanitize=address,undefined -fno-omit-frame-pointer \
-    -Iinclude/mathlib -Isrc \
-    -DMATHLIB_HAS_ORACLE_DATA \
-    -o build/oracle_check \
-    tests/test_oracle.c \
-    -Lbuild -lmathc -lm
+# MATHLIB_V12A1_ORACLE_BUILD_FIX: oracle_check is produced by the CMake
+# build above and inherits sanitizer link flags. No manual gcc line.
 ./build/oracle_check
-
 echo "[7/7] Running ultimate fuzzer..."
 "$CC" -std=c99 -O3 \
     -fsanitize=address,undefined -fno-omit-frame-pointer \
