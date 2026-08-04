@@ -1,4 +1,55 @@
-#include "ml_compiler.h"
+#!/usr/bin/env python3
+"""
+22_gamma_dd_rewrite.py
+Run from the folder that CONTAINS the v12A1 working folder.
+
+GIANT ERROR #5 (second attempt, full rewrite).
+
+Script 21's double-double rewrite failed the oracle:
+  - gamma(50/100/171) still 141/316/582 ULP. gamma(171) at 582 ULP
+    exceeds even the 257-ULP ceiling of "perfect lgamma rounded to
+    double before exp", so the DD low bits never reached ml_exp.
+  - Several small-x values REGRESSED (gamma(0.01) 9 -> 18 ULP,
+    lgamma(-2.5) 10 -> 140 ULP), which a correct DD chain cannot do.
+Conclusion: script 21's DD machinery was buggy. Patching on top is
+unsafe, so this script replaces src/integral.c IN FULL.
+
+Design:
+  - Full double-double primitive set (two-sum, renorm, DD+DD, DD*DD,
+    DD*double, double/double with one Newton correction).
+  - ml_log_dd(): true ~106-bit logarithm.
+      * z = (m-1)/(m+1): numerator exact (Sterbenz), denominator exact
+        via two-sum, quotient DD via one Newton correction.
+      * atanh series evaluated with DD Horner.
+      * e*ln2: rounding of e*LN2_HI captured by FMA, plus e*LN2_LO.
+  - Lanczos Ag sum in DD with DD term divisions.
+  - L = 0.5*ln(2pi) - t + w*log(t) + log(Ag) assembled in DD.
+  - gamma(x) = ml_exp(L.hi) * (1 + L.lo) via one FMA, so the low part
+    actually reaches the exponential (script 21 lost it).
+  - Recurrence gamma(x) = gamma(x+1)/x for x < 0.5 (also prevents the
+    c1/(z+1) division-by-near-zero catastrophe for tiny x).
+  - Exact integer shortcuts: gamma(n) = (n-1)! for n <= 23 (all such
+    factorials are exactly representable), lgamma(1) = lgamma(2) = 0,
+    lgamma(n) = log((n-1)!) for n <= 23.
+
+Targets:
+  v12A1/src/integral.c           (full rewrite)
+  v12A1/tests/test_edge_integral.c (full rewrite)
+
+Usage:
+  python3 22_gamma_dd_rewrite.py
+  python3 22_gamma_dd_rewrite.py --force
+"""
+from __future__ import annotations
+
+import shutil
+import sys
+from pathlib import Path
+
+MARKER = "MATHLIB_V12A1_GAMMA_DD2"
+TEST_MARKER = "MATHLIB_V12A1_GAMMA_DD2_TEST"
+
+NEW_INTEGRAL_C = r"""#include "ml_compiler.h"
 #include "ml_integral.h"
 #include "ml_trig.h"
 
@@ -341,3 +392,197 @@ ML_API double ml_gamma_new(double x) {
     double G = ML_FMA(g, L.lo, g);
     return ML_PI / (sinpx * G);
 }
+"""
+
+NEW_EDGE_TEST_C = r"""/* v11S CLOSURE IP-20: edge integral tests */
+#include "test_harness.h"
+#include "ml_integral.h"
+
+int main(void) {
+    ml_test_ctx_t ctx;
+    ml_test_init(&ctx, "Edge Integral");
+
+    ASSERT_NEAR(&ctx, ml_factorial_float(0.0), 1.0, 1e-15, "factorial_float(0)");
+    ASSERT_NEAR(&ctx, ml_factorial_float(5.0), 120.0, 1e-9, "factorial_float(5)");
+    ASSERT_TRUE(&ctx, ml_isnan(ml_factorial_float(-1.0)), "factorial_float negative is NaN");
+
+    ASSERT_NEAR(&ctx, ml_gamma_new(1.0), 1.0, 1e-14, "gamma(1)");
+    ASSERT_NEAR(&ctx, ml_gamma_new(2.0), 1.0, 1e-14, "gamma(2)");
+    ASSERT_TRUE(&ctx, ml_isnan(ml_gamma_new(0.0)), "gamma(0) is NaN");
+    double gi = ml_gamma_new(ml_make_inf(0));
+    ASSERT_TRUE(&ctx, ml_isinf(gi) && gi > 0.0, "gamma(+inf) is +inf");
+
+    ASSERT_TRUE(&ctx, ml_isnan(ml_integral_traditional(0.0, 1.0, 2.0, 0.0, 0.0)), "integral d=0 is NaN");
+    ASSERT_NEAR(&ctx, ml_integral_traditional(0.0, 1.0, 2.0, 0.0, 0.0001), 1.0 / 3.0, 1e-3, "integral x^2");
+
+    /* MATHLIB_V12A1_GAMMA_DD2_TEST */
+    /* Exact integer factorials (shortcut path) */
+    ASSERT_TRUE(&ctx, ml_gamma_new(3.0) == 2.0, "gamma(3) == 2 exact");
+    ASSERT_TRUE(&ctx, ml_gamma_new(4.0) == 6.0, "gamma(4) == 6 exact");
+    ASSERT_TRUE(&ctx, ml_gamma_new(5.0) == 24.0, "gamma(5) == 24 exact");
+    ASSERT_TRUE(&ctx, ml_gamma_new(6.0) == 120.0, "gamma(6) == 120 exact");
+    ASSERT_TRUE(&ctx, ml_gamma_new(10.0) == 362880.0, "gamma(10) == 9! exact");
+    ASSERT_TRUE(&ctx, ml_gamma_new(20.0) == 121645100408832000.0, "gamma(20) == 19! exact");
+    ASSERT_TRUE(&ctx, ml_gamma_new(23.0) == 1.12400072777760768e21, "gamma(23) == 22! exact");
+
+    /* Tight comparisons against mpmath oracle values (~5.4 ULP tolerance) */
+    ASSERT_NEAR(&ctx, ml_gamma_new(0.5), 1.77245385090551610e+00,
+                1.77245385090551610e+00 * 1.2e-15, "gamma(0.5) == sqrt(pi) tight");
+    ASSERT_NEAR(&ctx, ml_gamma_new(0.1), 9.51350769866873058e+00,
+                9.51350769866873058e+00 * 1.2e-15, "gamma(0.1) tight");
+    ASSERT_NEAR(&ctx, ml_gamma_new(0.01), 9.94325851191506018e+01,
+                9.94325851191506018e+01 * 1.2e-15, "gamma(0.01) tight");
+    ASSERT_NEAR(&ctx, ml_gamma_new(0.001), 9.99423772484595474e+02,
+                9.99423772484595474e+02 * 1.2e-15, "gamma(0.001) tight");
+    ASSERT_NEAR(&ctx, ml_gamma_new(50.0), 6.08281864034267522e+62,
+                6.08281864034267522e+62 * 1.2e-15, "gamma(50) tight");
+    ASSERT_NEAR(&ctx, ml_gamma_new(100.0), 9.33262154439441533e+155,
+                9.33262154439441533e+155 * 1.2e-15, "gamma(100) tight");
+    ASSERT_NEAR(&ctx, ml_gamma_new(171.0), 7.25741561530799904e+306,
+                7.25741561530799904e+306 * 1.2e-15, "gamma(171) tight");
+
+    /* Reflection formula: negative non-integer arguments */
+    ASSERT_NEAR(&ctx, ml_gamma_new(-0.5), -3.54490770181103221e+00,
+                3.54490770181103221e+00 * 1.2e-15, "gamma(-0.5) tight");
+    ASSERT_NEAR(&ctx, ml_gamma_new(-1.5), 2.36327180120735481e+00,
+                2.36327180120735481e+00 * 1.2e-15, "gamma(-1.5) tight");
+    ASSERT_NEAR(&ctx, ml_gamma_new(-2.5), -9.45308720482941900e-01,
+                9.45308720482941900e-01 * 1.2e-15, "gamma(-2.5) tight");
+    ASSERT_NEAR(&ctx, ml_gamma_new(-3.5), 2.70088205852269114e-01,
+                2.70088205852269114e-01 * 1.2e-15, "gamma(-3.5) tight");
+    ASSERT_TRUE(&ctx, ml_isnan(ml_gamma_new(-1.0)), "gamma(-1) pole is NaN");
+    ASSERT_TRUE(&ctx, ml_isnan(ml_gamma_new(-2.0)), "gamma(-2) pole is NaN");
+
+    /* lgamma */
+    ASSERT_TRUE(&ctx, ml_lgamma(1.0) == 0.0, "lgamma(1) == 0 exact");
+    ASSERT_TRUE(&ctx, ml_lgamma(2.0) == 0.0, "lgamma(2) == 0 exact");
+    ASSERT_NEAR(&ctx, ml_lgamma(5.0), ml_log(24.0), 1e-12, "lgamma(5) == log(24)");
+    ASSERT_NEAR(&ctx, ml_lgamma(0.5), 5.72364942924700082e-01,
+                5.72364942924700082e-01 * 1.2e-15, "lgamma(0.5) tight");
+    ASSERT_NEAR(&ctx, ml_lgamma(1.5), -1.20782237635245218e-01,
+                1.20782237635245218e-01 * 1.2e-15, "lgamma(1.5) tight");
+    ASSERT_NEAR(&ctx, ml_lgamma(50.0), 1.44565743946344895e+02,
+                1.44565743946344895e+02 * 1.2e-15, "lgamma(50) tight");
+    ASSERT_NEAR(&ctx, ml_lgamma(100.0), 3.59134205369575398e+02,
+                3.59134205369575398e+02 * 1.2e-15, "lgamma(100) tight");
+    ASSERT_NEAR(&ctx, ml_lgamma(171.0), 7.06573062245787355e+02,
+                7.06573062245787355e+02 * 1.2e-15, "lgamma(171) tight");
+    ASSERT_NEAR(&ctx, ml_lgamma(-1.5), 8.60047015376480983e-01,
+                8.60047015376480983e-01 * 1.2e-15, "lgamma(-1.5) tight");
+    ASSERT_NEAR(&ctx, ml_lgamma(-2.5), -5.62437164976740539e-02,
+                5.62437164976740539e-02 * 1.2e-15, "lgamma(-2.5) tight");
+    ASSERT_TRUE(&ctx, ml_isinf(ml_lgamma(0.0)), "lgamma(0) is inf");
+    ASSERT_TRUE(&ctx, ml_isnan(ml_lgamma(ml_make_nan())), "lgamma(NaN) is NaN");
+
+    return ml_test_summary(&ctx);
+}
+"""
+
+
+def fail(message: str) -> None:
+    print("ERROR: " + message)
+    sys.exit(1)
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(content)
+    print(f"  [write] {path}")
+
+
+def locate_v12a1() -> tuple[Path, Path]:
+    root = Path.cwd()
+    candidate = root / "v12A1"
+    if candidate.is_dir():
+        return root, candidate
+    if (root / "src" / "integral.c").is_file():
+        print("  [note] Running from inside v12A1.")
+        return root.parent, root
+    fail("Run from the folder that CONTAINS v12A1/, or from inside v12A1/ itself.")
+
+
+def patch_integral(v12: Path, force: bool) -> None:
+    path = v12 / "src" / "integral.c"
+    if not path.is_file():
+        fail(f"Missing expected file: {path}")
+    if MARKER in path.read_text(encoding="utf-8") and not force:
+        print(f"  [skip] {path}: already at GAMMA_DD2")
+        return
+    write_text(path, NEW_INTEGRAL_C)
+
+
+def patch_edge_test(v12: Path, force: bool) -> None:
+    path = v12 / "tests" / "test_edge_integral.c"
+    if not path.is_file():
+        fail(f"Missing expected file: {path}")
+    if TEST_MARKER in path.read_text(encoding="utf-8") and not force:
+        print(f"  [skip] {path}: already at GAMMA_DD2_TEST")
+        return
+    write_text(path, NEW_EDGE_TEST_C)
+
+
+def archive_self(v12: Path, force: bool) -> None:
+    try:
+        source = Path(__file__).resolve()
+        dest = v12 / "scripts" / "v12a1" / source.name
+        if source == dest:
+            return
+        if dest.exists() and not force:
+            print(f"  [skip] {dest}: already archived")
+            return
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, dest)
+        print(f"  [archive] {dest}")
+    except NameError:
+        pass
+
+
+def main() -> int:
+    force = "--force" in sys.argv[1:]
+    root, v12 = locate_v12a1()
+    print("=========================================================")
+    print("  MATHLIB v12A1: GAMMA DD FULL REWRITE (script 22)")
+    print("=========================================================")
+    print(f"  Root:  {root}")
+    print(f"  v12A1: {v12}")
+    print(f"  Force: {force}")
+    print("---------------------------------------------------------")
+
+    print("\n[1/2] integral.c — full rewrite (DD Lanczos)")
+    patch_integral(v12, force)
+
+    print("\n[2/2] test_edge_integral.c — oracle-aligned assertions")
+    patch_edge_test(v12, force)
+
+    archive_self(v12, force)
+
+    print("\n---------------------------------------------------------")
+    print("  Gamma DD rewrite applied.")
+    print("")
+    print("  Key differences from script 21:")
+    print("    - DD low part reaches ml_exp: exp(L.hi) * (1 + L.lo)")
+    print("    - true ~106-bit ml_log_dd (DD quotient + DD Horner)")
+    print("    - DD Lanczos sum with DD term divisions")
+    print("    - recurrence Gamma(x) = Gamma(x+1)/x for x < 0.5")
+    print("    - whole-file rewrite: no dependence on 21's leftovers")
+    print("")
+    print("  Verify:")
+    print("    cd v12A1")
+    print("    cmake --build build")
+    print("    ./build/test")
+    print("    MATHLIB_EDGE_SANITIZERS=1 bash tests/run_edge_tests.sh")
+    print("    ./build/oracle_check")
+    print("")
+    print("  Interpretation of the oracle afterwards:")
+    print("    - integers 1..23 exact, large args single-digit ULP -> done")
+    print("    - isolated 5-50 ULP residue at NON-integer points ->")
+    print("      intrinsic error of the g=7,n=9 coefficient set;")
+    print("      script 23 fits better coefficients with mpmath")
+    print("      (or switches x >= 8 to DD Stirling).")
+    print("=========================================================")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
