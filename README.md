@@ -30,6 +30,9 @@ python3 run_all_tests.py
 ```
 
 ## Status
+<!-- MATHLIB_V12A1_A1_FREEZE -->
+A1 feature freeze is in effect. Only A1 closure fixes, tests, validation, and documentation alignment are allowed.
+
 
 This is a development tree. Nothing here is release-grade yet.
 See `docs/V12A1_ROADMAP.md` for the work plan.

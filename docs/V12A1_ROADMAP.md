@@ -1,4 +1,16 @@
 # v12A1 Development Roadmap
+<!-- MATHLIB_V12A1_A1_FREEZE -->
+## A1 Closure Freeze (Subsection 1.1)
+
+- Effective: 2026-08-05
+- No new modules.
+- No new public APIs.
+- No new math families.
+- No speculative features.
+- Only A1 closure table fixes, tests, oracle expansion, validation, docs alignment, and script/process hygiene are allowed.
+- Each change must be applied by a numbered script corresponding to an A1 subsection.
+
+
 
 ## Theme
 

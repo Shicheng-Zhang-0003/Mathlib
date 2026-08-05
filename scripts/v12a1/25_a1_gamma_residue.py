@@ -1,60 +1,59 @@
-#include "ml_compiler.h"
-#include "ml_integral.h"
-#include "ml_trig.h"
+#!/usr/bin/env python3
+"""
+25_a1_gamma_residue.py
 
-/*
- * v11S contract:
- * ml_factorial_float(x) means x! = Gamma(x + 1).
- */
-ML_API double ml_factorial_float(double x) {
-    if (ml_isnan(x)) return x;
-    if (x < 0.0) return ml_make_nan();
-    if (ml_isinf(x)) return ml_make_inf(0);
-    if (x == 0.0) return 1.0;
-    return ml_gamma_new(x + 1.0);
-}
+Run from the folder that CONTAINS the v12A1 working folder.
 
-/*
- * Educational / experimental numerical integrator.
- * Retained for compatibility.
- */
-ML_API double ml_integral_traditional(double a, double b, double exponent, double additive, double d) {
-    if (ml_isnan(a) || ml_isnan(b) || ml_isnan(exponent) ||
-        ml_isnan(additive) || ml_isnan(d)) {
-        return ml_make_nan();
-    }
-    if (ml_isinf(a) || ml_isinf(b) || ml_isinf(exponent) ||
-        ml_isinf(additive) || ml_isinf(d)) {
-        return ml_make_nan();
-    }
-    if (d == 0.0) {
-        return ml_make_nan();
-    }
-    if ((d > 0.0 && a >= b) || (d < 0.0 && a <= b)) {
-        return 0.0;
-    }
-    double result = 0.0;
-    double x = a;
-    const int max_steps = 10000000;
-    for (int step = 0; step < max_steps; step++) {
-        if ((d > 0.0 && x >= b) || (d < 0.0 && x <= b)) {
-            return result;
-        }
-        double term = ml_pow(x, exponent) + additive;
-        if (ml_isnan(term)) {
-            return ml_make_nan();
-        }
-        result += term * d;
-        double next_x = x + d;
-        if (next_x == x) {
-            return ml_make_nan();
-        }
-        x = next_x;
-    }
-    return ml_make_nan();
-}
+Final gamma/lgamma residue fix for the three remaining oracle failures:
 
-/* MATHLIB_V12A1_GAMMA_STIRLING_V2 */
+    gamma(0.001)  ~10 ULP
+    gamma(-0.9)    ~6 ULP
+    lgamma(-2.5)  ~11 ULP
+
+Changes:
+    - Positive small-x gamma uses product reconstruction:
+          gamma(x) = gamma(x+m) / prod_{k=0}^{m-1}(x+k)
+      with double-double product. This avoids exponentiating a
+      subtracted log sum for small x.
+
+    - lgamma still uses double-double log recurrence.
+
+    - Reflection uses:
+          log|gamma(x)| = log(pi) - log|sin(pi x)| - lgamma(1-x)
+      with a double-double log(pi) term.
+
+    - sin(pi x) is computed with a compensated pi argument:
+          arg = x*pi_hi + x*pi_lo
+      before calling ml_sin().
+
+    - Half-integer positive values use exact half-integer structure:
+          Gamma(n+1/2) = sqrt(pi) * prod_{j=0}^{n-1}(j+1/2)
+          lgamma(n+1/2) = 0.5*log(pi) + sum log(j+1/2)
+
+Targets:
+    v12A1/src/integral.c
+
+Usage:
+    python3 25_a1_gamma_residue.py
+    python3 25_a1_gamma_residue.py --force
+"""
+
+from __future__ import annotations
+
+import re
+import shutil
+import sys
+from pathlib import Path
+
+NEW_MARKER = "MATHLIB_V12A1_GAMMA_STIRLING_V2"
+
+OLD_MARKERS = [
+    "MATHLIB_V12A1_GAMMA_STIRLING",
+    "MATHLIB_V12A1_GAMMA_DD2",
+    "MATHLIB_V12A1_GAMMA_LANCZOS",
+]
+
+NEW_GAMMA_SECTION = r'''/* MATHLIB_V12A1_GAMMA_STIRLING_V2 */
 /*
 * Gamma / log-gamma closure layer.
 *
@@ -360,26 +359,33 @@ static double ml_gamma_half_positive(double x) {
 /* ------------------------------------------------------------------ */
 
 static ml_dd_t ml_lgamma_positive_dd(double x) {
-    /* MATHLIB_V12A1_GAMMA_RECURRENCE_DEPTH */
-    /*
-     * For x < 8, use 8 recurrence steps to shift the argument
-     * into the range [8, 16], where the Lanczos approximation
-     * is more accurate and less prone to cancellation.
-     *
-     * Gamma(x+8) = Gamma(x) * x * (x+1) * ... * (x+7)
-     * lgamma(x)  = lgamma(x+8) - sum(log(x+i), i=0..7)
-     */
-    if (x < 8.0) {
-        ml_dd_t L = ml_lgamma_lanczos_dd(x + 8.0);
-        for (int i = 0; i < 8; i++) {
-            ml_dd_t log_term = ml_log_dd(x + (double)i);
-            L = ml_dd_sub(L, log_term);
-        }
-        return L;
+    if (x >= 8.0) {
+        return ml_stirling_lgamma_dd(x);
     }
-    return ml_lgamma_lanczos_dd(x);
-}
 
+    if (ml_is_half_integer(x)) {
+        return ml_lgamma_half_positive_dd(x);
+    }
+
+    double t = 8.0 - x;
+    int m = (int)t;
+    if ((double)m < t) {
+        m++;
+    }
+    if (m < 1) {
+        m = 1;
+    }
+
+    double y = x + (double)m;
+    ml_dd_t L = ml_stirling_lgamma_dd(y);
+
+    for (int k = 0; k < m; k++) {
+        double v = x + (double)k;
+        L = ml_dd_sub(L, ml_log_dd(v));
+    }
+
+    return L;
+}
 
 static double ml_gamma_positive(double x) {
     if (x >= 8.0) {
@@ -555,3 +561,132 @@ ML_API double ml_gamma_new(double x) {
 
     return ML_PI_HI_D / (sin_use * G);
 }
+'''
+
+
+def fail(message: str) -> None:
+    print("ERROR: " + message)
+    sys.exit(1)
+
+
+def normalize(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(content)
+    print(f"  [write] {path}")
+
+
+def locate_v12a1() -> tuple[Path, Path]:
+    root = Path.cwd()
+    candidate = root / "v12A1"
+
+    if candidate.is_dir():
+        return root, candidate
+
+    if (root / "src" / "integral.c").is_file():
+        print("  [note] Running from inside v12A1.")
+        return root.parent, root
+
+    fail("Run from the folder that CONTAINS v12A1/, or from inside v12A1/ itself.")
+
+
+def patch_integral(v12: Path, force: bool) -> None:
+    path = v12 / "src" / "integral.c"
+    if not path.is_file():
+        fail(f"Missing expected file: {path}")
+
+    text = normalize(path.read_text(encoding="utf-8"))
+
+    if NEW_MARKER in text and not force:
+        print(f"  [skip] {path}: already at {NEW_MARKER}")
+        return
+
+    search_markers = [NEW_MARKER] + OLD_MARKERS
+    start = None
+
+    for marker in search_markers:
+        pattern = re.compile(r"/\*\s*" + re.escape(marker) + r"\s*\*/")
+        match = pattern.search(text)
+        if match:
+            start = match.start()
+            break
+
+    if start is None:
+        fail(
+            f"{path}: could not find gamma section marker. "
+            "Expected one of: " + ", ".join(search_markers)
+        )
+
+    new_text = text[:start] + NEW_GAMMA_SECTION
+    write_text(path, new_text)
+
+
+def archive_self(v12: Path, force: bool) -> None:
+    try:
+        source = Path(__file__).resolve()
+        dest = v12 / "scripts" / "v12a1" / source.name
+
+        if source == dest:
+            return
+
+        if dest.exists() and not force:
+            print(f"  [skip] {dest}: already archived")
+            return
+
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, dest)
+        print(f"  [archive] {dest}")
+    except NameError:
+        pass
+
+
+def main() -> int:
+    force = "--force" in sys.argv[1:]
+    root, v12 = locate_v12a1()
+
+    print("=========================================================")
+    print("  MATHLIB v12A1: GAMMA/LGAMMA FINAL RESIDUE FIX")
+    print("=========================================================")
+    print(f"  Root:  {root}")
+    print(f"  v12A1: {v12}")
+    print(f"  Force: {force}")
+    print("---------------------------------------------------------")
+
+    print("\n[1/1] integral.c — gamma residue v2")
+    patch_integral(v12, force)
+
+    archive_self(v12, force)
+
+    print("\n---------------------------------------------------------")
+    print("  Gamma residue fix applied.")
+    print("")
+    print("  Key changes:")
+    print("    - small positive gamma uses DD product reconstruction")
+    print("    - half-integers use exact half-integer structure")
+    print("    - reflection uses DD log(pi)")
+    print("    - sin(pi x) uses compensated pi argument")
+    print("")
+    print("  Rebuild and verify:")
+    print("")
+    print("    cd v12A1")
+    print("    cmake --build build")
+    print("    ./build/oracle_check > /tmp/oracle_out4.txt || true")
+    print("    grep -n FAIL /tmp/oracle_out4.txt")
+    print("    tail -n 30 /tmp/oracle_out4.txt")
+    print("")
+    print("  Edge tests:")
+    print("")
+    print("    MATHLIB_EDGE_SANITIZERS=1 bash tests/run_edge_tests.sh")
+    print("")
+    print("  Expected: oracle and edge suites collapse to zero failures.")
+    print("=========================================================")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

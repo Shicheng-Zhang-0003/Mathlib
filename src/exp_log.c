@@ -76,8 +76,13 @@ ML_API double ml_exp(double x) {
      * FMA rounds once per step. The 2-term split of ln(2)
      * provides ~106 bits, which is sufficient for |n| <= 1024.
      */
-    double r = ML_FMA(-n, 0.69314718036912381649, x);
-    r = ML_FMA(-n, 1.90821490974462528503e-10, r);
+    /* MATHLIB_V12A1_EXP_LN2_SPLIT_MACROS
+     *
+     * Use the canonical ln(2) split shared with ml_log().
+     * The previous hardcoded low constant did not match ML_LN2_LO.
+     */
+    double r = ML_FMA(-n, ML_LN2_HI, x);
+    r = ML_FMA(-n, ML_LN2_LO, r);
 
     static const double inv_fact[] = {
         1.0, 1.0, 0.5, 0.16666666666666666, 0.041666666666666664,

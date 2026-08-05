@@ -135,10 +135,17 @@ static inline int ml_rem_pio2_large(double x, double *y) {
      * k_start: first chunk where the term could have a fractional part.
      * k_end: last chunk before terms become negligible.
      */
-    int k_start = (E - 77) / 24;
-    if (k_start < 0) k_start = 0;
-    int k_end = (E + 53) / 24;
-    if (k_end > 65) k_end = 65;
+    /* MATHLIB_V12A1_PAYNE_HANEK_V4_FULL_TABLE
+     *
+     * Full-table sweep.
+     *
+     * The old heuristic k bounds dropped table terms that could still
+     * contribute fractional bits for some large arguments. The skip
+     * logic inside ml_ph_process_term() already ignores irrelevant
+     * integer-multiple-of-4 terms, so a full sweep is safe.
+     */
+    int k_start = 0;
+    int k_end = 65;
 
     /* Accumulate quadrant and fractional part */
     int n = 0;
@@ -175,7 +182,7 @@ static inline int ml_rem_pio2_large(double x, double *y) {
     }
 
     /* Reconstruct: reduced_arg = frac * pi/2 */
-    double result = frac * ML_PH_PI2_HI + frac * ML_PH_PI2_LO;
+    double result = ML_FMA(frac, ML_PH_PI2_HI, frac * ML_PH_PI2_LO); /* MATHLIB_V12A1_PAYNE_HANEK_V4_FULL_TABLE */
 
     if (sign) {
         result = -result;

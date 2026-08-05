@@ -23,15 +23,17 @@ Meaning:
 - next `S` = promoted stable release
 
 Current state:
-> v12A1 early A1 development wave.
-> v11S shipped. Closure documents archived.
+> v12A1 A1 closure freeze.
+> v11S shipped. A1 feature development is frozen.
 
 Therefore:
-- new algorithms are in scope,
-- approximation redesigns are the primary mission,
+- no new modules, math families, or public APIs,
+- only A1 closure fixes, tests, validation, docs, and process hygiene,
 - correctness contracts still apply,
 - script-only change policy still applies,
 - zero allocation and thread safety still apply.
+
+<!-- MATHLIB_V12A1_A1_FREEZE_DOCTRINE_FIX -->
 
 ---
 
@@ -161,3 +163,10 @@ Before real Red Team review, prepare:
 6. deferred items.
 
 No tree should be handed to Red Team without these.
+
+<!-- MATHLIB_V12A1_A1_FREEZE -->
+## A1 Closure Freeze
+
+A1 feature freeze is in effect.
+
+Only A1 closure fixes, tests, validation, documentation alignment, and script/process hygiene are allowed.
