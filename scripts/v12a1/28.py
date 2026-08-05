@@ -1,4 +1,35 @@
-#include "ml_compiler.h"
+#!/usr/bin/env python3
+"""
+28_a1_gamma_stirling_compile_fix.py
+Run from the folder that CONTAINS the v12A1 working folder.
+
+Corrects the compile error from script 26 while preserving the
+Stirling-based gamma implementation from scripts 24/25.
+
+The issue was that script 27 reverted to the old Lanczos approach,
+which has the (x-0.5)*log(t) amplification error.
+
+This script:
+- Uses Stirling expansion for x >= 8
+- Uses recurrence for x < 8 (8 steps to avoid Lanczos cancellation)
+- Proper function ordering to avoid forward declaration issues
+- Removes unused helper functions
+
+Targets:
+    v12A1/src/integral.c
+
+Usage:
+    python3 28_a1_gamma_stirling_compile_fix.py
+    python3 28_a1_gamma_stirling_compile_fix.py --force
+"""
+from __future__ import annotations
+import shutil
+import sys
+from pathlib import Path
+
+MARKER = "MATHLIB_V12A1_GAMMA_STIRLING_V3"
+
+NEW_INTEGRAL_C = r'''#include "ml_compiler.h"
 #include "ml_integral.h"
 #include "ml_trig.h"
 
@@ -422,3 +453,96 @@ ML_API double ml_gamma_new(double x) {
 
     return ML_PI_HI_D / (sin_use * G);
 }
+'''
+
+
+def fail(message: str) -> None:
+    print("ERROR: " + message)
+    sys.exit(1)
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(content)
+    print(f"  [write] {path}")
+
+
+def locate_v12a1() -> tuple[Path, Path]:
+    root = Path.cwd()
+    candidate = root / "v12A1"
+    if candidate.is_dir():
+        return root, candidate
+    if (root / "src" / "integral.c").is_file():
+        print("  [note] Running from inside v12A1.")
+        return root.parent, root
+    fail("Run from the folder that CONTAINS v12A1/, or from inside v12A1/ itself.")
+
+
+def patch_integral(v12: Path, force: bool) -> None:
+    path = v12 / "src" / "integral.c"
+    if not path.is_file():
+        fail(f"Missing expected file: {path}")
+    if MARKER in path.read_text(encoding="utf-8") and not force:
+        print(f"  [skip] {path}: already at {MARKER}")
+        return
+    write_text(path, NEW_INTEGRAL_C)
+
+
+def archive_self(v12: Path, force: bool) -> None:
+    try:
+        source = Path(__file__).resolve()
+        dest = v12 / "scripts" / "v12a1" / source.name
+        if source == dest:
+            return
+        if dest.exists() and not force:
+            print(f"  [skip] {dest}: already archived")
+            return
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, dest)
+        print(f"  [archive] {dest}")
+    except NameError:
+        pass
+
+
+def main() -> int:
+    force = "--force" in sys.argv[1:]
+    root, v12 = locate_v12a1()
+
+    print("=========================================================")
+    print("  MATHLIB v12A1: GAMMA STIRLING COMPILE FIX (V3)")
+    print("=========================================================")
+    print(f"  Root:  {root}")
+    print(f"  v12A1: {v12}")
+    print(f"  Force: {force}")
+    print("---------------------------------------------------------")
+
+    print("\n[1/1] integral.c — Stirling-based gamma with proper ordering")
+    patch_integral(v12, force)
+
+    archive_self(v12, force)
+
+    print("\n---------------------------------------------------------")
+    print("  Gamma Stirling V3 applied.")
+    print("")
+    print("  Key differences from script 27:")
+    print("    - Uses Stirling expansion (not Lanczos)")
+    print("    - Recurrence 8 steps for x < 8")
+    print("    - Proper function ordering (no forward declarations needed)")
+    print("    - Avoids (x-0.5)*log(t) amplification error")
+    print("")
+    print("  Verify:")
+    print("    cd v12A1")
+    print("    cmake --build build")
+    print("    ./build/oracle_check > /tmp/oracle_out7.txt || true")
+    print("    grep -n FAIL /tmp/oracle_out7.txt")
+    print("    tail -n 20 /tmp/oracle_out7.txt")
+    print("")
+    print("    MATHLIB_EDGE_SANITIZERS=1 bash tests/run_edge_tests.sh")
+    print("=========================================================")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
