@@ -1,18 +1,21 @@
 #ifndef LIBMATHC_PAYNE_HANEK_H
 #define LIBMATHC_PAYNE_HANEK_H
-/* MATHLIB_V12A1_PAYNE_HANEK_V5_MUSL */
+/* MATHLIB_V12A1_PAYNE_HANEK_V6 */
 /*
 * RANGE REDUCTION FOR TRIGONOMETRIC FUNCTIONS
 *
 * Path 1  |x| <= 1e6 : 2-term Cody-Waite with error-free transforms.
-* Path 2  |x| >  1e6 : Payne-Hanek with fixed-array accumulation
-*                       (musl / Cephes algorithm).
+* Path 2  |x| >  1e6 : Payne-Hanek with per-term integer/fractional
+*                       separation and full-table sweep.
 *
-* The previous Kahan-summation accumulator lost precision for
-* |x| >= 1e100 because ~54 fractional terms of very different
-* magnitude were folded into a single double.  The fixed-array
-* approach stores each contribution in f[20] and sums once,
-* preserving every bit the table can supply.
+* V5 failed because it accumulated the full product x*(2/pi) in
+* double precision without reducing mod 8, so the integer part
+* (billions) swallowed the fractional part.
+*
+* V6 restores the V3 per-term approach:
+*   - For each table term, extract integer contribution mod 4
+*   - Kahan-accumulate only the fractional parts
+*   - Full-table sweep (k=0..65) so no bits are dropped
 */
 #include <string.h>
 #include "ml_core.h"
@@ -45,112 +48,116 @@ static const double
 static const double ML_PH_TWO_OVER_PI = 0.63661977236758134308;
 
 /*
-* ml_rem_pio2_large  –  Payne-Hanek for |x| > 1e6.
+* Process one term: prod * 2^shift.
 *
-* Returns quadrant n in {0,1,2,3} and sets *y to the reduced
-* argument in [-pi/4, pi/4].
-*
-* Algorithm (musl __rem_pio2_large):
-*   1. Decompose |x| into 24-bit chunks of the significand.
-*   2. For each chunk, multiply by the relevant 2/pi table entries
-*      and store the product (scaled to the correct position) in a
-*      fixed-size array f[].
-*   3. Sum f[] to obtain q = |x| * (2/pi) to full table precision.
-*   4. Extract quadrant (integer part mod 4) and reduced argument.
+* prod is an exact integer < 2^53.
+* Extracts integer contribution mod 4 into *n.
+* Kahan-accumulates fractional part into *acc / *comp.
 */
-static inline int ml_rem_pio2_large(double x, double *y)
-{
+static inline void ml_ph_process_term(
+    double prod, int shift, int *n, double *acc, double *comp
+) {
+    if (shift >= 2) {
+        /* prod * 2^shift is integer divisible by 4. No contribution. */
+        return;
+    }
+    if (shift == 1) {
+        /* (prod*2) mod 4 = 2*(prod mod 2) */
+        double fl = (double)((long long)prod & 1LL);
+        *n = (*n + (int)(2.0 * fl)) & 3;
+        return;
+    }
+    if (shift == 0) {
+        /* prod mod 4 */
+        double fl = (double)((long long)prod & 3LL);
+        *n = (*n + (int)fl) & 3;
+        return;
+    }
+    /* shift < 0: fractional term */
+    double t = ml_ldexp_pure(prod, shift);
+    double int_part = 0.0;
+    double frac_part;
+    if (shift >= -52) {
+        /* t may have an integer part */
+        int_part = (double)(long long)t;
+        frac_part = t - int_part;
+        *n = (*n + ((int)(long long)int_part & 3)) & 3;
+    } else {
+        /* t < 1, purely fractional */
+        frac_part = t;
+    }
+    /* Kahan summation of fractional part */
+    double y_k = frac_part - *comp;
+    double t_k = *acc + y_k;
+    *comp = (t_k - *acc) - y_k;
+    *acc = t_k;
+}
+
+/*
+* Payne-Hanek reduction for large arguments (|x| > 1e6).
+*
+* Computes:
+*   *y = x mod (pi/2), in [-pi/4, pi/4]
+*   returns quadrant n in {0, 1, 2, 3}
+*/
+static inline int ml_rem_pio2_large(double x, double *y) {
     uint64_t bits;
     double   ax   = ml_fabs(x);
     int      sign = (x < 0.0);
 
     memcpy(&bits, &ax, sizeof(uint64_t));
     int biased_e = (int)((bits >> 52) & 0x7FF);
-    int E = biased_e - 1075;                 /* ax = m * 2^E */
+    /* E: exponent such that ax = m * 2^E (m is 53-bit integer) */
+    int E = biased_e - 1075;
     uint64_t m = (bits & 0x000FFFFFFFFFFFFFULL) | (1ULL << 52);
 
     /*
-    * Split the 53-bit significand into three 24-bit chunks
-    * (MSB first):
-    *   x0 = bits 52..29  (24 bits), weight 2^(E+29)
-    *   x1 = bits 28..5   (24 bits), weight 2^(E+5)
-    *   x2 = bits  4..0   ( 5 bits), weight 2^E
+    * Split m into high 28 bits and low 25 bits.
+    * m_hi has bits 52..25 (28 bits), m_lo has bits 24..0 (25 bits).
     */
-    uint32_t x0 = (uint32_t)(m >> 29);
-    uint32_t x1 = (uint32_t)((m >> 5) & 0xFFFFFFULL);
-    uint32_t x2 = (uint32_t)(m & 0x1FULL);
+    double m_hi = (double)(m >> 25);
+    double m_lo = (double)(m & 0x1FFFFFFULL);
 
     /*
-    * Accumulate x * (2/pi) into f[].
-    * Each entry f[j] holds one 24-bit product, scaled by ldexp.
-    * At most 3 chunks x 3 table entries = 9 terms, but we
-    * allocate 20 for safety.
+    * Full-table sweep.
+    *
+    * The skip logic inside ml_ph_process_term() handles terms that
+    * don't contribute (shift >= 2). Processing all 66 entries
+    * ensures no fractional bits are dropped for any |x|.
     */
-    double f[20];
-    int    nf = 0;
+    int k_start = 0;
+    int k_end   = 65;
 
-    /* chunk x0, weight 2^(E+29) */
-    {
-        int exp0 = E + 29;
-        int j0   = exp0 / 24;
-        if (j0 < 0) j0 = 0;
-        for (int k = j0; k <= j0 + 2 && k < 66; k++) {
-            int shift = exp0 - 24 * (k + 1);
-            double prod = (double)x0 * (double)ml_two_over_pi[k];
-            f[nf++] = ml_ldexp_pure(prod, shift);
-        }
-    }
-    /* chunk x1, weight 2^(E+5) */
-    {
-        int exp1 = E + 5;
-        int j1   = exp1 / 24;
-        if (j1 < 0) j1 = 0;
-        for (int k = j1; k <= j1 + 2 && k < 66; k++) {
-            int shift = exp1 - 24 * (k + 1);
-            double prod = (double)x1 * (double)ml_two_over_pi[k];
-            f[nf++] = ml_ldexp_pure(prod, shift);
-        }
-    }
-    /* chunk x2, weight 2^E */
-    {
-        int exp2 = E;
-        int j2   = exp2 / 24;
-        if (j2 < 0) j2 = 0;
-        for (int k = j2; k <= j2 + 2 && k < 66; k++) {
-            int shift = exp2 - 24 * (k + 1);
-            double prod = (double)x2 * (double)ml_two_over_pi[k];
-            f[nf++] = ml_ldexp_pure(prod, shift);
-        }
+    /* Accumulate quadrant and fractional part */
+    int    n         = 0;
+    double frac_acc  = 0.0;
+    double frac_comp = 0.0;
+
+    for (int k = k_start; k <= k_end; k++) {
+        double tk = (double)ml_two_over_pi[k];
+        int base_shift = E - 24 * k - 24;
+
+        /* m_hi term: m_hi * tk * 2^(base_shift + 25) */
+        double prod_hi = m_hi * tk;  /* exact: 28+24 = 52 bits */
+        ml_ph_process_term(prod_hi, base_shift + 25,
+                           &n, &frac_acc, &frac_comp);
+
+        /* m_lo term: m_lo * tk * 2^base_shift */
+        double prod_lo = m_lo * tk;  /* exact: 25+24 = 49 bits */
+        ml_ph_process_term(prod_lo, base_shift,
+                           &n, &frac_acc, &frac_comp);
     }
 
-    /*
-    * Sum f[] with pairwise-style compensation.
-    * The musl approach: accumulate into a running sum, keeping
-    * the low bits in a separate variable.
-    */
-    double q  = 0.0;
-    double lo = 0.0;
-    for (int i = 0; i < nf; i++) {
-        double t = q + f[i];
-        lo += (q - t) + f[i];   /* capture rounding error */
-        q  = t;
-    }
-    q += lo;
+    /* Extract integer part from fractional accumulator */
+    int extra = (int)(long long)frac_acc;
+    n = (n + (extra & 3)) & 3;
+    double frac = frac_acc - (double)extra;
 
-    /*
-    * Extract quadrant and fractional part.
-    * q = |x| * (2/pi).  n = round(q) mod 4.
-    * frac = q - n, centred in [-0.5, 0.5].
-    */
-    double n_d  = ml_round(q);
-    long long n_ll = (long long)n_d;
-    int n = (int)(n_ll & 3);
-
-    double frac = q - n_d;
+    /* Center fractional part in [-0.5, 0.5] */
     if (frac >  0.5) { frac -= 1.0; n = (n + 1) & 3; }
     if (frac < -0.5) { frac += 1.0; n = (n + 3) & 3; }
 
-    /* Reconstruct reduced argument = frac * (pi/2) */
+    /* Reconstruct: reduced_arg = frac * pi/2 */
     double result = ML_FMA(frac, ML_PH_PI2_HI, frac * ML_PH_PI2_LO);
 
     if (sign) {
@@ -164,15 +171,17 @@ static inline int ml_rem_pio2_large(double x, double *y)
 /* ==================================================================
 * UNIFIED ENTRY POINT
 * ================================================================== */
-static inline int ml_rem_pio2(double x, double *y)
-{
+static inline int ml_rem_pio2(double x, double *y) {
     if (ml_isnan(x) || ml_isinf(x)) {
         *y = ml_make_nan();
         return 0;
     }
     double ax = ml_fabs(x);
 
-    /* Path 1: Cody-Waite for |x| <= 1e6 */
+    /*
+    * Small/medium arguments: fast Cody-Waite.
+    * Accurate to < 1 ULP for |x| <= 1e6.
+    */
     if (ax <= 1.0e6) {
         double fn = ml_round(x * ML_PH_TWO_OVER_PI);
         long long n_ll = (long long)fn;
@@ -188,7 +197,10 @@ static inline int ml_rem_pio2(double x, double *y)
         return n;
     }
 
-    /* Path 2: Payne-Hanek for the full double range */
+    /*
+    * Large arguments: Payne-Hanek.
+    * Works for the full double range up to ~1.8e308.
+    */
     return ml_rem_pio2_large(x, y);
 }
 

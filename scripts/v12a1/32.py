@@ -1,4 +1,34 @@
-#include "ml_compiler.h"
+#!/usr/bin/env python3
+"""
+32_a1_gamma_halfint_fix.py
+Run from the folder that CONTAINS the v12A1 working folder.
+
+ROOT CAUSE FIX: The Lanczos g=7 n=9 coefficient set has ~1e-15
+intrinsic approximation error. For half-integers, the reflection
+formula's cancellation amplifies this to 100+ ULP.
+
+Fix:
+1. Exact half-integer shortcuts for gamma and lgamma:
+   Gamma(n+0.5) = sqrt(pi) * prod(j+0.5, j=0..n-1)
+   lgamma(n+0.5) = 0.5*log(pi) + sum(log(j+0.5), j=0..n-1)
+   Negative half-integers use reflection with exact positive values.
+2. Deeper recurrence for x < 0.5 (8 steps instead of 1).
+
+Targets:
+  v12A1/src/integral.c
+
+Usage:
+  python3 32_a1_gamma_halfint_fix.py
+  python3 32_a1_gamma_halfint_fix.py --force
+"""
+from __future__ import annotations
+import shutil
+import sys
+from pathlib import Path
+
+MARKER = "MATHLIB_V12A1_GAMMA_HALFINT_V7"
+
+NEW_INTEGRAL_C = r'''#include "ml_compiler.h"
 #include "ml_integral.h"
 #include "ml_trig.h"
 
@@ -143,26 +173,11 @@ static ml_dd_t ml_log_pi_dd(void) {
 
 /* ---- exp(hi+lo) ---- */
 static double ml_exp_dd(ml_dd_t L) {
-/* MATHLIB_V12A1_EXP_DD_SECOND_ORDER */
-/*
-* exp(L.hi + L.lo) = exp(L.hi) * exp(L.lo)
-*
-* The old code used the first-order approximation:
-*     exp(L.lo) ≈ 1 + L.lo
-* which drops L.lo²/2. For the 8-step recurrence at x=0.001,
-* L.lo reaches ~5e-8, making the dropped term ~1.25e-12 = 10 ULP.
-*
-* Fix: compute exp(L.lo) with a 3-term Taylor:
-*     exp(L.lo) ≈ 1 + L.lo + L.lo²/2
-* Since L.lo is tiny, this is accurate to ~1e-48.
-*/
-if (L.hi > ML_GAMMA_EXP_OVERFLOW) return ml_make_inf(0);
-if (L.hi < ML_GAMMA_EXP_UNDERFLOW) return 0.0;
-double g = ml_exp(L.hi);
-if (!ml_isfinite(g) || g == 0.0) return g;
-/* 3-term Taylor for exp(L.lo): accurate to ~L.lo^3/6 */
-double elo = ML_FMA(L.lo, L.lo * 0.5, L.lo) + 1.0;
-return ML_FMA(g, elo, 0.0);
+    if (L.hi > ML_GAMMA_EXP_OVERFLOW) return ml_make_inf(0);
+    if (L.hi < ML_GAMMA_EXP_UNDERFLOW) return 0.0;
+    double g = ml_exp(L.hi);
+    if (!ml_isfinite(g) || g == 0.0) return g;
+    return ML_FMA(g, L.lo, g);
 }
 
 /* ---- Half-integer detection ---- */
@@ -283,24 +298,14 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
 
 /* ---- Positive-domain gamma dispatch ---- */
 static double ml_gamma_positive(double x) {
-/* MATHLIB_V12A1_GAMMA_DIVIDE_FIX */
-/*
-* For x >= 8: Stirling DD -> exp.
-* For half-integers: exact product formula.
-* For 0 < x < 8: use the DD lgamma path (log subtraction),
-*   then exponentiate. This avoids the product-then-divide
-*   approach which introduced two extra double roundings.
-*/
-if (x >= 8.0) {
-ml_dd_t L = ml_stirling_lgamma_dd(x);
-return ml_exp_dd(L);
-}
-if (ml_is_half_integer(x)) {
-return ml_gamma_half_positive(x);
-}
-/* DD log-subtract-then-exp: same path as lgamma, proven accurate */
-ml_dd_t L = ml_lgamma_positive_dd(x);
-return ml_exp_dd(L);
+    if (x >= 8.0) {
+        ml_dd_t L = ml_stirling_lgamma_dd(x);
+        return ml_exp_dd(L);
+    }
+    if (ml_is_half_integer(x))
+        return ml_gamma_half_positive(x);
+    ml_dd_t L = ml_lgamma_lanczos_dd(x);
+    return ml_exp_dd(L);
 }
 
 /* ---- Exact small factorials ---- */
@@ -382,21 +387,17 @@ ML_API double ml_gamma_new(double x) {
         /* Half-integer: exact formula */
         if (ml_is_half_integer(x))
             return ml_gamma_half_positive(x);
-        /* MATHLIB_V12A1_GAMMA_NEW_LOGSPACE */
-/* x < 0.5: 8-step recurrence in log-space (no product-divide)
-*
-* Old: gy = exp(lgamma(x+8)); p = prod(x+k); return gy/p;
-*   -> two extra double roundings + division rounding = 11 ULP
-*
-* New: lgamma(x+8) - sum(log(x+k)) then exp
-*   -> everything stays in DD until final exp, same as ml_lgamma
-*/
-if (x < 0.5) {
-ml_dd_t L = ml_lgamma_positive_dd(x + 8.0);
-for (int k = 0; k < 8; k++)
-L = ml_dd_sub(L, ml_log_dd(x + (double)k));
-return ml_exp_dd(L);
-}
+        /* x < 0.5: 8-step recurrence via product */
+        if (x < 0.5) {
+            ml_dd_t Ly = ml_lgamma_positive_dd(x + 8.0);
+            double gy = ml_exp_dd(Ly);
+            ml_dd_t P = ml_dd_from_d(1.0);
+            for (int k = 0; k < 8; k++)
+                P = ml_dd_mul_d(P, x + (double)k);
+            double p = P.hi + P.lo;
+            if (p == 0.0) return ml_make_inf(0);
+            return gy / p;
+        }
         return ml_gamma_positive(x);
     }
 
@@ -421,3 +422,88 @@ return ml_exp_dd(L);
     if (G == 0.0) return (sin_use < 0.0) ? -ml_make_inf(0) : ml_make_inf(0);
     return ML_PI_HI_D / (sin_use * G);
 }
+'''
+
+def fail(msg):
+    print("ERROR: " + msg)
+    sys.exit(1)
+
+def write_text(path, content):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(content)
+    print(f"  [write] {path}")
+
+def locate_v12a1():
+    root = Path.cwd()
+    cand = root / "v12A1"
+    if cand.is_dir():
+        return root, cand
+    if (root / "src" / "integral.c").is_file():
+        print("  [note] Running from inside v12A1.")
+        return root.parent, root
+    fail("Run from the folder that CONTAINS v12A1/")
+
+def patch_integral(v12, force):
+    path = v12 / "src" / "integral.c"
+    if not path.is_file():
+        fail(f"Missing: {path}")
+    if MARKER in path.read_text(encoding="utf-8") and not force:
+        print(f"  [skip] {path}: already at {MARKER}")
+        return
+    write_text(path, NEW_INTEGRAL_C)
+
+def archive_self(v12, force):
+    try:
+        src = Path(__file__).resolve()
+        dst = v12 / "scripts" / "v12a1" / src.name
+        if src == dst: return
+        if dst.exists() and not force:
+            print(f"  [skip] {dst}: already archived")
+            return
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        print(f"  [archive] {dst}")
+    except NameError:
+        pass
+
+def main():
+    force = "--force" in sys.argv[1:]
+    root, v12 = locate_v12a1()
+    print("=========================================================")
+    print("  MATHLIB v12A1: GAMMA HALF-INTEGER ROOT CAUSE FIX")
+    print("=========================================================")
+    print(f"  Root:  {root}")
+    print(f"  v12A1: {v12}")
+    print(f"  Force: {force}")
+    print("---------------------------------------------------------")
+    print("\n[1/1] integral.c — exact half-integer + deep recurrence")
+    patch_integral(v12, force)
+    archive_self(v12, force)
+    print("\n---------------------------------------------------------")
+    print("  Root cause fix applied.")
+    print("")
+    print("  ROOT CAUSE:")
+    print("    Lanczos g=7 n=9 has ~1e-15 intrinsic error.")
+    print("    Reflection formula cancellation amplifies it for")
+    print("    half-integers: lgamma(-2.5) = log(pi) - lgamma(3.5)")
+    print("    subtracts two ~1.2 values to get ~0.056.")
+    print("")
+    print("  FIX:")
+    print("    - Half-integers use exact product/sum formulas")
+    print("      Gamma(n+0.5) = sqrt(pi) * prod(j+0.5)")
+    print("      lgamma(n+0.5) = 0.5*log(pi) + sum(log(j+0.5))")
+    print("    - Negative half-integers use exact positive values")
+    print("    - x < 0.5 uses 8-step recurrence (not 1-step)")
+    print("    - Lanczos bypassed entirely for half-integers")
+    print("")
+    print("  Verify:")
+    print("    cd v12A1")
+    print("    cmake --build build")
+    print("    ./build/oracle_check")
+    print("    MATHLIB_EDGE_SANITIZERS=1 bash tests/run_edge_tests.sh")
+    print("=========================================================")
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
