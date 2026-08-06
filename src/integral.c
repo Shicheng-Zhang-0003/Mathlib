@@ -337,9 +337,10 @@ ML_API double ml_lgamma(double x) {
             return L.hi + L.lo;
         }
         /* x < 0.5: 8-step recurrence */
+        /* MATHLIB_V12A1_GAMMA_RECURRENCE_DEPTH16 */
         if (x < 0.5) {
-            ml_dd_t L = ml_lgamma_positive_dd(x + 8.0);
-            for (int k = 0; k < 8; k++)
+            ml_dd_t L = ml_lgamma_positive_dd(x + 16.0);
+            for (int k = 0; k < 16; k++)
                 L = ml_dd_sub(L, ml_log_dd(x + (double)k));
             return L.hi + L.lo;
         }

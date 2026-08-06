@@ -19,7 +19,7 @@ static uint64_t ulp_distance(double a, double b) {
 int main(void) {
     double x = 1.00000000000000002e-03;  /* 0.001 */
     double oracle_gamma = 9.99423772484595474e+02;
-    double oracle_lgamma = 6.90775527898213682e+00;
+    double oracle_lgamma = 6.90717888538385250e+00; /* ln(gamma(0.001)), NOT ln(1000) */
 
     printf("=== GAMMA(0.001) UPSTREAM DIAGNOSTIC ===\n\n");
 
