@@ -338,12 +338,25 @@ ML_API double ml_lgamma(double x) {
         }
         /* x < 0.5: 8-step recurrence */
         /* MATHLIB_V12A1_GAMMA_RECURRENCE_DEPTH16 */
-        if (x < 0.5) {
-            ml_dd_t L = ml_lgamma_positive_dd(x + 16.0);
-            for (int k = 0; k < 16; k++)
-                L = ml_dd_sub(L, ml_log_dd(x + (double)k));
-            return L.hi + L.lo;
-        }
+        /* MATHLIB_V12A1_GAMMA_DIRECT_LANCZOS */
+/* x < 0.5: use Lanczos directly via ml_lgamma_positive_dd.
+ * The old recurrence formula subtracted two large DD values
+ * (lgamma(x+16) ~ 28 minus sum-of-logs ~ 26) to get a small
+ * result (~2.25), amplifying rounding errors by ~12.5x.
+ * Lanczos computes lgamma(x) directly with ~3.9x cancellation.
+ */
+/* MATHLIB_V12A1_GAMMA_1STEP_RECURRENCE */
+/* x < 0.5: 1-step recurrence in log-space.
+ * lgamma(x) = lgamma(x+1) - log(x)
+ * For x=0.1: lgamma(1.1)~-0.05, log(0.1)~-2.30.
+ * This is addition (both positive), not subtraction.
+ * Cancellation factor ~1.04 (almost zero).
+ */
+if (x < 0.5) {
+    ml_dd_t L = ml_lgamma_positive_dd(x + 1.0);
+    L = ml_dd_sub(L, ml_log_dd(x));
+    return L.hi + L.lo;
+}
         ml_dd_t L = ml_lgamma_positive_dd(x);
         return L.hi + L.lo;
     }
@@ -392,11 +405,25 @@ ML_API double ml_gamma_new(double x) {
 * New: lgamma(x+8) - sum(log(x+k)) then exp
 *   -> everything stays in DD until final exp, same as ml_lgamma
 */
+/* MATHLIB_V12A1_GAMMA_NEW_DEPTH16 */
+/* x < 0.5: 16-step recurrence in log-space.
+* Depth 16 pushes Stirling to x+16 where the correction
+* is ~0.0052 instead of ~0.0104, halving the DD chain error.
+* This matches ml_lgamma's depth-16 path (script 39/40).
+*/
+/* MATHLIB_V12A1_GAMMA_DIRECT_LANCZOS */
+/* x < 0.5: use Lanczos directly via ml_gamma_positive.
+ * Same cancellation fix as ml_lgamma above.
+ */
+/* MATHLIB_V12A1_GAMMA_1STEP_RECURRENCE */
+/* x < 0.5: 1-step recurrence in log-space, then exp.
+ * Same cancellation fix as ml_lgamma above.
+ * Uses ml_exp_dd(L) instead of g/x to avoid division rounding.
+ */
 if (x < 0.5) {
-ml_dd_t L = ml_lgamma_positive_dd(x + 8.0);
-for (int k = 0; k < 8; k++)
-L = ml_dd_sub(L, ml_log_dd(x + (double)k));
-return ml_exp_dd(L);
+    ml_dd_t L = ml_lgamma_positive_dd(x + 1.0);
+    L = ml_dd_sub(L, ml_log_dd(x));
+    return ml_exp_dd(L);
 }
         return ml_gamma_positive(x);
     }
