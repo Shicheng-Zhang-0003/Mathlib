@@ -25,7 +25,7 @@ This document defines the public interface status for MathLib `11.0.0-rc1` (v11S
 | `ml_ode.h` | **STABLE** | Euler / RK4 guards |
 | `ml_polynomial.h` | **STABLE** | Horner evaluation and Newton guards |
 | `ml_quadratics.h` | **STABLE** | Citardauq-style stable quadratic roots |
-| `ml_integral.h` | **EXPERIMENTAL** | Positive-domain gamma only; traditional integrator is experimental |
+| `ml_integral.h` | **STABLE** | <!-- MATHLIB_V12A1_DOCS_ALIGNMENT --> Full gamma/lgamma: Lanczos DD, Stirling DD, exact half-integers, 1-step recurrence (x<0.5), reflection formula, <=5 ULP oracle-validated; traditional integrator remains experimental |
 | `ml_fixed_point.h` | **STABLE** | Q16.16 CORDIC approximate trig with defined shifts |
 | `ml_quaternion.h` | **STABLE** | Quaternion algebra and hardened slerp |
 | `fast_math.h` | **STABLE** | Approximate fast paths with explicit domain guards |

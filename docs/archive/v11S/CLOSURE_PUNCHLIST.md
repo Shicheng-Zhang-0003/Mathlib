@@ -1,5 +1,11 @@
 # MathLib v11S Closure Punchlist
 
+<!-- MATHLIB_V12A1_DOCS_ALIGNMENT -->
+> **STATUS: ALL P0 AND P1 ITEMS RESOLVED.**
+> v11S shipped 2026-08-02. All blockers below were fixed,
+> tested, and validated before promotion to stable.
+> This file is archived for historical reference.
+
 This file is the authoritative short-term closure queue for v11S.
 
 Current operational state:
@@ -13,7 +19,7 @@ Current operational state:
 
 These must be fixed before v11S can be treated as stable.
 
-### 1. `ml_pow` is not closure-grade
+### 1. `ml_pow` is not closure-grade ✅ DONE
 
 Current implementation is effectively:
 
@@ -38,7 +44,7 @@ Required action:
 
 ---
 
-### 2. `ml_cplx_power` lacks required special cases
+### 2. `ml_cplx_power` lacks required special cases ✅ DONE
 
 Current implementation uses only:
 
@@ -62,7 +68,7 @@ Required action:
 
 ---
 
-### 3. `ml_cplx_arg` has a quadrant bug
+### 3. `ml_cplx_arg` has a quadrant bug ✅ DONE
 
 The third-quadrant path currently divides by the wrong component.
 
@@ -74,7 +80,7 @@ This also aligns implementation with the documented claim that complex arg is at
 
 ---
 
-### 4. `ml_exp` needs explicit NaN / infinity guards
+### 4. `ml_exp` needs explicit NaN / infinity guards ✅ DONE
 
 `ml_exp` must classify NaN and infinity before range reduction.
 
@@ -87,7 +93,7 @@ Required action:
 
 ---
 
-### 5. `ml_log` must handle positive infinity
+### 5. `ml_log` must handle positive infinity ✅ DONE
 
 Current behavior can fall through into the finite path and produce NaN.
 
@@ -99,7 +105,7 @@ Required action:
 
 ---
 
-### 6. Official verification must run edge tests
+### 6. Official verification must run edge tests ✅ DONE
 
 The edge suite exists but is not part of the main closure gate.
 
@@ -115,13 +121,13 @@ Required action:
 
 These should be fixed soon after P0.
 
-### 1. `ml_sinh` loses tiny inputs
+### 1. `ml_sinh` loses tiny inputs ✅ DONE
 
 Add a small-input branch consistent with other hyperbolics.
 
 ---
 
-### 2. AVX2 batch `rsqrt` needs semantic guarding
+### 2. AVX2 batch `rsqrt` needs semantic guarding ✅ DONE
 
 The scalar fallback handles NaN / non-positive inputs.
 
@@ -136,7 +142,7 @@ Preferred:
 
 ---
 
-### 3. Matrix and tensor indexing should use wide size arithmetic internally
+### 3. Matrix and tensor indexing should use wide size arithmetic internally ✅ DONE
 
 Public API may remain `int`, but internal offset arithmetic should avoid signed overflow.
 
@@ -147,7 +153,7 @@ Required action:
 
 ---
 
-### 4. CI should run deterministic fuzzing and edge tests
+### 4. CI should run deterministic fuzzing and edge tests ✅ DONE
 
 Required action:
 
@@ -156,7 +162,7 @@ Required action:
 
 ---
 
-### 5. Documentation must match implementation
+### 5. Documentation must match implementation ✅ DONE
 
 After source fixes:
 

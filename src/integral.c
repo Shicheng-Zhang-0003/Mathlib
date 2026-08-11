@@ -35,6 +35,7 @@ ML_API double ml_integral_traditional(double a, double b, double exponent,
     return ml_make_nan();
 }
 
+/* MATHLIB_V12A1_INTEGRAL_COMMENT_CLEANUP */
 /* MATHLIB_V12A1_GAMMA_HALFINT_V7 */
 /*
  * Gamma / lgamma with exact half-integer shortcuts.
@@ -47,7 +48,7 @@ ML_API double ml_integral_traditional(double a, double b, double exponent,
  *
  * FIX:
  *   - Half-integers use exact product/sum formulas (no Lanczos).
- *   - x < 0.5 uses 8-step recurrence (not 1-step).
+ *   - x < 0.5 uses 1-step recurrence: lgamma(x) = lgamma(x+1) - log(x).
  *   - x >= 8 uses Stirling DD.
  *   - 0.5 <= x < 8 uses Lanczos DD (with half-integer bypass).
  */
@@ -338,14 +339,7 @@ ML_API double ml_lgamma(double x) {
         }
         /* x < 0.5: 8-step recurrence */
         /* MATHLIB_V12A1_GAMMA_RECURRENCE_DEPTH16 */
-        /* MATHLIB_V12A1_GAMMA_DIRECT_LANCZOS */
-/* x < 0.5: use Lanczos directly via ml_lgamma_positive_dd.
- * The old recurrence formula subtracted two large DD values
- * (lgamma(x+16) ~ 28 minus sum-of-logs ~ 26) to get a small
- * result (~2.25), amplifying rounding errors by ~12.5x.
- * Lanczos computes lgamma(x) directly with ~3.9x cancellation.
- */
-/* MATHLIB_V12A1_GAMMA_1STEP_RECURRENCE */
+        /* MATHLIB_V12A1_GAMMA_1STEP_RECURRENCE */
 /* x < 0.5: 1-step recurrence in log-space.
  * lgamma(x) = lgamma(x+1) - log(x)
  * For x=0.1: lgamma(1.1)~-0.05, log(0.1)~-2.30.
@@ -396,22 +390,7 @@ ML_API double ml_gamma_new(double x) {
         /* Half-integer: exact formula */
         if (ml_is_half_integer(x))
             return ml_gamma_half_positive(x);
-        /* MATHLIB_V12A1_GAMMA_NEW_LOGSPACE */
-/* x < 0.5: 8-step recurrence in log-space (no product-divide)
-*
-* Old: gy = exp(lgamma(x+8)); p = prod(x+k); return gy/p;
-*   -> two extra double roundings + division rounding = 11 ULP
-*
-* New: lgamma(x+8) - sum(log(x+k)) then exp
-*   -> everything stays in DD until final exp, same as ml_lgamma
-*/
-/* MATHLIB_V12A1_GAMMA_NEW_DEPTH16 */
-/* x < 0.5: 16-step recurrence in log-space.
-* Depth 16 pushes Stirling to x+16 where the correction
-* is ~0.0052 instead of ~0.0104, halving the DD chain error.
-* This matches ml_lgamma's depth-16 path (script 39/40).
-*/
-/* MATHLIB_V12A1_GAMMA_DIRECT_LANCZOS */
+        /* MATHLIB_V12A1_GAMMA_DIRECT_LANCZOS */
 /* x < 0.5: use Lanczos directly via ml_gamma_positive.
  * Same cancellation fix as ml_lgamma above.
  */
