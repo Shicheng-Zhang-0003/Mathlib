@@ -35,7 +35,7 @@ ML_API double ml_newton_raphson(ml_func_t f, ml_func_t df, double x0, double eps
             return ml_make_nan();
         }
 
-        if (ML_UNLIKELY(dfx == 0.0 || ml_fabs(dfx) < epsilon)) {
+        if (ML_UNLIKELY(dfx == 0.0)) {
             return ml_make_nan();
         }
 

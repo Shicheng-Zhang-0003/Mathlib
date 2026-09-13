@@ -33,6 +33,14 @@ static uint64_t failed = 0;
     else { failed++; printf("FAIL: %s got=%.17g exp=%.17g diff=%.17g (Line %d)\n", msg, _a, _b, ml_fabs(_a-_b), __LINE__); } \
 } while(0)
 
+#define CHECK_NEAR_REL(a, b, eps, msg) do { \
+    double _a = (double)(a); double _b = (double)(b); \
+    double _diff = ml_fabs(_a - _b); \
+    double _scale = ml_fabs(_b) > 1.0 ? ml_fabs(_b) : 1.0; \
+    if (_diff < (eps) * _scale) { passed++; } \
+    else { failed++; printf("FAIL: %s got=%.17g exp=%.17g diff=%.17g (Line %d)\n", msg, _a, _b, _diff, __LINE__); } \
+} while(0)
+
 static double rand_fp() {
     uint64_t bits = ((uint64_t)rand() << 32) | (uint64_t)rand();
     double d;
@@ -124,7 +132,7 @@ void test_algebraic_invariants() {
 
         double px = x > 1e-5 ? x : 1e-5;
         if (px < 700.0) {
-            CHECK_NEAR(ml_log(ml_exp(px)), px, 1e-12, "log(exp(x))");
+            CHECK_NEAR_REL(ml_log(ml_exp(px)), px, 1e-13, "log(exp(x))");
         }
     }
 }

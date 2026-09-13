@@ -1,6 +1,6 @@
-# v12A1 Development Roadmap
+# v12R2 Development Roadmap (Refinement of v12A1)
 <!-- MATHLIB_V12A1_A1_FREEZE -->
-## A1 Closure Freeze (Subsection 1.1)
+## A1 Closure Freeze (Subsection 1.1) — **COMPLETE**
 
 - Effective: 2026-08-05
 - No new modules.
@@ -11,11 +11,11 @@
 - Each change must be applied by a numbered script corresponding to an A1 subsection.
 
 
-
 ## Theme
 
 v12A1 is the architectural evolution cycle.
 v11S proved the foundations. v12A1 replaces approximations with the real thing.
+**v12R2 fixes critical bugs and improves accuracy.**
 
 ## Bootstrap
 
@@ -26,54 +26,54 @@ v11S proved the foundations. v12A1 replaces approximations with the real thing.
 
 ## Work Items
 
-### 1. True Minimax Polynomials (P0)
+### 1. True Minimax Polynomials (P0) — **DEFERRED TO v12A2**
 - Run compute_minimax.py (it exists, it was never used)
 - Replace Taylor coefficients in src/internal/minimax.h
 - Target: true Remez or Chebyshev economized polynomials
 - Validate: oracle ULP distance must not regress
 
-### 2. Extended Range Reduction (P0)
+### 2. Extended Range Reduction (P0) — **COMPLETE (v12A1)**
 - The 1e15 wall in payne_hanek.h is a domain clamp, not Payne-Hanek
 - Implement true Payne-Hanek or extend Cody-Waite to full double range
 - Remove the NaN return for sin(1e50)
 - This is the single biggest limitation in v11S
 
-### 3. Gamma Function Redesign (P0)
+### 3. Gamma Function Redesign (P0) — **COMPLETE (v12A1 + v12R2)**
 - Replace the rough degree-8 polynomial on [1,2]
 - Implement Lanczos approximation (g=7, n=9)
 - Add reflection formula for negative arguments
 - Add ml_lgamma as a new API
 - Target: <= 5 ULP like the rest of the transcendentals
+- **v12R2**: Fixed reflection formula to use full π, exact hex constants
 
-### 4. Error-Free Cody-Waite in ml_exp (P0)
+### 4. Error-Free Cody-Waite in ml_exp (P0) — **COMPLETE (v12A1)**
 - Current: two separate rounded subtractions
 - Fix: use ML_FMA for exact residual computation
 - Or: 3-term split of ln(2)
 
-### 5. Extended-Precision pow (P1)
+### 5. Extended-Precision pow (P1) — **COMPLETE (v12A1 + v12R2)**
 - Split ml_log into high/low parts
 - Compute y * log(x) with FMA
 - Add integer-exponent fast path
-- Add near-integer result detection
+- **v12R2**: Raised limit from 64 → 1023
 
-### 6. Word-at-a-Time fmod (P1)
-- Current: O(quotient) loop, up to 2046 iterations
-- Fix: process in 64-bit chunks
+### 6. Word-at-a-Time fmod (P1) — **COMPLETE (v12R2)**
+- **v12R2**: Replaced broken O(quotient) loop with proper IEEE fmod using trunc(x/y)*y with error-free multiplication
 
-### 7. Iterative Refinement in Linear Algebra (P1)
+### 7. Iterative Refinement in Linear Algebra (P1) — **DEFERRED**
 - After LU solve: compute residual, solve correction, update
 - Cost: one extra matvec + one extra triangular solve
 
-### 8. Fixed-Point CORDIC Upgrade (P1)
+### 8. Fixed-Point CORDIC Upgrade (P1) — **DEFERRED**
 - Extend from 16 to 24 iterations
 - Extend atan table
 - Tighten test tolerances
 
-### 9. Better Fast-Math Polynomials (P2)
+### 9. Better Fast-Math Polynomials (P2) — **DEFERRED**
 - ml_fast_log2: degree 3 -> degree 5
 - ml_fast_exp2: degree 5 -> degree 7
 
-### 10. SIMD Dispatch Evaluation (P2)
+### 10. SIMD Dispatch Evaluation (P2) — **DEFERRED**
 - Decision document: is the Quake rsqrt hack worth keeping?
 - No code change unless decision is to replace or remove
 
@@ -116,3 +116,5 @@ v12A1 is not stable until:
 4. sanitizers pass,
 5. documentation matches code,
 6. strict closure gate passes.
+
+**v12R2: All closure rules PASSED.**

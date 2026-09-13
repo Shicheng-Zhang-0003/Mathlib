@@ -22,6 +22,7 @@ ML_API cplx ml_cplx_div(cplx a, cplx b) {
         if (b.real == 0.0) return (cplx){ml_make_nan(), ml_make_nan()};
         ratio = b.imag / b.real;
         denom = b.real + ratio * b.imag;
+        if (denom == 0.0) return (cplx){ml_make_nan(), ml_make_nan()};
         return (cplx){
             (a.real + a.imag * ratio) / denom,
             (a.imag - a.real * ratio) / denom
@@ -30,6 +31,7 @@ ML_API cplx ml_cplx_div(cplx a, cplx b) {
         if (b.imag == 0.0) return (cplx){ml_make_nan(), ml_make_nan()};
         ratio = b.real / b.imag;
         denom = b.imag + ratio * b.real;
+        if (denom == 0.0) return (cplx){ml_make_nan(), ml_make_nan()};
         return (cplx){
             (a.real * ratio + a.imag) / denom,
             (a.imag * ratio - a.real) / denom

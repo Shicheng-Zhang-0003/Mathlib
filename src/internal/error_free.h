@@ -69,10 +69,10 @@ static inline double ml_fast_two_sum(double a, double b, double *err) {
  */
 static inline double ml_two_product(double a, double b, double *err) {
     double p = a * b;
-    double ca = a * 67108865.0; /* 2^26 + 1 */
+    double ca = a * 134217729.0; /* 2^27 + 1 */
     double a_hi = ca - (ca - a);
     double a_lo = a - a_hi;
-    double cb = b * 67108865.0;
+    double cb = b * 134217729.0;
     double b_hi = cb - (cb - b);
     double b_lo = b - b_hi;
     *err = ((a_hi * b_hi - p) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;

@@ -100,7 +100,27 @@
 #  include <math.h>
 #  define ML_FMA(a, b, c) fma((double)(a), (double)(b), (double)(c))
 #else
-#  define ML_FMA(a, b, c) (((double)(a) * (double)(b)) + (double)(c))
+/* Software FMA emulation using Dekker's Two-Product + Two-Sum.
+ * This provides single-rounding semantics (approximately) on platforms without FMA.
+ * For production use, hardware FMA is strongly recommended. */
+static inline double ml_fma_soft_impl(double a, double b, double c) {
+    double p = a * b;
+    double c2 = c;
+    /* Two-Product: p = fl(a*b), err = a*b - p */
+    double ca = a * 134217729.0;
+    double a_hi = ca - (ca - a);
+    double a_lo = a - a_hi;
+    double cb = b * 134217729.0;
+    double b_hi = cb - (cb - b);
+    double b_lo = b - b_hi;
+    double err = ((a_hi * b_hi - p) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
+    /* Two-Sum: s = fl(p + c), err2 = p + c - s */
+    double s = p + c2;
+    double v = s - p;
+    double err2 = (p - (s - v)) + (c2 - v);
+    return s + (err + err2);
+}
+#  define ML_FMA(a, b, c) ml_fma_soft_impl((double)(a), (double)(b), (double)(c))
 #endif
 
 #endif /* MATHLIB_COMPILER_H */

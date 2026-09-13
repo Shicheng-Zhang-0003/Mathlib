@@ -5,14 +5,7 @@
 ML_API double ml_sqrt(double x) {
     if (x < 0.0) return ml_make_nan();
     if (x == 0.0) return x;
-
-#if defined(__x86_64__) || defined(__i386__)
-    double res;
-    __asm__ ("sqrtsd %1, %0" : "=x" (res) : "x" (x));
-    return res;
-#else
     return __builtin_sqrt(x);
-#endif
 }
 
 ML_API double ml_ldexp_pure(double x, int exp) {
@@ -48,6 +41,7 @@ ML_API double ml_ldexp_pure(double x, int exp) {
      * That was incorrect.
      */
     while (sig < (1ULL << 52) && e > -2098) {
+        if (sig > (UINT64_MAX >> 1)) break;
         sig <<= 1;
         e--;
     }
@@ -85,6 +79,7 @@ ML_API double ml_frexp_pure(double x, int *exp) {
     int e = p.exp;
 
     while (sig < (1ULL << 52)) {
+        if (sig > (UINT64_MAX >> 1)) break;
         sig <<= 1;
         e--;
     }

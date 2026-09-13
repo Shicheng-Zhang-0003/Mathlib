@@ -11,7 +11,7 @@ ML_API double ml_polynomial_eval(const double *coeffs, int degree, double x) {
     double result = coeffs[degree];
 
     for (int i = degree - 1; i >= 0; i--) {
-        result = result * x + coeffs[i];
+        result = ML_FMA(result, x, coeffs[i]);
     }
 
     return result;

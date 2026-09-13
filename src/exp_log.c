@@ -247,25 +247,25 @@ if (ml_isinf(x)) {
 }
 
 /* --- Integer exponent fast path --- */
-/*
- * For |y| <= 64 and y integer, binary exponentiation is exact.
- * No log/exp roundtrip. pow(2, 10) = 1024 exactly.
- * pow(10, 3) = 1000 exactly. pow(2, -1) = 0.5 exactly.
- *
- * Works for negative bases too: pow(-2, 3) = -8.
- */
-if (ml_is_integer_double(y) && ml_fabs(y) <= 64.0) {
-    int n = (int)y;
-    int an = n < 0 ? -n : n;
-    double base = x;
-    double result = 1.0;
-    while (an > 0) {
-        if (an & 1) result *= base;
-        an >>= 1;
-        if (an > 0) base *= base;
-    }
-    return n < 0 ? 1.0 / result : result;
-}
+ /*
+  * For |y| <= 1023 and y integer, binary exponentiation is exact.
+  * No log/exp roundtrip. pow(2, 10) = 1024 exactly.
+  * pow(10, 3) = 1000 exactly. pow(2, -1) = 0.5 exactly.
+  *
+  * Works for negative bases too: pow(-2, 3) = -8.
+  */
+ if (ml_is_integer_double(y) && ml_fabs(y) <= 1023.0) {
+     int n = (int)y;
+     int an = n < 0 ? -n : n;
+     double base = x;
+     double result = 1.0;
+     while (an > 0) {
+         if (an & 1) result *= base;
+         an >>= 1;
+         if (an > 0) base *= base;
+     }
+     return n < 0 ? 1.0 / result : result;
+ }
 
 /* --- Negative base, non-integer exponent --- */
 if (x < 0.0) {
@@ -398,7 +398,7 @@ ML_API double ml_tanh(double x) {
 
     if (ax == 0.0) return x;
     if (ax > 20.0) return ml_copysign(1.0, x);
-    if (ax < 1e-4) return x;
+    if (ax < 1.5e-8) return x;
 
     double e = ml_exp(-2.0 * ax);
     double t = (1.0 - e) / (1.0 + e);
@@ -412,7 +412,7 @@ ML_API double ml_asinh(double x) {
 
     double ax = ml_fabs(x);
     if (ax == 0.0) return x;
-    if (ax < 1e-4) return x;
+    if (ax < 1.5e-8) return x;
 
     if (ax > 1e150) {
         double r = ml_log(2.0) + ml_log(ax);
@@ -439,7 +439,7 @@ ML_API double ml_acosh(double x) {
 ML_API double ml_atanh(double x) {
     if (ml_isnan(x)) return x;
     if (x <= -1.0 || x >= 1.0) return ml_make_nan();
-    if (ml_fabs(x) < 1e-4) return x;
+    if (ml_fabs(x) < 1.5e-8) return x;
 
     return 0.5 * ml_log((1.0 + x) / (1.0 - x));
 }

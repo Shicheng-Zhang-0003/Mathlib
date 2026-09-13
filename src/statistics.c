@@ -1,5 +1,6 @@
 #include "ml_compiler.h"
 #include "ml_statistics.h"
+#include "ml_integral.h"
 
 /* v11S CLOSURE IP-13: statistics invalid-argument hardening */
 
@@ -26,25 +27,22 @@ ML_API double ml_variance(const double *data, int n) {
         return ml_make_nan();
     }
 
-    double m = ml_mean(data, n);
-
-    if (ml_isnan(m)) {
-        return m;
-    }
-
-    double sum = 0.0;
+    /* Welford's online algorithm for numerical stability */
+    double mean = 0.0;
+    double m2 = 0.0;
 
     for (int i = 0; i < n; i++) {
-        double diff = data[i] - m;
-
-        if (ML_UNLIKELY(ml_isnan(diff))) {
+        double x = data[i];
+        if (ML_UNLIKELY(!ml_isfinite(x))) {
             return ml_make_nan();
         }
-
-        sum += diff * diff;
+        double delta = x - mean;
+        mean += delta / (i + 1.0);
+        double delta2 = x - mean;
+        m2 += delta * delta2;
     }
 
-    double var = sum / (double)n;
+    double var = m2 / (double)n;
 
     /*
      * Variance is mathematically non-negative.
@@ -109,11 +107,8 @@ ML_API double ml_binomial_pmf(int n, int k, double p) {
         return ml_make_nan();
     }
 
-    double log_coeff = 0.0;
-
-    for (int i = 1; i <= r; i++) {
-        log_coeff += ml_log((double)(n - r + i)) - ml_log((double)i);
-    }
+    /* Use lgamma for log(C(n, r)) = lgamma(n+1) - lgamma(r+1) - lgamma(n-r+1) */
+    double log_coeff = ml_lgamma((double)n + 1.0) - ml_lgamma((double)r + 1.0) - ml_lgamma((double)(n - r) + 1.0);
 
     double log_pmf = log_coeff;
 

@@ -50,6 +50,7 @@ ML_API double ml_frexp_pure(double x, int *exp);
 ML_API double ml_sqrt(double x);
 ML_API double ml_fmod(double x, double y);
 ML_API double ml_round(double x);
+ML_API double ml_trunc(double x);
 
 #ifndef ML_PI
 #define ML_PI 3.14159265358979323846
