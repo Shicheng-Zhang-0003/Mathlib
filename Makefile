@@ -4,18 +4,19 @@ CC = gcc
 CFLAGS = -std=c99 -O3 -Wall -Wextra -Wconversion -Wshadow -Wpedantic -Werror -fno-fast-math -ffp-contract=off -Iinclude/mathlib -Isrc -MMD -MP
 LDLIBS = -lm
 
-SRC = src/core.c src/trig.c src/exp_log.c src/complex.c src/linalg.c src/fft.c src/cpu_dispatch.c src/combinatorics.c src/quadratics.c src/polynomial.c src/numerical.c src/statistics.c src/integral.c src/ode.c src/optimization.c src/quaternion.c src/fixed_point.c
+SRC = src/core.c src/trig.c src/exp_log.c src/complex.c src/linalg.c src/fft.c src/cpu_dispatch.c src/combinatorics.c src/quadratics.c src/polynomial.c src/numerical.c src/statistics.c src/integral.c src/ode.c src/optimization.c src/quaternion.c src/fixed_point.c src/orthogonal.c src/calculus.c src/numbertheory.c src/transforms.c
 DEPS = $(SRC:.c=.d)
 
 TEST_SRC = tests/test.c
 BENCH_SRC = benchmarks/bench.c
 FUZZ_GOD_SRC = tests/fuzz_god_mode.c
 FUZZ_BOUND_SRC = tests/fuzz_boundary_gauntlet.c
+ORACLE_SRC = tests/test_oracle.c
 
 # Align output paths with CMake and soak_test.sh
 OUT_DIR = build
 
-all: $(OUT_DIR)/test $(OUT_DIR)/bench $(OUT_DIR)/fuzz_god_mode $(OUT_DIR)/fuzz_boundary
+all: $(OUT_DIR)/test $(OUT_DIR)/bench $(OUT_DIR)/fuzz_god_mode $(OUT_DIR)/fuzz_boundary $(OUT_DIR)/oracle_check
 
 $(OUT_DIR):
 	mkdir -p $(OUT_DIR)
@@ -32,8 +33,11 @@ $(OUT_DIR)/fuzz_god_mode: $(FUZZ_GOD_SRC) $(SRC) | $(OUT_DIR)
 $(OUT_DIR)/fuzz_boundary: $(FUZZ_BOUND_SRC) $(SRC) | $(OUT_DIR)
 	$(CC) $(CFLAGS) -o $@ $(FUZZ_BOUND_SRC) $(SRC) $(LDLIBS)
 
+$(OUT_DIR)/oracle_check: $(ORACLE_SRC) $(SRC) | $(OUT_DIR)
+	$(CC) $(CFLAGS) -DMATHLIB_HAS_ORACLE_DATA -o $@ $(ORACLE_SRC) $(SRC) $(LDLIBS)
+
 clean:
-	rm -f $(OUT_DIR)/test $(OUT_DIR)/bench $(OUT_DIR)/fuzz_god_mode $(OUT_DIR)/fuzz_boundary
+	rm -f $(OUT_DIR)/test $(OUT_DIR)/bench $(OUT_DIR)/fuzz_god_mode $(OUT_DIR)/fuzz_boundary $(OUT_DIR)/oracle_check
 	rm -f $(DEPS)
 
 .PHONY: all clean

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(mathlib_v12A1 VERSION 12.1.0 LANGUAGES C)
+project(mathlib_v12R2 VERSION 12.2.0 LANGUAGES C)
 
 # Strict C99 enforcement (No GNU extensions like typeof or statement expressions)
 set(CMAKE_C_STANDARD 99)
@@ -58,6 +58,10 @@ set(MATHLIB_SOURCES
     src/optimization.c
     src/quaternion.c
     src/fixed_point.c
+    src/orthogonal.c
+    src/calculus.c
+    src/numbertheory.c
+    src/transforms.c
 )
 
 add_library(mathc STATIC ${MATHLIB_SOURCES})
