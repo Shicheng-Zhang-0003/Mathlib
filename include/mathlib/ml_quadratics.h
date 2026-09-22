@@ -7,5 +7,6 @@
 ML_API double ml_equation(double a, double b, double c, double x);
 ML_API double ml_formula_pos(double a, double b, double c);
 ML_API double ml_formula_neg(double a, double b, double c);
+ML_API int ml_cubic(double a, double b, double c, double d, double *r0, double *r1, double *r2);
 
 #endif /* MATHLIB_ML_QUADRATICS_H */

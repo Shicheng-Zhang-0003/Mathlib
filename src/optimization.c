@@ -8,7 +8,7 @@ ML_API double ml_optimize_golden(ml_opt_func_t f, double a, double b, double tol
         return ml_make_nan();
     }
 
-    if (ML_UNLIKELY(tol <= 0.0 || max_iter <= 0)) {
+    if (ML_UNLIKELY(!(tol > 0.0) || !ml_isfinite(tol) || max_iter <= 0)) {
         return ml_make_nan();
     }
 
@@ -41,10 +41,12 @@ ML_API double ml_optimize_golden(ml_opt_func_t f, double a, double b, double tol
 
     for (int i = 0; i < max_iter; i++) {
         if (b - a < tol) {
-            break;
+            double rc = a * 0.5 + b * 0.5;
+            if (ML_UNLIKELY(!ml_isfinite(rc))) return ml_make_nan();
+            return rc;
         }
 
-        if (ML_UNLIKELY(ml_isnan(f1) || ml_isnan(f2))) {
+        if (ML_UNLIKELY(!ml_isfinite(f1) || !ml_isfinite(f2))) {
             return ml_make_nan();
         }
 
@@ -55,6 +57,9 @@ ML_API double ml_optimize_golden(ml_opt_func_t f, double a, double b, double tol
 
             x1 = a + resphi * (b - a);
             f1 = f(x1);
+            if (ML_UNLIKELY(!ml_isfinite(f1))) {
+                return ml_make_nan();
+            }
         } else {
             a = x1;
             x1 = x2;
@@ -62,20 +67,20 @@ ML_API double ml_optimize_golden(ml_opt_func_t f, double a, double b, double tol
 
             x2 = b - resphi * (b - a);
             f2 = f(x2);
+            if (ML_UNLIKELY(!ml_isfinite(f2))) {
+                return ml_make_nan();
+            }
         }
 
         if (ML_UNLIKELY(x1 == x2)) {
-            break;
+            double rc = a * 0.5 + b * 0.5;
+            if (ML_UNLIKELY(!ml_isfinite(rc))) return ml_make_nan();
+            return rc;
         }
     }
 
-    double result = (a + b) * 0.5;
-
-    if (ML_UNLIKELY(ml_isnan(result))) {
-        return ml_make_nan();
-    }
-
-    return result;
+    /* Bracket never narrowed below tol: not converged. */
+    return ml_make_nan();
 }
 
 ML_API double ml_optimize_gradient_descent(ml_opt_func_t f, double start, double lr, double tol, int max_iter) {
@@ -83,11 +88,11 @@ ML_API double ml_optimize_gradient_descent(ml_opt_func_t f, double start, double
         return ml_make_nan();
     }
 
-    if (ML_UNLIKELY(lr <= 0.0 || tol <= 0.0 || max_iter <= 0)) {
+    if (ML_UNLIKELY(!(lr > 0.0) || !ml_isfinite(lr) || !(tol > 0.0) || !ml_isfinite(tol) || max_iter <= 0)) {
         return ml_make_nan();
     }
 
-    if (ML_UNLIKELY(ml_isnan(start))) {
+    if (ML_UNLIKELY(!ml_isfinite(start))) {
         return ml_make_nan();
     }
 
@@ -98,24 +103,29 @@ ML_API double ml_optimize_gradient_descent(ml_opt_func_t f, double start, double
             return ml_make_nan();
         }
 
-        double grad = ml_derivative(f, x, 1e-5);
+        /* Scale-aware finite-difference step: h ~= sqrt(eps)*(1+|x|).
+         * Fixed 1e-5 is blind: for |x|>1e10, x±h==x (spurious NaN);
+         * for |x|<1e-12, truncation dominates. */
+        double ax = ml_fabs(x);
+        double h = 1.4901161193847656e-08 * (1.0 + ax);
+        double grad = ml_derivative(f, x, h);
 
-        if (ML_UNLIKELY(ml_isnan(grad))) {
+        if (ML_UNLIKELY(!ml_isfinite(grad))) {
             return ml_make_nan();
         }
 
         double x_new = x - lr * grad;
 
-        if (ML_UNLIKELY(ml_isnan(x_new))) {
+        if (ML_UNLIKELY(!ml_isfinite(x_new))) {
             return ml_make_nan();
         }
 
-        if (ml_fabs(x_new - x) < tol) {
+        if (ml_fabs(x_new - x) <= tol * (1.0 + ml_fabs(x_new))) {
             return x_new;
         }
 
         x = x_new;
     }
 
-    return x;
+    return ml_make_nan();
 }

@@ -32,11 +32,15 @@ ML_API double ml_polynomial_newton(const double *coeffs, int degree, double x0, 
         return ml_make_nan();
     }
 
-    if (ML_UNLIKELY(epsilon <= 0.0 || max_iter <= 0)) {
+    if (ML_UNLIKELY(!(epsilon > 0.0) || !ml_isfinite(epsilon) || max_iter <= 0)) {
         return ml_make_nan();
     }
 
     if (ML_UNLIKELY(degree == 0)) {
+        return ml_make_nan();
+    }
+
+    if (ML_UNLIKELY(!ml_isfinite(x0))) {
         return ml_make_nan();
     }
 
@@ -47,11 +51,11 @@ ML_API double ml_polynomial_newton(const double *coeffs, int degree, double x0, 
         double dfx = 0.0;
 
         for (int i = degree - 1; i >= 0; i--) {
-            dfx = dfx * x + fx;
-            fx = fx * x + coeffs[i];
+            dfx = ML_FMA(dfx, x, fx);
+            fx = ML_FMA(fx, x, coeffs[i]);
         }
 
-        if (ML_UNLIKELY(ml_isnan(fx) || ml_isnan(dfx))) {
+        if (ML_UNLIKELY(!ml_isfinite(fx) || !ml_isfinite(dfx))) {
             return ml_make_nan();
         }
 
@@ -59,22 +63,26 @@ ML_API double ml_polynomial_newton(const double *coeffs, int degree, double x0, 
             return x;
         }
 
-        if (ML_UNLIKELY(ml_fabs(dfx) < epsilon)) {
+        /* Only an exactly-zero derivative is a hard failure. A tiny but
+         * nonzero derivative is traversable; the old
+         * fabs(dfx)<epsilon test confused x-tolerance with derivative
+         * scale and spuriously aborted (e.g. dfx=1e-13, eps=1e-12). */
+        if (ML_UNLIKELY(dfx == 0.0)) {
             return ml_make_nan();
         }
 
         double x_next = x - fx / dfx;
 
-        if (ML_UNLIKELY(ml_isnan(x_next))) {
+        if (ML_UNLIKELY(!ml_isfinite(x_next))) {
             return ml_make_nan();
         }
 
-        if (ml_fabs(x_next - x) < epsilon) {
+        if (ml_fabs(x_next - x) <= epsilon * (1.0 + ml_fabs(x_next))) {
             return x_next;
         }
 
         x = x_next;
     }
 
-    return x;
+    return ml_make_nan();
 }
