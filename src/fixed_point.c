@@ -6,13 +6,13 @@
 /* v11S CLOSURE IP-17: fixed-point CORDIC portability hardening */
 
 /*
- * CORDIC arctangent table for Q16.16.
- *
- * These constants are retained unchanged from the original v11S module
- * to preserve numerical behavior and existing test expectations.
+ * CORDIC arctangent table for Q16.16: round(atan(2^-i) * 65536).
+ * Corrected from the v11S table whose entries i=2,3,4 were +7/+3/+3 LSB
+ * too large (accumulated ~1e-3 rad ~= 65 LSB angle error). Values below
+ * are round-to-nearest; residual CORDIC angle error is now ~2 LSB.
  */
 static const ml_q16_16_t fixed_cordic_atan[] = {
-    51471, 30385, 16061, 8152, 4093, 2048, 1024, 512,
+    51472, 30386, 16055, 8150, 4091, 2047, 1024, 512,
     256, 128, 64, 32, 16, 8, 4, 2, 1
 };
 

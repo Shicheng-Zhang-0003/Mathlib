@@ -184,13 +184,44 @@ static inline double ml_fp_compose(uint64_t sig, int exp, int sign) {
         return d;
     }
 
-    /* Step 4: sig < 2^52 and exp == -1074 (subnormal that couldn't normalize) */
+    /* Step 4: sig < 2^52 and exp <= -1074 (subnormal that couldn't normalize) */
     if (exp < -1074) {
-        /* Complete underflow -> signed zero */
-        uint64_t bits = sign ? 0x8000000000000000ULL : 0ULL;
-        double d;
-        memcpy(&d, &bits, sizeof(double));
-        return d;
+        /* True value = sig * 2^exp with exp < -1074.
+         * Shift right with round-to-nearest-even to the -1074 grid. */
+        int shift = -1074 - exp; /* >= 1 */
+        if (shift >= 64) {
+            uint64_t bits = sign ? 0x8000000000000000ULL : 0ULL;
+            double d;
+            memcpy(&d, &bits, sizeof(double));
+            return d;
+        }
+        {
+            uint64_t mant = sig >> shift;
+            uint64_t dropped_mask = (shift >= 64) ? ~0ULL : ((shift == 0) ? 0ULL : ((1ULL << shift) - 1ULL));
+            uint64_t dropped = sig & dropped_mask;
+            uint64_t half = 1ULL << (shift - 1);
+            if (dropped > half || (dropped == half && (mant & 1ULL))) {
+                mant++;
+                if (mant >= (1ULL << 52)) {
+                    uint64_t bits =
+                        ((uint64_t)sign << 63) |
+                        (1ULL << 52);
+                    double d;
+                    memcpy(&d, &bits, sizeof(double));
+                    return d;
+                }
+            }
+            if (mant == 0) {
+                uint64_t bits = sign ? 0x8000000000000000ULL : 0ULL;
+                double d;
+                memcpy(&d, &bits, sizeof(double));
+                return d;
+            }
+            uint64_t bits = ((uint64_t)sign << 63) | mant;
+            double d;
+            memcpy(&d, &bits, sizeof(double));
+            return d;
+        }
     }
 
     /* Subnormal with sig already in position */

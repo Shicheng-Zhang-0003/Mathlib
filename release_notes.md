@@ -18,7 +18,7 @@ v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs and
 
 **1. Portable `ml_sqrt`** — Removed x86 inline asm (`sqrtsd`) which violated C99, bypassed MXCSR rounding mode, and could flush subnormals. Now uses `__builtin_sqrt` everywhere.
 
-**2. Fixed `ml_fmod`** — The original word-at-a-time algorithm was mathematically incorrect (integer modulus on significands). Replaced with proper IEEE-754 `fmod(x,y) = x - trunc(x/y)*y` using error-free multiplication via `ML_FMA`. Fixes `sin/cos` range reduction in EMBEDDED profile.
+**2. Fixed `ml_fmod`** — The original word-at-a-time algorithm was mathematically incorrect (integer modulus on significands). Replaced with exact integer-significand long-division (`ax=sx*2^ex`, `rem=((sx*2^d)%sy)*2^ey`, no FP ops, sign-of-x, RNE subnormal handling). Fixes `sin/cos` range reduction in EMBEDDED profile.
 
 **3. Fixed `ml_ldexp_pure`/`ml_frexp_pure` shift UB** — Added bounds check `sig > (UINT64_MAX >> 1)` before `sig <<= 1` to avoid C99 undefined behavior on shifts ≥64.
 
@@ -32,7 +32,7 @@ v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs and
 
 **7. Fixed `ml_pow` integer exponent limit** — Raised `|y| ≤ 64` → `|y| ≤ 1023`. Binary exponentiation is exact up to overflow threshold.
 
-**8. Fixed `ml_gamma_new` reflection formula** — Uses full `ML_PI_HI_D + ML_PI_LO_D` instead of `ML_PI_HI_D` only (~1 ULP improvement).
+**8. Fixed `ml_gamma_new` reflection formula** — `ml_lgamma` uses full `ML_PI_HI_D + ML_PI_LO_D` via `ml_log_pi_dd`; `ml_gamma_new` uses HI/LO double-double division `q=HI/(s*G) + (FMA(-q,s*G,HI)+LO)/(s*G)` (~0.5 ULP improvement over HI-only).
 
 ### Numerical Accuracy Improvements
 
@@ -52,7 +52,7 @@ v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs and
 
 **15. Complex division** — Added `denom == 0` check in Smith's method to guard against catastrophic cancellation.
 
-**16. Newton-Raphson** — Removed bogus `ml_fabs(dfx) < epsilon` check (epsilon is x-tolerance, not derivative threshold).
+**16. Newton-Raphson** — Removed bogus `ml_fabs(dfx) < epsilon` check in `ml_polynomial_newton` (epsilon is x-tolerance, not derivative threshold; only exact `dfx==0` aborts). `ml_newton_raphson` in `numerical.c` already used the correct `dfx==0` check.
 
 **17. Minimax header** — Renamed `maclaurin_*` → `taylor_*` with clarifying comments that these are Taylor, not minimax. True minimax in `minimax_coeffs.h` (DORMANT).
 

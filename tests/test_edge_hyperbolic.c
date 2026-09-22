@@ -18,8 +18,8 @@ int main(void) {
     ASSERT_TRUE(&ctx, ml_isfinite(ml_acosh(1e308)), "acosh(large) finite");
 
     ASSERT_TRUE(&ctx, ml_isnan(ml_acosh(0.5)), "acosh(<1) is NaN");
-    ASSERT_TRUE(&ctx, ml_isnan(ml_atanh(1.0)), "atanh(1) is NaN");
-    ASSERT_TRUE(&ctx, ml_isnan(ml_atanh(-1.0)), "atanh(-1) is NaN");
+    ASSERT_TRUE(&ctx, ml_isinf(ml_atanh(1.0)) && ml_atanh(1.0) > 0.0, "atanh(1) == +inf");
+    ASSERT_TRUE(&ctx, ml_isinf(ml_atanh(-1.0)) && ml_atanh(-1.0) < 0.0, "atanh(-1) == -inf");
     ASSERT_NEAR(&ctx, ml_atanh(0.0), 0.0, 0.0, "atanh(0) == 0");
 
     return ml_test_summary(&ctx);

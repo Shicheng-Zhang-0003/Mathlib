@@ -100,4 +100,34 @@ static inline double ml_fma_soft(double a, double b, double c) {
     return s1 + (prod_err + sum_err);
 }
 
+/* ---- Double-double helpers for <1 ULP Horner (all via ML_FMA) ---- */
+typedef struct { double hi; double lo; } ml_ddx_t;
+
+static inline ml_ddx_t ml_ddx_from_d(double a) {
+    ml_ddx_t r; r.hi = a; r.lo = 0.0; return r;
+}
+
+static inline ml_ddx_t ml_ddx_renorm(double hi, double lo) {
+    double s, e;
+    s = ml_two_sum(hi, lo, &e);
+    ml_ddx_t r; r.hi = s; r.lo = e; return r;
+}
+
+static inline ml_ddx_t ml_ddx_add_d(ml_ddx_t a, double b) {
+    double s, e1, e2;
+    s = ml_two_sum(a.hi, b, &e1);
+    e2 = e1 + a.lo;
+    return ml_ddx_renorm(s, e2);
+}
+
+static inline ml_ddx_t ml_ddx_mul_d(ml_ddx_t a, double b) {
+    double p = a.hi * b;
+    double e = ML_FMA(a.hi, b, -p) + a.lo * b;
+    return ml_ddx_renorm(p, e);
+}
+
+static inline double ml_ddx_to_d(ml_ddx_t a) {
+    return a.hi + a.lo;
+}
+
 #endif /* LIBMATHC_ERROR_FREE_H */

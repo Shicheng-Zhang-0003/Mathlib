@@ -59,16 +59,32 @@ ML_API void ml_matmul(const double* ML_RESTRICT A, const double* ML_RESTRICT B, 
 
     /* Defensive guard against index-space overflow. */
     if (ML_UNLIKELY(n > ((size_t)-1) / n)) return;
+    /* No-alias contract: C must not overlap A/B (scalar and AVX2 paths
+     * read A[i*n+k] while streaming C[i*n+j]). */
 
 #if ML_COMPILE_TIME_AVX2
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+    /* Runtime guard: compile-time AVX2 binary on non-AVX2 CPU would
+     * SIGILL. Fall back to scalar when the host lacks AVX2/FMA. */
+    if (__builtin_cpu_supports("avx2") && __builtin_cpu_supports("fma")) {
+        ml_matmul_avx2(A, B, C, N);
+        return;
+    }
+    ml_matmul_scalar(A, B, C, N);
+#else
     ml_matmul_avx2(A, B, C, N);
+#endif
 #else
     ml_matmul_scalar(A, B, C, N);
 #endif
 }
 
 ML_API int ml_cpu_has_avx2(void) {
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+    return __builtin_cpu_supports("avx2") ? 1 : 0;
+#else
     return ML_COMPILE_TIME_AVX2;
+#endif
 }
 
 ML_API int ml_cpu_has_fma(void) {

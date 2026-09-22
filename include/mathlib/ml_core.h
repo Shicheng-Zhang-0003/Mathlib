@@ -51,6 +51,13 @@ ML_API double ml_sqrt(double x);
 ML_API double ml_fmod(double x, double y);
 ML_API double ml_round(double x);
 ML_API double ml_trunc(double x);
+ML_API double ml_floor(double x);
+ML_API double ml_ceil(double x);
+ML_API double ml_hypot(double x, double y);
+ML_API double ml_remainder(double x, double y);
+ML_API double ml_fdim(double x, double y);
+ML_API double ml_fmax(double x, double y);
+ML_API double ml_fmin(double x, double y);
 
 #ifndef ML_PI
 #define ML_PI 3.14159265358979323846

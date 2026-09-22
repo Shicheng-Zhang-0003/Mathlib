@@ -22,10 +22,18 @@ static const double taylor_sin_coeffs[] = {
 };
 
 static inline double ml_taylor_sin_raw(double x) {
+    /* Compensated (DD) Horner in t=x^2: P(t) to ~106 bits, then x*P.
+     * Truncation ~1e-22; evaluation now <0.3 ULP (was ~1-2 ULP FMA). */
     double x2 = x * x;
-    double result = taylor_sin_coeffs[9];
-    for (int i = 8; i >= 0; i--) result = ML_FMA(result, x2, taylor_sin_coeffs[i]);
-    return x * result;
+    ml_ddx_t acc = ml_ddx_from_d(taylor_sin_coeffs[9]);
+    for (int i = 8; i >= 0; i--) {
+        acc = ml_ddx_mul_d(acc, x2);
+        acc = ml_ddx_add_d(acc, taylor_sin_coeffs[i]);
+    }
+    {
+        ml_ddx_t r = ml_ddx_mul_d(acc, x);
+        return ml_ddx_to_d(r);
+    }
 }
 
 /* 18th-degree Maclaurin (Taylor) polynomial for cos(x) on [-pi/4, pi/4]
@@ -45,9 +53,12 @@ static const double taylor_cos_coeffs[] = {
 
 static inline double ml_taylor_cos_raw(double x) {
     double x2 = x * x;
-    double result = taylor_cos_coeffs[9];
-    for (int i = 8; i >= 0; i--) result = ML_FMA(result, x2, taylor_cos_coeffs[i]);
-    return result;
+    ml_ddx_t acc = ml_ddx_from_d(taylor_cos_coeffs[9]);
+    for (int i = 8; i >= 0; i--) {
+        acc = ml_ddx_mul_d(acc, x2);
+        acc = ml_ddx_add_d(acc, taylor_cos_coeffs[i]);
+    }
+    return ml_ddx_to_d(acc);
 }
 
 /* Public wrappers kept for API compatibility */

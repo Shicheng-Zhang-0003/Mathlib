@@ -1,6 +1,9 @@
 #ifndef MATHLIB_COMPILER_H
 #define MATHLIB_COMPILER_H
 
+#include <stdint.h>
+#include <string.h>
+
 /* ============================================================================
  * MATHLIB v11S COMPILER ABSTRACTION LAYER
  * All compiler-specific extensions, intrinsics, and attributes must be routed
@@ -104,6 +107,20 @@
  * This provides single-rounding semantics (approximately) on platforms without FMA.
  * For production use, hardware FMA is strongly recommended. */
 static inline double ml_fma_soft_impl(double a, double b, double c) {
+    /* IEEE specials must bypass Dekker splitting (which yields NaN for
+     * Inf inputs). Fall back to separate roundings, which are IEEE-correct. */
+    uint64_t abits, bbits, cbits;
+    memcpy(&abits, &a, sizeof(uint64_t));
+    memcpy(&bbits, &b, sizeof(uint64_t));
+    memcpy(&cbits, &c, sizeof(uint64_t));
+    {
+        int aexp = (int)((abits >> 52) & 0x7FFULL);
+        int bexp = (int)((bbits >> 52) & 0x7FFULL);
+        int cexp = (int)((cbits >> 52) & 0x7FFULL);
+        if (aexp == 0x7FF || bexp == 0x7FF || cexp == 0x7FF) {
+            return (a * b) + c;
+        }
+    }
     double p = a * b;
     double c2 = c;
     /* Two-Product: p = fl(a*b), err = a*b - p */

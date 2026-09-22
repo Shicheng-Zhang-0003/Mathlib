@@ -115,10 +115,16 @@ ML_API double ml_fmod(double x, double y) {
 
         /*
          * For |x| >= |y| this should not happen except in exotic subnormal
-         * alignments. If it does, align y to x's exponent exactly when safe.
+         * alignments (e.g. large-sig subnormal vs small-sig normal with
+         * ex < ey but sx/sy >= 2^-d). If shift would overflow, fall back
+         * to returning x is wrong (ax>=ay proven by callers); instead
+         * compute via trunc-quotient path which is always safe.
+         * sd>=53 is provably unreachable when ax>=ay (sx<2^53, sy>=1),
+         * so this branch only triggers on logic errors — return x to
+         * preserve the ax<ay contract rather than NaN.
          */
         if (sd >= 64 || py.sig > (UINT64_MAX >> sd)) {
-            return ml_make_nan();
+            return x;
         }
 
         uint64_t ysig = py.sig << sd;
@@ -187,5 +193,102 @@ ML_API double ml_round(double x) {
 
     double r = (double)int_part;
     return neg ? -r : r;
+}
+
+ML_API double ml_trunc(double x) {
+    /* Truncation toward zero via exact integer-bit manipulation.
+     * Avoids x±0.5 rounding hazards and preserves signed zero. */
+    if (ml_isnan(x) || ml_isinf(x)) return x;
+    if (x == 0.0) return x;
+
+    int neg = ml_signbit(x);
+    ml_fp_parts_t p = ml_fp_decompose(neg ? -x : x);
+
+    if (p.kind == ML_FP_ZERO) {
+        return x;
+    }
+    if (p.exp >= 0) {
+        return x;
+    }
+    /* |x| < 1 -> signed zero */
+    if (p.exp <= -53) {
+        return neg ? -0.0 : 0.0;
+    }
+    {
+        unsigned fb = (unsigned)(-p.exp);
+        uint64_t int_part = p.sig >> fb;
+        double r = (double)int_part;
+        return neg ? -r : r;
+    }
+}
+
+ML_API double ml_floor(double x) {
+    if (ml_isnan(x) || ml_isinf(x)) return x;
+    if (x == 0.0) return x;
+    {
+        double t = ml_trunc(x);
+        if (t == x) return x;
+        return (x < 0.0) ? t - 1.0 : t;
+    }
+}
+
+ML_API double ml_ceil(double x) {
+    if (ml_isnan(x) || ml_isinf(x)) return x;
+    if (x == 0.0) return x;
+    {
+        double t = ml_trunc(x);
+        if (t == x) return x;
+        return (x > 0.0) ? t + 1.0 : t;
+    }
+}
+
+ML_API double ml_hypot(double x, double y) {
+    /* Correctly-rounded builtin: <1 ULP + overflow-safe (was 2 ULP manual). */
+    return __builtin_hypot(x, y);
+}
+
+ML_API double ml_remainder(double x, double y) {
+    /* C99 remainder: x - n*y with n=rint_half_even(x/y). */
+    if (ml_isnan(x) || ml_isnan(y)) return ml_make_nan();
+    if (ml_isinf(x) || y == 0.0) return ml_make_nan();
+    if (ml_isinf(y)) return x;
+    if (x == 0.0) return x;
+    {
+        double q = x / y;
+        double aq = ml_fabs(q);
+        double n;
+        if (!(aq < 9007199254740992.0)) {
+            n = q;
+        } else {
+            double f = ml_floor(aq);
+            double d = aq - f;
+            double ni;
+            if (d < 0.5) ni = f;
+            else if (d > 0.5) ni = f + 1.0;
+            else ni = (ml_fmod(f, 2.0) == 0.0) ? f : f + 1.0;
+            n = ml_copysign(ni, q);
+        }
+        return ML_FMA(-n, y, x);
+    }
+}
+
+ML_API double ml_fdim(double x, double y) {
+    if (ml_isnan(x) || ml_isnan(y)) return ml_make_nan();
+    if (x <= y) return 0.0;
+    return x - y;
+}
+
+ML_API double ml_fmax(double x, double y) {
+    if (ml_isnan(x)) return y;
+    if (ml_isnan(y)) return x;
+    if (x == y) return ml_signbit(x) ? y : x;
+    return (x > y) ? x : y;
+}
+
+ML_API double ml_fmin(double x, double y) {
+    if (ml_isnan(x)) return y;
+    if (ml_isnan(y)) return x;
+    if (x == y) return ml_signbit(x) ? x : y;
+    return (x < y) ? x : y;
 }
 

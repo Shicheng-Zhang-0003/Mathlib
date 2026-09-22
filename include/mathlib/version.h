@@ -2,10 +2,11 @@
 #define MATHLIB_VERSION_H
 
 /* MATHLIB_V12A1_BOOTSTRAP */
+/* v12R2 refinement: version bumped from 12.1.0-a1 */
 #define MATHLIB_VERSION_MAJOR 12
-#define MATHLIB_VERSION_MINOR 1
+#define MATHLIB_VERSION_MINOR 2
 #define MATHLIB_VERSION_PATCH 0
-#define MATHLIB_VERSION_STRING "12.1.0-a1 (v12A1 development)"
-#define MATHLIB_VERSION_TAG "v12A1"
+#define MATHLIB_VERSION_STRING "12.2.0 (v12R2 refinement)"
+#define MATHLIB_VERSION_TAG "v12R2"
 
 #endif /* MATHLIB_VERSION_H */
