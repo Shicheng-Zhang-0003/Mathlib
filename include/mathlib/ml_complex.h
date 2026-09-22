@@ -21,5 +21,7 @@ ML_API cplx ml_cplx_div(cplx a, cplx b);
 ML_API cplx ml_cplx_exponential(cplx a);
 ML_API cplx ml_cplx_logarithm(cplx a);
 ML_API cplx ml_cplx_power(cplx a, cplx b);
+ML_API cplx ml_cplx_sqrt(cplx a);
+ML_API cplx ml_cplx_nth_root(cplx a, int n, int k);
 
 #endif /* LIBMATHC_ML_COMPLEX_H */

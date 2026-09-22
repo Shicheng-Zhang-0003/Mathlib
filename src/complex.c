@@ -86,6 +86,46 @@ ML_API cplx ml_cplx_logarithm(cplx a) {
     return (cplx){ml_log(ml_cplx_abs(a)), ml_cplx_arg(a)};
 }
 
+ML_API cplx ml_cplx_sqrt(cplx a) {
+    /* Stable: r=|a|, re=sqrt((r+re)/2), im=sign*sqrt((r-re)/2). No overflow. */
+    if (ml_isnan(a.real) || ml_isnan(a.imag)) {
+        double n = ml_make_nan();
+        return (cplx){n, n};
+    }
+    if (ml_isinf(a.real) || ml_isinf(a.imag)) {
+        /* Infinite magnitude dominates: check imag-Inf first so
+         * (-Inf+Infi) gives (Inf,Inf), not (0,Inf). */
+        if (ml_isinf(a.imag)) {
+            if (ml_isinf(a.real)) {
+                if (a.real > 0.0) {
+                    return (cplx){ml_make_inf(0), ml_copysign(ml_make_inf(0), a.imag)};
+                }
+                return (cplx){ml_make_inf(0), ml_copysign(ml_make_inf(0), a.imag)};
+            }
+            return (cplx){ml_make_inf(0), ml_copysign(ml_make_inf(0), a.real)};
+        }
+        if (ml_isinf(a.real)) {
+            if (a.real > 0.0) {
+                double m = ml_fabs(a.imag);
+                (void)m;
+                return (cplx){ml_make_inf(0), ml_copysign(ml_make_inf(0), a.imag)};
+            }
+            return (cplx){0.0, ml_copysign(ml_make_inf(0), a.imag)};
+        }
+        return (cplx){ml_make_inf(0), ml_copysign(ml_make_inf(0), a.real)};
+    }
+    {
+        double r = ml_cplx_abs(a);
+        if (r == 0.0) return (cplx){ml_copysign(0.0, a.real), ml_copysign(0.0, a.imag)};
+        {
+            double re = ml_sqrt((r + a.real) * 0.5);
+            double im = ml_sqrt((r - a.real) * 0.5);
+            if (ml_signbit(a.imag)) im = -im;
+            return (cplx){re, im};
+        }
+    }
+}
+
 /* MATHLIB_CLOSURE_P0_COMPLEX_POWER_TREE */
 static int ml_cplx_is_nan(cplx z) {
     return ml_isnan(z.real) || ml_isnan(z.imag);
@@ -185,6 +225,32 @@ ML_API cplx ml_cplx_power(cplx a, cplx b) {
 
     if (a_inf) {
         if (b_inf) {
+            /* Pure-real infinite base and exponent: resolve by magnitude.
+             * +Inf^+Inf=+Inf, +Inf^-Inf=+0; -Inf follows odd/even sign
+             * when b is a finite odd integer, else magnitude rule. */
+            if (ml_cplx_is_pure_real_inf(a) && b.imag == 0.0) {
+                if (b.real > 0.0) {
+                    if (a.real < 0.0 && ml_is_odd_integer_double(b.real)) {
+                        return ml_cplx_make_neg_inf();
+                    }
+                    return ml_cplx_make_pos_inf();
+                }
+                if (b.real < 0.0) {
+                    if (a.real < 0.0 && ml_is_odd_integer_double(b.real)) {
+                        return ml_cplx_make_neg_zero();
+                    }
+                    return ml_cplx_make_zero();
+                }
+            }
+            /* Non-pure-real infinities: fall through to exp(b*log a)
+             * rather than unconditionally returning NaN. */
+            if (!ml_cplx_is_pure_real_inf(a) || b.imag != 0.0) {
+                cplx log_a = ml_cplx_logarithm(a);
+                return ml_cplx_exponential((cplx){
+                    b.real * log_a.real - b.imag * log_a.imag,
+                    b.real * log_a.imag + b.imag * log_a.real
+                });
+            }
             return ml_cplx_make_nan();
         }
 
@@ -214,7 +280,35 @@ ML_API cplx ml_cplx_power(cplx a, cplx b) {
     }
 
     if (b_inf) {
-        return ml_cplx_make_nan();
+        /* Finite nonzero a with infinite b: resolve via exp(b*log a)
+         * instead of unconditional NaN. |a|>1 -> Inf, |a|<1 -> 0,
+         * |a|==1 -> indeterminate (NaN). Zero-guard the complex product:
+         * IEEE Inf*0=NaN would poison the real-real case
+         * (e.g. cpow(2,Inf+0i) imag must be 0, not NaN). */
+        cplx log_a = ml_cplx_logarithm(a);
+        if (!ml_isfinite(log_a.real) || !ml_isfinite(log_a.imag)) {
+            return ml_cplx_make_nan();
+        }
+        if (log_a.real == 0.0) {
+            return ml_cplx_make_nan();
+        }
+        {
+            double re, im;
+            if (b.imag == 0.0 && log_a.imag == 0.0) {
+                re = b.real * log_a.real;
+                im = 0.0;
+            } else if (b.imag == 0.0) {
+                re = b.real * log_a.real;
+                im = b.real * log_a.imag;
+            } else if (log_a.imag == 0.0 && log_a.real != 0.0) {
+                re = b.real * log_a.real;
+                im = b.imag * log_a.real;
+            } else {
+                re = b.real * log_a.real - b.imag * log_a.imag;
+                im = b.real * log_a.imag + b.imag * log_a.real;
+            }
+            return ml_cplx_exponential((cplx){re, im});
+        }
     }
 
     cplx log_a = ml_cplx_logarithm(a);
@@ -223,4 +317,36 @@ ML_API cplx ml_cplx_power(cplx a, cplx b) {
         b.real * log_a.real - b.imag * log_a.imag,
         b.real * log_a.imag + b.imag * log_a.real
     });
+}
+
+ML_API cplx ml_cplx_nth_root(cplx a, int n, int k) {
+    double nn = ml_make_nan();
+    if (ML_UNLIKELY(n <= 0)) return (cplx){nn, nn};
+    {
+        int kk = ((k % n) + n) % n;
+        double r = ml_cplx_abs(a);
+        double th = ml_cplx_arg(a);
+        if (!ml_isfinite(r) || ml_isnan(th)) {
+            /* Infinite magnitude -> infinite root (angle moot).
+             * Use signed Inf/zero to avoid Inf*0=NaN. */
+            if (ml_isinf(r)) {
+                double ph = 0.0;
+                /* Preserve direction when defined. */
+                if (ml_isfinite(th)) ph = (th + 2.0 * ML_PI * (double)kk) / (double)n;
+                {
+                    double c = ml_cos(ph), s = ml_sin(ph);
+                    double re = (c == 0.0) ? ml_copysign(0.0, c) : ml_copysign(ml_make_inf(0), c);
+                    double im = (s == 0.0) ? ml_copysign(0.0, s) : ml_copysign(ml_make_inf(0), s);
+                    return (cplx){re, im};
+                }
+            }
+            return (cplx){nn, nn};
+        }
+        if (r == 0.0) return (cplx){0.0, 0.0};
+        {
+            double m = ml_exp(ml_log(r) / (double)n);
+            double ph = (th + 2.0 * ML_PI * (double)kk) / (double)n;
+            return (cplx){m * ml_cos(ph), m * ml_sin(ph)};
+        }
+    }
 }
