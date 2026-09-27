@@ -31,9 +31,51 @@ ML_API double ml_cos(double x) {
 #endif
 }
 
+/* Single range-reduction helper for tan/sec/csc/cot.
+ * Computes sin+cos with one Payne-Hanek/Cody-Waite call
+ * (ml_rem_pio2) instead of two separate ml_sin+ml_cos reductions.
+ * Embedded profile uses a single CORDIC call. API unchanged. */
+static inline void ml_sincos_common(double x, double *s, double *c) {
+#if defined(MATHLIB_PROFILE_EMBEDDED)
+    if (ml_isnan(x) || ml_isinf(x)) {
+        *s = ml_make_nan();
+        *c = ml_make_nan();
+        return;
+    }
+    {
+        double r = ml_fmod(x, 2.0 * ML_PI);
+        ml_q16_16_t f_in = (ml_q16_16_t)(r * 65536.0);
+        ml_q16_16_t ss = 0;
+        ml_q16_16_t cc = 0;
+        ml_cordic_sincos_fixed(f_in, &ss, &cc);
+        *s = (double)ss / 65536.0;
+        *c = (double)cc / 65536.0;
+    }
+#else
+    double y = 0.0;
+    int n = ml_rem_pio2(x, &y);
+    double sy = 0.0;
+    double cy = 0.0;
+    if (ml_isnan(y)) {
+        *s = ml_make_nan();
+        *c = ml_make_nan();
+        return;
+    }
+    sy = ml_taylor_sin_raw(y);
+    cy = ml_taylor_cos_raw(y);
+    switch (n & 3) {
+        case 0: *s = sy; *c = cy; break;
+        case 1: *s = cy; *c = -sy; break;
+        case 2: *s = -sy; *c = -cy; break;
+        default: *s = -cy; *c = sy; break;
+    }
+#endif
+}
+
 ML_API double ml_tan(double x) {
-    double s = ml_sin(x);
-    double c = ml_cos(x);
+    double s = 0.0;
+    double c = 0.0;
+    ml_sincos_common(x, &s, &c);
     if (c == 0.0) {
         if (s == 0.0) return ml_make_nan(); /* NaN for 0/0 */
         /* IEEE s/c gives correctly-signed Inf from signed zeros. */
@@ -47,6 +89,16 @@ ML_API double ml_tan(double x) {
 #endif
 #ifndef ML_PI_LO_D
 #define ML_PI_LO_D 0x1.1a62633145c07p-53
+#endif
+/* Precomputed pi/12 as double-double (HI+LO ~= 106 bits).
+ * HI is the correctly-rounded double nearest true pi/12;
+ * LO is the rounded remainder (negative here since HI is above true).
+ * Avoids double-rounding of (PI_HI/12)+(PI_LO/12) at each ml_atan call. */
+#ifndef ML_PI12_HI_D
+#define ML_PI12_HI_D 0x1.0c152382d7366p-2
+#endif
+#ifndef ML_PI12_LO_D
+#define ML_PI12_LO_D -0x1.ee6913347c2a6p-56
 #endif
 
 ML_API double ml_sinpi(double x) {
@@ -115,8 +167,6 @@ ML_API double ml_atan(double x) {
         double pi4h = pih * 0.25, pi4l = pil * 0.25;
         if (x > 1.0) {
             double a = ml_atan(1.0 / x);
-            ml_ddx_t r = ml_ddx_from_d(a);
-            r = ml_ddx_renorm(pi2h - r.hi, pi2l - r.lo);
             /* pi/2 - a via DD: hi=pi2h-a with correction. Use generic: */
             {
                 double s, e;
@@ -149,9 +199,9 @@ ML_API double ml_atan(double x) {
         if (x > 0.2679491924311227) {
             double t = 0.2679491924311227;
             double a = ml_atan((x - t) / (1.0 + t * x));
-            /* pi/12 in DD to match pi/2, pi/4 paths (was plain double). */
-            double c12h = ML_PI_HI_D / 12.0;
-            double c12l = ML_PI_LO_D / 12.0;
+            /* pi/12 DD precomputed: avoids double-rounding of HI/12, LO/12. */
+            double c12h = ML_PI12_HI_D;
+            double c12l = ML_PI12_LO_D;
             double s, e;
             s = ml_two_sum(c12h, a, &e);
             e += c12l;
@@ -160,8 +210,8 @@ ML_API double ml_atan(double x) {
         if (x < -0.2679491924311227) {
             double t = 0.2679491924311227;
             double a = ml_atan((x + t) / (1.0 - t * x));
-            double c12h = ML_PI_HI_D / 12.0;
-            double c12l = ML_PI_LO_D / 12.0;
+            double c12h = ML_PI12_HI_D;
+            double c12l = ML_PI12_LO_D;
             double s, e;
             s = ml_two_sum(-c12h, a, &e);
             e += -c12l;
@@ -200,8 +250,9 @@ ML_API double ml_acot(double x) {
 }
 
 ML_API double ml_sec(double x) {
-    double c = ml_cos(x);
-    double s = ml_sin(x);
+    double s = 0.0;
+    double c = 0.0;
+    ml_sincos_common(x, &s, &c);
     if (c == 0.0) {
         /* 0/0 (both zero) only from rounding failure; else IEEE 1/c
          * gives correctly-signed Inf from signed zero. */
@@ -212,8 +263,9 @@ ML_API double ml_sec(double x) {
 }
 
 ML_API double ml_csc(double x) {
-    double s = ml_sin(x);
-    double c = ml_cos(x);
+    double s = 0.0;
+    double c = 0.0;
+    ml_sincos_common(x, &s, &c);
     if (s == 0.0) {
         if (c == 0.0) return ml_make_nan();
         return 1.0 / s;
@@ -222,8 +274,9 @@ ML_API double ml_csc(double x) {
 }
 
 ML_API double ml_cot(double x) {
-    double s = ml_sin(x);
-    double c = ml_cos(x);
+    double s = 0.0;
+    double c = 0.0;
+    ml_sincos_common(x, &s, &c);
     if (s == 0.0) {
         if (c == 0.0) return ml_make_nan();
         /* IEEE c/s preserves signs of both zeros. */
@@ -320,9 +373,21 @@ ML_API double ml_law_cos_side(double a, double b, double C) {
     if (!ml_isfinite(a) || !ml_isfinite(b) || !ml_isfinite(C)) return ml_make_nan();
     if (a < 0.0 || b < 0.0) return ml_make_nan();
     {
-        double c2 = a * a + b * b - 2.0 * a * b * ml_cos(C);
-        if (c2 < 0.0) c2 = 0.0;
-        return ml_sqrt(c2);
+        /* Scale by max(|a|,|b|,1) to avoid a^2+b^2 overflow.
+         * c is homogeneous degree 1: compute with scaled sides
+         * then rescale by sc. sc>=1 so tiny sides are unscaled. */
+        double fa = ml_fabs(a);
+        double fb = ml_fabs(b);
+        double sc = (fa > fb) ? fa : fb;
+        double as = 0.0;
+        double bs = 0.0;
+        double c2s = 0.0;
+        if (sc < 1.0) sc = 1.0;
+        as = a / sc;
+        bs = b / sc;
+        c2s = as * as + bs * bs - 2.0 * as * bs * ml_cos(C);
+        if (c2s < 0.0) c2s = 0.0;
+        return sc * ml_sqrt(c2s);
     }
 }
 
@@ -360,7 +425,9 @@ ML_API double ml_heron(double a, double b, double c) {
     if (ml_isnan(a) || ml_isnan(b) || ml_isnan(c)) return ml_make_nan();
     if (!ml_isfinite(a) || !ml_isfinite(b) || !ml_isfinite(c)) return ml_make_nan();
     if (a <= 0.0 || b <= 0.0 || c <= 0.0) return ml_make_nan();
-    if (a + b <= c || b + c <= a || c + a <= b) return ml_make_nan();
+    /* Strict violation only: degenerate equality (a+b==c) yields 0 area
+     * via the stable product below, not NaN. */
+    if (a + b < c || b + c < a || c + a < b) return ml_make_nan();
     {
         /* Kahan stable: sort x>=y>=z. */
         double x = a, y = b, z = c, t;
@@ -369,7 +436,14 @@ ML_API double ml_heron(double a, double b, double c) {
         if (x < y) { t = x; x = y; y = t; }
         {
             double v = (x + (y + z)) * (z - (x - y)) * (z + (x - y)) * (x + (y - z));
-            if (v <= 0.0 || !ml_isfinite(v)) return ml_make_nan();
+            if (!ml_isfinite(v)) {
+                /* Inputs finite but product overflowed: true area overflows. */
+                return ml_make_inf(0);
+            }
+            if (v <= 0.0) {
+                /* Degenerate (v==0) or tiny negative from rounding: 0 area. */
+                return 0.0;
+            }
             return ml_sqrt(v) * 0.25;
         }
     }
@@ -392,15 +466,40 @@ ML_API double ml_stewart(double a, double b, double c, double m, double n) {
         if (ml_fabs((m + n) - a) > 1e-12 * ref) return ml_make_nan();
     }
     {
-        double d2 = (b * b * m + c * c * n) / a - m * n;
-        if (d2 < 0.0) {
+        /* Scale to avoid b^2*m / c^2*n overflow: d^2 is homogeneous
+         * degree 2, so scale all lengths by S=max(|a|,|b|,|c|,|m|,|n|,1),
+         * compute scaled d2s, then rescale by S. S>=1 keeps tiny
+         * triangles unscaled. */
+        double s = ml_fabs(a);
+        double fb = ml_fabs(b);
+        double fc = ml_fabs(c);
+        double fm = ml_fabs(m);
+        double fn = ml_fabs(n);
+        double as = 0.0;
+        double bs = 0.0;
+        double cs = 0.0;
+        double ms = 0.0;
+        double ns = 0.0;
+        double d2s = 0.0;
+        if (fb > s) s = fb;
+        if (fc > s) s = fc;
+        if (fm > s) s = fm;
+        if (fn > s) s = fn;
+        if (s < 1.0) s = 1.0;
+        as = a / s;
+        bs = b / s;
+        cs = c / s;
+        ms = m / s;
+        ns = n / s;
+        d2s = (bs * bs * ms + cs * cs * ns) / as - ms * ns;
+        if (d2s < 0.0) {
             /* Scale-aware clamp: relative to |b^2 m + c^2 n|/a + mn. */
-            double scale = ml_fabs((b * b * m + c * c * n) / a) + ml_fabs(m * n);
+            double scale = ml_fabs((bs * bs * ms + cs * cs * ns) / as) + ml_fabs(ms * ns);
             if (!(scale > 0.0) || !ml_isfinite(scale)) scale = 1.0;
-            if (d2 > -1e-12 * scale) d2 = 0.0;
+            if (d2s > -1e-12 * scale) d2s = 0.0;
             else return ml_make_nan();
         }
-        return ml_sqrt(d2);
+        return s * ml_sqrt(d2s);
     }
 }
 
@@ -414,10 +513,10 @@ ML_API int ml_ceva(double a1, double a2, double b1, double b2, double c1, double
     if (a2 == 0.0 || b2 == 0.0 || c2 == 0.0) return 0;
     if (!(tol > 0.0) || !ml_isfinite(tol)) tol = 1e-9;
     {
-        /* Long-double product: double ratios can span 1e-616..1e616,
-         * whose product overflows/underflows double; long double
-         * (1e4932) holds it exactly for the comparison to 1. */
-        long double p = (long double)(a1 / a2) * (long double)(b1 / b2) * (long double)(c1 / c2);
+        /* Cast to long double BEFORE division: double division first
+         * can overflow/underflow (e.g. 1e-300/1e300) even though the
+         * long-double ratio is representable. */
+        long double p = ((long double)a1 / (long double)a2) * ((long double)b1 / (long double)b2) * ((long double)c1 / (long double)c2);
         if (!(p == p)) return 0;
         return (ml_fabs((double)(p - 1.0L)) <= tol) ? 1 : 0;
     }
