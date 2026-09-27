@@ -23,6 +23,8 @@ ML_API double ml_mean(const double *data, int n) {
 }
 
 ML_API double ml_variance(const double *data, int n) {
+    /* Population variance (divide by n). For the sample variant /(n-1)
+     * see ml_variance_s; ml_covariance below is sample (/(n-1)). */
     if (ML_UNLIKELY(data == NULL || n <= 0)) {
         return ml_make_nan();
     }
@@ -43,6 +45,41 @@ ML_API double ml_variance(const double *data, int n) {
     }
 
     double var = m2 / (double)n;
+
+    /*
+     * Variance is mathematically non-negative.
+     * A tiny negative value can appear only from floating-point rounding.
+     */
+    if (var < 0.0) {
+        var = 0.0;
+    }
+
+    return var;
+}
+
+ML_API double ml_variance_s(const double *data, int n) {
+    /* Sample variance (divide by n-1, Bessel's correction). n<=1 has no
+     * degrees of freedom left, so it returns NaN. */
+    if (ML_UNLIKELY(data == NULL || n <= 1)) {
+        return ml_make_nan();
+    }
+
+    /* Welford's online algorithm for numerical stability */
+    double mean = 0.0;
+    double m2 = 0.0;
+
+    for (int i = 0; i < n; i++) {
+        double x = data[i];
+        if (ML_UNLIKELY(!ml_isfinite(x))) {
+            return ml_make_nan();
+        }
+        double delta = x - mean;
+        mean += delta / (i + 1.0);
+        double delta2 = x - mean;
+        m2 += delta * delta2;
+    }
+
+    double var = m2 / (double)(n - 1);
 
     /*
      * Variance is mathematically non-negative.
@@ -117,15 +154,8 @@ ML_API double ml_binomial_pmf(int n, int k, double p) {
     }
 
     if (n - k > 0) {
-        /* log(1-p) loses precision for tiny p (1-p==1 in double).
-         * Use log1p-style series: log(1-p) ~= -p - p^2/2 - p^3/3. */
-        double log1mp;
-        if (p < 1e-4) {
-            log1mp = -p - 0.5 * p * p - (p * p * p) / 3.0;
-        } else {
-            log1mp = ml_log(1.0 - p);
-        }
-        log_pmf += (double)(n - k) * log1mp;
+        /* ml_log1p(-p) stays accurate for tiny p where 1-p rounds to 1. */
+        log_pmf += (double)(n - k) * ml_log1p(-p);
     }
 
     double pmf = ml_exp(log_pmf);
@@ -250,7 +280,7 @@ ML_API double ml_normal_cdf(double x, double mu, double sigma) {
 }
 
 ML_API double ml_normal_inv(double p, double mu, double sigma) {
-    /* Acklam rational + 2 Halley refinements via erfc. ~1e-12. */
+    /* Acklam rational starter + Newton refinements on the CDF. ~1e-12. */
     if (ML_UNLIKELY(ml_isnan(p) || ml_isnan(mu) || ml_isnan(sigma))) return ml_make_nan();
     if (ML_UNLIKELY(!(sigma > 0.0) || !ml_isfinite(sigma))) return ml_make_nan();
     if (ML_UNLIKELY(!ml_isfinite(mu))) return ml_make_nan();
@@ -331,6 +361,8 @@ ML_API double ml_median(const double *data, int n, double *tmp) {
 }
 
 ML_API double ml_covariance(const double *x, const double *y, int n) {
+    /* Sample covariance (divide by n-1), matching ml_variance_s.
+     * Contrast ml_variance, which is population (divide by n). */
     if (ML_UNLIKELY(!x || !y || n <= 0)) return ml_make_nan();
     {
         double mx = 0.0, my = 0.0;
@@ -382,6 +414,8 @@ ML_API double ml_correlation(const double *x, const double *y, int n) {
 }
 
 ML_API double ml_hmean(const double *data, int n) {
+    /* Reciprocal sum can overflow (inputs ~1e-308 -> 1/x ~1e308 each):
+     * kept as-is; IEEE then yields 0/NaN rather than a wrong mean. */
     if (ML_UNLIKELY(!data || n <= 0)) return ml_make_nan();
     {
         double s = 0.0;
@@ -394,6 +428,9 @@ ML_API double ml_hmean(const double *data, int n) {
 }
 
 ML_API double ml_gmean(const double *data, int n) {
+    /* Log-sum then exp: exp overflows to +Inf only when the true geometric
+     * mean itself exceeds ~1e308; kept as-is (no spurious overflow, since
+     * the product is never formed directly). */
     if (ML_UNLIKELY(!data || n <= 0)) return ml_make_nan();
     {
         double s = 0.0;
@@ -407,7 +444,16 @@ ML_API double ml_gmean(const double *data, int n) {
 
 ML_API double ml_geometric_pmf(int k, double p) {
     if (ML_UNLIKELY(k < 1 || ml_isnan(p) || p <= 0.0 || p > 1.0)) return ml_make_nan();
-    return p * ml_pow(1.0 - p, (double)(k - 1));
+    if (p == 1.0) return (k == 1) ? 1.0 : 0.0;
+    /* Log-space exp((k-1)*log1p(-p)+log(p)): pow(1-p,k-1) underflows to 0
+     * for far tails and rounds 1-p to 1 for tiny p; log1p keeps both. */
+    {
+        double lpmf = (double)(k - 1) * ml_log1p(-p) + ml_log(p);
+        double r = ml_exp(lpmf);
+        if (!ml_isfinite(r)) return 0.0;
+        if (r > 1.0) r = 1.0;
+        return r;
+    }
 }
 
 ML_API double ml_uniform_pdf(double x, double a, double b) {

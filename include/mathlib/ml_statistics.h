@@ -8,8 +8,12 @@
 
 /* FIX: Added const to non-mutating data arrays */
 ML_API double ml_mean(const double *data, int n);
+/* Population variance (divide by n). Sample variant below divides by n-1;
+ * ml_covariance is sample (n-1). ml_stddev wraps population variance. */
 ML_API double ml_variance(const double *data, int n);
+ML_API double ml_variance_s(const double *data, int n);
 ML_API double ml_stddev(const double *data, int n);
+/* tmp must hold at least n doubles (scratch sort buffer, tmp[n]). */
 ML_API double ml_median(const double *data, int n, double *tmp);
 ML_API double ml_covariance(const double *x, const double *y, int n);
 ML_API double ml_correlation(const double *x, const double *y, int n);
