@@ -13,6 +13,9 @@ ML_API int ml_fft_is_supported(int n) {
 }
 
 ML_API void ml_fft_execute(cplx *x, int n) {
+    /* Contract: callers must check ml_fft_is_supported(n) first.
+     * Unsupported lengths (non-power-of-two, n<=0, n>2^24) and NULL are
+     * safe silent no-ops: no UB, no out-of-bounds access, no osv. */
     if (ML_UNLIKELY(x == NULL)) return;
     if (!ml_fft_is_power_of_two_internal(n)) return;
     /* DoS cap: 2^24 complex (256MB) already absurd for embedded/static;
@@ -69,6 +72,7 @@ ML_API void ml_fft_execute(cplx *x, int n) {
 }
 
 ML_API void ml_ifft_execute(cplx *x, int n) {
+    /* Same no-op contract as ml_fft_execute: check ml_fft_is_supported. */
     if (ML_UNLIKELY(x == NULL)) return;
     if (!ml_fft_is_power_of_two_internal(n)) return;
     if (n > (1 << 24)) return;

@@ -9,17 +9,27 @@ static double (*raw_libm_sqrt)(double) = sqrt;
 #include "ml_core.h"
 #include "simd_batch.h"
 
-static inline unsigned long long rdtsc() {
+/* benchmark-only, excluded from lib build, non-portable rdtsc isolated here. */
+#if defined(__x86_64__) || defined(__i386__)
+static inline unsigned long long bench_tick(void) {
     unsigned int lo, hi;
     __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
     return ((unsigned long long)hi << 32) | lo;
 }
+#define BENCH_UNITS "cycles"
+#else
+/* Portable fallback for non-x86: clock() ticks (coarse, not cycle-accurate). */
+static inline unsigned long long bench_tick(void) {
+    return (unsigned long long)clock();
+}
+#define BENCH_UNITS "ticks"
+#endif
 
 volatile double sink = 0.0;
 
 int main() {
     printf("=========================================================\n");
-    printf("   MATHLIB v1.0: Zero-Dependency Cycle-Accurate Benchmark (rdtsc)\n");
+    printf("   MATHLIB v1.0: Zero-Dependency Benchmark (rdtsc on x86, clock() fallback elsewhere)\n");
     printf("=========================================================\n\n");
 
     #if defined(MATHLIB_PROFILE_GRAPHICS)
@@ -35,40 +45,40 @@ int main() {
     unsigned long long start, end;
     double cycles_per_op;
 
-    start = rdtsc();
+    start = bench_tick();
     for(int i = 0; i < iterations; i++) sink += raw_libm_sin(i * 0.0001);
-    end = rdtsc();
+    end = bench_tick();
     cycles_per_op = (double)(end - start) / iterations;
-    printf("GNU libm sin()        : %6.2f cycles / op\n", cycles_per_op);
+    printf("GNU libm sin()        : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
 
-    start = rdtsc();
+    start = bench_tick();
     for(int i = 0; i < iterations; i++) sink += ml_sin(i * 0.0001);
-    end = rdtsc();
+    end = bench_tick();
     cycles_per_op = (double)(end - start) / iterations;
-    printf("mathlib ml_sin()      : %6.2f cycles / op\n", cycles_per_op);
+    printf("mathlib ml_sin()      : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
 
-    start = rdtsc();
+    start = bench_tick();
     for(int i = 0; i < iterations; i++) sink += ml_sqrt(i + 1.0);
-    end = rdtsc();
+    end = bench_tick();
     cycles_per_op = (double)(end - start) / iterations;
-    printf("mathlib ml_sqrt()     : %6.2f cycles / op\n", cycles_per_op);
+    printf("mathlib ml_sqrt()     : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
 
-    start = rdtsc();
+    start = bench_tick();
     for(int i = 0; i < iterations; i++) sink += raw_libm_sqrt(i + 1.0);
-    end = rdtsc();
+    end = bench_tick();
     cycles_per_op = (double)(end - start) / iterations;
-    printf("GNU libm sqrt()       : %6.2f cycles / op\n", cycles_per_op);
+    printf("GNU libm sqrt()       : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
 
     double simd_in[4096] __attribute__((aligned(32)));
     double simd_out[4096] __attribute__((aligned(32)));
     for(int i=0; i<4096; i++) simd_in[i] = i + 1.0;
 
-    start = rdtsc();
+    start = bench_tick();
     for(int i = 0; i < 10000; i++) {
         for(int j=0; j<4096; j+=4) ml_simd_batch_poly(&simd_in[j], &simd_out[j]);
     }
-    end = rdtsc();
-    printf("mathlib SIMD Batch    : %6.2f cycles / 4 ops\n", (double)(end - start) / (10000.0 * 1024.0));
+    end = bench_tick();
+    printf("mathlib SIMD Batch    : %6.2f %s / 4 ops\n", (double)(end - start) / (10000.0 * 1024.0), BENCH_UNITS);
 
     printf("\n=========================================================\n");
     return 0;

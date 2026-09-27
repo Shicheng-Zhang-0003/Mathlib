@@ -8,6 +8,8 @@ compile_commands.json
 # Anchored Binaries (prevents ignoring directories named 'test/')
 /test
 /bench
+/bench_graphics
+/bench_scientific
 /fuzz_god_mode
 /fuzz_boundary
 /test_core

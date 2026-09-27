@@ -88,17 +88,22 @@ ML_API int ml_cpu_has_avx2(void) {
 }
 
 ML_API int ml_cpu_has_fma(void) {
-#if defined(__FMA__) && (defined(__x86_64__) || defined(__i386__))
-    return 1;
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+    /* Runtime query: the __FMA__ compile macro only reflects the flags
+     * used to build this TU, not host capability. */
+    return __builtin_cpu_supports("fma") ? 1 : 0;
 #else
+    /* Portable fallback: no runtime CPUID available here. */
     return 0;
 #endif
 }
 
 ML_API int ml_cpu_has_sse41(void) {
-#if defined(__SSE4_1__) && (defined(__x86_64__) || defined(__i386__))
-    return 1;
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+    /* Runtime query (see ml_cpu_has_fma rationale). */
+    return __builtin_cpu_supports("sse4.1") ? 1 : 0;
 #else
+    /* Portable fallback: no runtime CPUID available here. */
     return 0;
 #endif
 }

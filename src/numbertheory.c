@@ -1,6 +1,7 @@
 #include "ml_compiler.h"
 #include "ml_numbertheory.h"
 #include "ml_combinatorics.h"
+#include <stdlib.h>
 
 static uint64_t ml_abs_u64(int64_t v) {
     if (v >= 0) return (uint64_t)v;
@@ -174,12 +175,11 @@ ML_API uint64_t ml_prime_pi(uint64_t n) {
     if (n > 100000000ULL) return UINT64_MAX;
     {
         uint64_t nn = n;
-        uint8_t *is_c = (uint8_t *)0;
-        (void)is_c;
-        /* Odd-only sieve on stack chunks to avoid malloc. */
-        static uint8_t bits[50000001];
+        /* Heap-backed odd-only sieve sized by the limit: avoids a 50MB
+         * static BSS image and is thread-safe (no shared mutable state). */
         uint64_t size = nn / 2;
-        if (size > sizeof(bits)) return UINT64_MAX;
+        uint8_t *bits = (uint8_t *)malloc((size_t)size * sizeof(uint8_t));
+        if (!bits) return UINT64_MAX;
         for (uint64_t i = 0; i < size; i++) bits[i] = 1;
         for (uint64_t p = 3; p * p <= nn; p += 2) {
             if (bits[p / 2]) {
@@ -190,6 +190,7 @@ ML_API uint64_t ml_prime_pi(uint64_t n) {
         for (uint64_t i = 1; i < size; i++) {
             if (bits[i]) c++;
         }
+        free(bits);
         return c;
     }
 }
