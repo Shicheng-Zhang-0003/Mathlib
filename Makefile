@@ -4,7 +4,7 @@ CC = gcc
 CFLAGS = -std=c99 -O3 -Wall -Wextra -Wconversion -Wshadow -Wpedantic -Werror -fno-fast-math -ffp-contract=off -Iinclude/mathlib -Isrc -MMD -MP
 LDLIBS = -lm
 
-SRC = src/core.c src/trig.c src/exp_log.c src/complex.c src/linalg.c src/fft.c src/cpu_dispatch.c src/combinatorics.c src/quadratics.c src/polynomial.c src/numerical.c src/statistics.c src/integral.c src/ode.c src/optimization.c src/quaternion.c src/fixed_point.c src/orthogonal.c src/calculus.c src/numbertheory.c src/transforms.c
+SRC = src/core.c src/trig.c src/exp_log.c src/complex.c src/linalg.c src/fft.c src/cpu_dispatch.c src/combinatorics.c src/quadratics.c src/polynomial.c src/numerical.c src/statistics.c src/integral.c src/ode.c src/optimization.c src/quaternion.c src/fixed_point.c src/orthogonal.c src/calculus.c src/numbertheory.c src/transforms.c src/optim_n.c src/ode_sys.c src/spectral.c src/stats_inv.c src/sde.c src/pde.c src/harmonic.c src/mcmc.c src/manifold.c src/info.c src/analytic_nt.c src/control.c
 DEPS = $(SRC:.c=.d)
 
 TEST_SRC = tests/test.c

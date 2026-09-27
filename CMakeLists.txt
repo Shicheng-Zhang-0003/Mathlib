@@ -62,6 +62,18 @@ set(MATHLIB_SOURCES
     src/calculus.c
     src/numbertheory.c
     src/transforms.c
+    src/optim_n.c
+    src/ode_sys.c
+    src/spectral.c
+    src/stats_inv.c
+    src/sde.c
+    src/pde.c
+    src/harmonic.c
+    src/mcmc.c
+    src/manifold.c
+    src/info.c
+    src/analytic_nt.c
+    src/control.c
 )
 
 add_library(mathc STATIC ${MATHLIB_SOURCES})

@@ -66,6 +66,7 @@ EDGE_TEST_CFLAGS = [
 ]
 
 LIB_SOURCES = [
+    # Canonical TU list: must match MATHLIB_SOURCES in CMakeLists.txt (33 TUs).
     "src/core.c",
     "src/trig.c",
     "src/exp_log.c",
@@ -83,6 +84,22 @@ LIB_SOURCES = [
     "src/optimization.c",
     "src/quaternion.c",
     "src/fixed_point.c",
+    "src/orthogonal.c",
+    "src/calculus.c",
+    "src/numbertheory.c",
+    "src/transforms.c",
+    "src/optim_n.c",
+    "src/ode_sys.c",
+    "src/spectral.c",
+    "src/stats_inv.c",
+    "src/sde.c",
+    "src/pde.c",
+    "src/harmonic.c",
+    "src/mcmc.c",
+    "src/manifold.c",
+    "src/info.c",
+    "src/analytic_nt.c",
+    "src/control.c",
 ]
 
 
