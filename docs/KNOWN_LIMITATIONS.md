@@ -33,3 +33,18 @@ These limitations are design choices, not hidden defects.
 - **`ml_integral_traditional` remains experimental.** It is a simple
   Riemann sum integrator and is not part of the validated numerical
   core.
+
+- **Thread-safety: all mutable static scratch buffers removed (2026-09-27
+  despot audit).** Verified by `grep "static ...\[" src/*.c` returning no
+  per-call mutable state: `optim_n.c`, `mcmc.c`, `pde.c`, `manifold.c`,
+  `harmonic.c`, `spectral.c`, `calculus.c` (spline Thomas), `linalg.c`
+  (Jacobi `W`), `info.c` (`ml_mi_discrete` marginals), `numbertheory.c`
+  (prime sieve is now heap-allocated per call), and `analytic_nt.c`
+  (partition table + zeta Euler table are now stack-local) all use
+  stack-local or heap-per-call scratch. Remaining `static` instances are
+  read-only tables (`static const`) or function-linkage helpers, which are
+  thread-safe. Core TUs (trig/exp_log/complex/fft/linalg-solve) remain
+  stateless. The DESIGN_CONTRACT "Stateless & Thread-Safe, No Global State"
+  claim now holds for the full tree; re-verify with
+  `grep -n "static double\|static float\|static int\|static long double\|static cplx\|static uint" src/*.c`
+  (expect only `static` helper *functions*, which are stateless).

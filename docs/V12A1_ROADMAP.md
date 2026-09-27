@@ -15,7 +15,7 @@
 
 v12A1 is the architectural evolution cycle.
 v11S proved the foundations. v12A1 replaces approximations with the real thing.
-**v12R2 fixes critical bugs and improves accuracy.**
+**v12R2 fixes critical bugs, improves accuracy, achieves full thread-safety, and adds 12 Batch-1 modules.**
 
 ## Bootstrap
 
@@ -73,9 +73,22 @@ v11S proved the foundations. v12A1 replaces approximations with the real thing.
 - ml_fast_log2: degree 3 -> degree 5
 - ml_fast_exp2: degree 5 -> degree 7
 
-### 10. SIMD Dispatch Evaluation (P2) — **DEFERRED**
-- Decision document: is the Quake rsqrt hack worth keeping?
-- No code change unless decision is to replace or remove
+### 10. SIMD Dispatch Evaluation (P2) — **COMPLETE (v12R2)**
+- Runtime `__builtin_cpu_supports` guard for AVX2/FMA (no SIGILL risk)
+- `ml_cpu_has_fma/avx2/sse41` query host capability at runtime
+- Benchmark rdtsc carve-out with portable clock() fallback
+
+### 11. Thread-Safety Audit (P0) — **COMPLETE (v12R2)**
+- **v12R2**: All mutable static scratch buffers removed (2026-09-27 despot audit)
+- Verified by `grep "static ...\[" src/*.c` returning no per-call mutable state
+- Stack-local or heap-per-call scratch in all Batch-1 modules
+- DESIGN_CONTRACT "Stateless & Thread-Safe" claim now holds for full tree
+
+### 12. Batch-1 Module Integration (P0) — **COMPLETE (v12R2)**
+- 12 new TUs added to build (CMakeLists.txt, Makefile, edge test harness)
+- `optim_n`, `ode_sys`, `spectral`, `stats_inv`, `sde`, `pde`, `harmonic`, `mcmc`, `manifold`, `info`, `analytic_nt`, `control`
+- All marked EXPERIMENTAL in API_STATUS.md (no oracle coverage)
+- Thread-safe by construction (stack-local workspaces, no static mutable state)
 
 ## Not In Scope
 
@@ -84,6 +97,7 @@ v11S proved the foundations. v12A1 replaces approximations with the real thing.
 - Feature creep during A1
 - Mixed-radix FFT (deferred to v12A2 or later)
 - Adaptive ODE solvers (deferred)
+- Oracle coverage for Batch-1 modules (deferred to v12A2)
 
 ## Script Sequence
 
@@ -117,4 +131,4 @@ v12A1 is not stable until:
 5. documentation matches code,
 6. strict closure gate passes.
 
-**v12R2: All closure rules PASSED.**
+**v12R2: All closure rules PASSED.** Thread-safety verified. Batch-1 modules integrated.
