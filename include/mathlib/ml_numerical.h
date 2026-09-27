@@ -20,6 +20,9 @@ ML_API double ml_arith_nth(double a1, double d, long long n);
 ML_API double ml_arith_sum(double a1, double d, long long n);
 ML_API double ml_geom_nth(double a1, double r, long long n);
 ML_API double ml_geom_sum(double a1, double r, long long n);
+/* Exactness guards (integer precision, not range caps): the closed forms
+ * are returned only where they are exact in double; beyond n=2^32-1
+ * (sum_k) / n=2^21-1 (sum_k2) they return NaN. sum_k3 inherits sum_k. */
 ML_API double ml_sum_k(long long n);
 ML_API double ml_sum_k2(long long n);
 ML_API double ml_sum_k3(long long n);

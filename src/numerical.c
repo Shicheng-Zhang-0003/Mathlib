@@ -2,6 +2,7 @@
 #include "ml_numerical.h"
 #include "ml_trig.h"
 #include "ml_exp_log.h"
+#include <stdlib.h>
 
 /* v11S CLOSURE IP-15: numerical methods robustness */
 
@@ -125,7 +126,7 @@ ML_API double ml_bisection(ml_func_t f, double a, double b, double epsilon, int 
             return ml_make_nan();
         }
 
-        if (fc == 0.0 || ml_fabs(b - a) < epsilon) {
+        if (fc == 0.0 || ml_fabs(b - a) <= epsilon * (1.0 + ml_fabs(a) + ml_fabs(b))) {
             return c;
         }
 
@@ -210,12 +211,26 @@ ML_API double ml_kepler(double M, double e, double tol) {
     if (ML_UNLIKELY(!(tol > 0.0) || !ml_isfinite(tol))) return ml_make_nan();
     if (ML_UNLIKELY(!ml_isfinite(M))) return ml_make_nan();
     {
+        /* Reduce M to [-pi,pi]: Newton from an unreduced M (e.g. 1e6)
+         * starts many periods away and may converge to the wrong branch
+         * or stall; the reduced angle keeps the M (e<0.8) starter close. */
+        double TWO_PI = 6.28318530717958647692;
+        double Mr = ml_fmod(M, TWO_PI);
+        if (Mr > 3.14159265358979323846) Mr -= TWO_PI;
+        else if (Mr < -3.14159265358979323846) Mr += TWO_PI;
+        M = Mr;
+    }
+    {
         double E = (e < 0.8) ? M : 3.14159265358979323846;
         for (int i = 0; i < 100; i++) {
             double f = E - e * ml_sin(E) - M;
             double fp = 1.0 - e * ml_cos(E);
             if (!ml_isfinite(f) || !ml_isfinite(fp) || fp == 0.0) return ml_make_nan();
             {
+                /* Undamped Newton: fp>=1-e>0 for e<1, so no backup step
+                 * is needed; fp==0 (only as e->1-) bails out above. A
+                 * damped (line-searched) fallback would go here if the
+                 * iteration ever failed to contract. */
                 double d = f / fp;
                 E -= d;
                 if (ml_fabs(d) < tol) return E;
@@ -422,10 +437,11 @@ ML_API double ml_integral_tanhsinh(ml_func_t f, double a, double b, double tol) 
     if (ML_UNLIKELY(!(a < b))) return ml_make_nan();
     {
         double half = (b - a) * 0.5, mid = a * 0.5 + b * 0.5;
-        double prev = 0.0;
+        double prev = 0.0, s = 0.0;
         double h = 1.0;
         for (int lev = 0; lev < 10; lev++) {
-            double s = 0.0, comp = 0.0;
+            double comp = 0.0;
+            s = 0.0;
             int K = (int)(4.0 / h) + 20;
             if (K > 2000) K = 2000;
             for (int k = -K; k <= K; k++) {
@@ -464,7 +480,10 @@ ML_API double ml_integral_tanhsinh(ml_func_t f, double a, double b, double tol) 
             prev = s;
             h *= 0.5;
         }
-        return prev;
+        /* 10 levels without |s-prev|<=tol: not converged -> NaN
+         * (consistent with Simpson/adaptive), never a silent estimate. */
+        if (ml_fabs(s - prev) > tol) return ml_make_nan();
+        return s;
     }
 }
 
@@ -542,6 +561,9 @@ ML_API double ml_sum_k(long long n) {
     if (n <= 0) return ml_make_nan();
     {
         double nn = (double)n;
+        /* Exactness guard (not a range cap): n(n+1)/2 must round-trip
+         * through double without integer-precision loss; beyond 2^32-1
+         * the closed form is no longer exact, so return NaN. */
         if (nn > 4294967295.0) return ml_make_nan();
         return nn * (nn + 1.0) * 0.5;
     }
@@ -551,6 +573,9 @@ ML_API double ml_sum_k2(long long n) {
     if (n <= 0) return ml_make_nan();
     {
         double nn = (double)n;
+        /* Exactness guard (not a range cap): n(n+1)(2n+1)/6 must stay
+         * exactly representable; beyond 2^21-1 the product exceeds the
+         * 53-bit mantissa, so return NaN. */
         if (nn > 2097151.0) return ml_make_nan();
         return nn * (nn + 1.0) * (2.0 * nn + 1.0) / 6.0;
     }
@@ -574,8 +599,17 @@ ML_API int ml_nim_win(const uint64_t *piles, int n) {
     }
 }
 
+static int ml_cmp_desc(const void *pa, const void *pb) {
+    double a = *(const double *)pa;
+    double b = *(const double *)pb;
+    if (a < b) return 1;
+    if (a > b) return -1;
+    return 0;
+}
+
 ML_API int ml_majorizes(const double *a, const double *b, int n, double tol) {
-    /* Karamata: sorted-desc prefix sums A>=B, totals equal. O(n^2) select. */
+    /* Karamata: sorted-desc prefix sums A>=B, totals equal.
+     * Heap-backed sort so ANY n works (no 256-element stack cap). */
     if (!a || !b || n <= 0) return 0;
     if (!(tol > 0.0) || !ml_isfinite(tol)) tol = 1e-12;
     {
@@ -585,30 +619,31 @@ ML_API int ml_majorizes(const double *a, const double *b, int n, double tol) {
             sa += a[i]; sb += b[i];
         }
         if (ml_fabs(sa - sb) > tol * (1.0 + ml_fabs(sa))) return 0;
-        for (int k = 1; k < n; k++) {
-            /* k-th largest via partial select on temp copies. */
-            double ta[256], tb[256];
-            int nn = (n > 256) ? 256 : n;
-            if (n > 256) return 0;
+        {
+            double *ta = (double *)malloc((size_t)n * sizeof(double));
+            double *tb = (double *)malloc((size_t)n * sizeof(double));
+            double pa = 0.0, pb = 0.0;
+            int ok = 1;
+            if (!ta || !tb) {
+                free(ta);
+                free(tb);
+                return 0;
+            }
             for (int i = 0; i < n; i++) { ta[i] = a[i]; tb[i] = b[i]; }
-            for (int i = 0; i < k; i++) {
-                int ma = i, mb = i;
-                for (int j = i + 1; j < n; j++) {
-                    if (ta[j] > ta[ma]) ma = j;
-                    if (tb[j] > tb[mb]) mb = j;
-                }
-                {
-                    double t = ta[i]; ta[i] = ta[ma]; ta[ma] = t;
-                    t = tb[i]; tb[i] = tb[mb]; tb[mb] = t;
+            qsort(ta, (size_t)n, sizeof(double), ml_cmp_desc);
+            qsort(tb, (size_t)n, sizeof(double), ml_cmp_desc);
+            for (int k = 0; k < n - 1; k++) {
+                pa += ta[k]; pb += tb[k];
+                /* Scale-aware prefix tolerance: absolute tol never
+                 * triggers for |sums|>>1 and mis-fires near 0. */
+                if (pa + tol * (1.0 + ml_fabs(sa) + ml_fabs(sb)) < pb) {
+                    ok = 0;
+                    break;
                 }
             }
-            {
-                double pa = 0.0, pb = 0.0;
-                for (int i = 0; i < k; i++) { pa += ta[i]; pb += tb[i]; }
-                if (pa + tol < pb) return 0;
-            }
-            (void)nn;
+            free(ta);
+            free(tb);
+            return ok;
         }
-        return 1;
     }
 }

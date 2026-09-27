@@ -37,6 +37,9 @@ ML_API double ml_ellip_k(double k);
 ML_API double ml_ellip_e(double k);
 ML_API double ml_ellip_f(double phi, double m);
 ML_API double ml_ellip_e_inc(double phi, double m);
+/* Gauss 2F1(a,b;c;z): Taylor series valid for |z|<1 (plus Gauss sum at
+ * z=1 when c-a-b>0). NO analytic continuation: |z|>=1 (z!=1) returns NaN
+ * by design rather than a wrong value. c must not be a non-positive integer. */
 ML_API double ml_hyp2f1(double a, double b, double c, double z);
 ML_API double ml_hyp1f1(double a, double b, double z);
 ML_API double ml_zeta(double s);
