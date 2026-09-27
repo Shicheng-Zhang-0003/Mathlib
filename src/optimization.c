@@ -40,7 +40,10 @@ ML_API double ml_optimize_golden(ml_opt_func_t f, double a, double b, double tol
     }
 
     for (int i = 0; i < max_iter; i++) {
-        if (b - a < tol) {
+        /* Scale-aware width stop: absolute tol never triggers for |x|>>1
+         * and mis-fires near 0; tol*(1+|a|+|b|) is absolute near 0,
+         * relative far away. */
+        if (ml_fabs(b - a) <= tol * (1.0 + ml_fabs(a) + ml_fabs(b))) {
             double rc = a * 0.5 + b * 0.5;
             if (ML_UNLIKELY(!ml_isfinite(rc))) return ml_make_nan();
             return rc;

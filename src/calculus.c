@@ -3,7 +3,7 @@
 #include "ml_orthogonal.h"
 
 ML_API ml_status_t ml_gauss_legendre(int n, double *xs, double *ws) {
-    if (ML_UNLIKELY(!xs || !ws || n <= 0 || n > 64)) return ML_ERR_INVALID_ARG;
+    if (ML_UNLIKELY(!xs || !ws || n <= 0 || n > 1024)) return ML_ERR_INVALID_ARG;
     for (int i = 1; i <= n; i++) {
         /* Tricomi initial guess: cos(pi*(i-0.25)/(n+0.5)) */
         long double x = __builtin_cosl(3.14159265358979323846264338327950288L
@@ -30,6 +30,12 @@ ML_API ml_status_t ml_gauss_legendre(int n, double *xs, double *ws) {
                       - (long double)k * p0) / (long double)(k + 1);
                 p0 = p1; p1 = p2;
             }
+            /* Residual check: Newton must have driven P_n(x) to ~0.
+             * ml_types.h defines no ML_ERR_CONVERGENCE, so a residual
+             * above 1e-14 is reported as ML_ERR_INTERNAL. */
+            if (__builtin_fabsl(p1) > 1e-14L) {
+                return ML_ERR_INTERNAL;
+            }
             long double dp = (long double)n * (x * p1 - p0) / (x * x - 1.0L);
             long double w = 2.0L / ((1.0L - x * x) * dp * dp);
             xs[i - 1] = (double)x;
@@ -50,12 +56,17 @@ ML_API ml_status_t ml_gauss_legendre(int n, double *xs, double *ws) {
 }
 
 ML_API double ml_gauss_legendre_integral(ml_func_t f, double a, double b, int n) {
-    if (ML_UNLIKELY(!f || n <= 0 || n > 64)) return ml_make_nan();
+    if (ML_UNLIKELY(!f || n <= 0 || n > 1024)) return ml_make_nan();
     if (ML_UNLIKELY(ml_isnan(a) || ml_isnan(b) || ml_isinf(a) || ml_isinf(b))) return ml_make_nan();
     if (a == b) return 0.0;
-    if (a > b) return ml_make_nan();
+    /* Signed integral: a>b swaps limits and negates (instead of NaN). */
+    int negate = 0;
+    if (a > b) {
+        double t = a; a = b; b = t;
+        negate = 1;
+    }
     {
-        double xs[64], ws[64];
+        double xs[1024], ws[1024];
         if (ml_gauss_legendre(n, xs, ws) != ML_SUCCESS) return ml_make_nan();
         long double c = ((long double)b + (long double)a) * 0.5L;
         long double h = ((long double)b - (long double)a) * 0.5L;
@@ -67,7 +78,8 @@ ML_API double ml_gauss_legendre_integral(ml_func_t f, double a, double b, int n)
             s += (long double)fi * (long double)ws[i];
         }
         double r = (double)(s * h);
-        return ml_isfinite(r) ? r : ml_make_nan();
+        if (!ml_isfinite(r)) return ml_make_nan();
+        return (negate != 0) ? -r : r;
     }
 }
 
@@ -114,8 +126,9 @@ ML_API ml_status_t ml_cubic_spline_natural(const double *x, const double *y, int
     m2[0] = 0.0; m2[n-1] = 0.0;
     if (n == 2) return ML_SUCCESS;
     {
-        /* Thomas tridiagonal for natural spline second derivatives. */
-        static double h[1024], rhs[1024], cp[1024], dp2[1024];
+        /* Thomas tridiagonal for natural spline second derivatives.
+         * Stack-local scratch (thread-safe; no static storage). */
+        double h[1024], rhs[1024], cp[1024], dp2[1024];
         for (int i = 0; i < n - 1; i++) h[i] = x[i+1] - x[i];
         for (int i = 1; i < n - 1; i++) {
             rhs[i] = 6.0 * ((y[i+1] - y[i]) / h[i] - (y[i] - y[i-1]) / h[i-1]);
@@ -157,69 +170,103 @@ ML_API double ml_cubic_spline_eval(const double *x, const double *y, const doubl
     }
 }
 
-static double ml_fd1(ml_func_t f, double v, double h) {
-    double fp = f(v + h), fm = f(v - h);
-    return (fp - fm) / (2.0 * h);
-}
-
-ML_API void ml_grad3(ml_func_t f3[3], double x, double y, double z, double h,
+ML_API void ml_grad3(ml_vec3_func_t f3[3], double x, double y, double z, double h,
                      double *gx, double *gy, double *gz) {
-    (void)z;
     if (!gx || !gy || !gz) return;
     *gx = *gy = *gz = ml_make_nan();
     if (!f3 || !f3[0] || !f3[1] || !f3[2]) return;
     if (!ml_isfinite(x) || !ml_isfinite(y) || !ml_isfinite(z)) return;
-    if (!(h > 0.0) || !ml_isfinite(h)) {
-        h = 1.4901161193847656e-08 * (1.0 + ml_fabs(x) + ml_fabs(y) + ml_fabs(z));
+    /* Standardized per-axis steps: caller h>0 is used for all axes,
+     * otherwise sqrt(eps)*(1+|coord|) per axis. */
+    double hx, hy, hz;
+    if ((h > 0.0) && ml_isfinite(h)) {
+        hx = h; hy = h; hz = h;
+    } else {
+        const double eps = 1.4901161193847656e-08;
+        hx = eps * (1.0 + ml_fabs(x));
+        hy = eps * (1.0 + ml_fabs(y));
+        hz = eps * (1.0 + ml_fabs(z));
     }
-    /* Scalar-potential gradient would use one f; here F:R^3->R^3
-     * Jacobian diagonal (du/dx, dv/dy, dw/dz) as grad-like check. */
+    /* True partials of F:R^3->R^3 along each component's own axis:
+     * gx=dF0/dx, gy=dF1/dy, gz=dF2/dz. */
     {
-        double ax = ml_fabs(x), hxv = 1.4901161193847656e-08 * (1.0 + ax);
-        double ay = ml_fabs(y), hyv = 1.4901161193847656e-08 * (1.0 + ay);
-        double az = ml_fabs(z), hzv = 1.4901161193847656e-08 * (1.0 + az);
-        (void)h;
-        /* Central differences of each component along its own axis. */
-        double u0 = f3[0](x), u1 = 0.0, v0 = 0.0, v1 = 0.0, w0 = 0.0, w1 = 0.0;
-        (void)u0; (void)u1; (void)v0; (void)v1; (void)w0; (void)w1;
-        /* Generic path: caller passes closures capturing y,z etc. via
-         * file-static state; we evaluate along x/y/z shifts of each. */
-        *gx = ml_fd1(f3[0], x, hxv);
-        *gy = ml_fd1(f3[1], y, hyv);
-        *gz = ml_fd1(f3[2], z, hzv);
+        double f0p = f3[0](x + hx, y, z);
+        double f0m = f3[0](x - hx, y, z);
+        double f1p = f3[1](x, y + hy, z);
+        double f1m = f3[1](x, y - hy, z);
+        double f2p = f3[2](x, y, z + hz);
+        double f2m = f3[2](x, y, z - hz);
+        if (!ml_isfinite(f0p) || !ml_isfinite(f0m) ||
+            !ml_isfinite(f1p) || !ml_isfinite(f1m) ||
+            !ml_isfinite(f2p) || !ml_isfinite(f2m)) {
+            return;
+        }
+        *gx = (f0p - f0m) / (2.0 * hx);
+        *gy = (f1p - f1m) / (2.0 * hy);
+        *gz = (f2p - f2m) / (2.0 * hz);
     }
 }
 
-ML_API double ml_div3(ml_func_t f3[3], double x, double y, double z, double h) {
+ML_API double ml_div3(ml_vec3_func_t f3[3], double x, double y, double z, double h) {
     double gx, gy, gz;
     ml_grad3(f3, x, y, z, h, &gx, &gy, &gz);
     if (!ml_isfinite(gx) || !ml_isfinite(gy) || !ml_isfinite(gz)) return ml_make_nan();
     return gx + gy + gz;
 }
 
-ML_API void ml_curl3(ml_func_t f3[3], double x, double y, double z, double h,
+ML_API void ml_curl3(ml_vec3_func_t f3[3], double x, double y, double z, double h,
                      double *cx, double *cy, double *cz) {
     if (!cx || !cy || !cz) return;
     *cx = *cy = *cz = ml_make_nan();
     if (!f3 || !f3[0] || !f3[1] || !f3[2]) return;
     if (!ml_isfinite(x) || !ml_isfinite(y) || !ml_isfinite(z)) return;
-    (void)h;
+    /* Standardized per-axis steps (same rule as ml_grad3). */
+    double hx, hy, hz;
+    if ((h > 0.0) && ml_isfinite(h)) {
+        hx = h; hy = h; hz = h;
+    } else {
+        const double eps = 1.4901161193847656e-08;
+        hx = eps * (1.0 + ml_fabs(x));
+        hy = eps * (1.0 + ml_fabs(y));
+        hz = eps * (1.0 + ml_fabs(z));
+    }
+    /* Curl via true off-axis partials of F(x,y,z):
+     * cx=dF2/dy-dF1/dz, cy=dF0/dz-dF2/dx, cz=dF1/dx-dF0/dy. */
     {
-        double ax = ml_fabs(x), ay = ml_fabs(y), az = ml_fabs(z);
-        double hx = 1.4901161193847656e-08 * (1.0 + ax + ay + az);
-        double hy = hx, hz = hx;
-        /* Curl via central differences of off-axis partials. The func
-         * array entries are 1-D slices provided by the caller. */
-        double dwy = ml_fd1(f3[2], y, hy);
-        double dvz = ml_fd1(f3[1], z, hz);
-        double duz = ml_fd1(f3[0], z, hz);
-        double dwx = ml_fd1(f3[2], x, hx);
-        double dvx = ml_fd1(f3[1], x, hx);
-        double duy = ml_fd1(f3[0], y, hy);
-        if (!ml_isfinite(dwy) || !ml_isfinite(dvz) || !ml_isfinite(duz) ||
-            !ml_isfinite(dwx) || !ml_isfinite(dvx) || !ml_isfinite(duy)) return;
-        *cx = dwy - dvz;
-        *cy = duz - dwx;
-        *cz = dvx - duy;
+        double f2_yp = f3[2](x, y + hy, z);
+        double f2_ym = f3[2](x, y - hy, z);
+        double f1_zp = f3[1](x, y, z + hz);
+        double f1_zm = f3[1](x, y, z - hz);
+        double f0_zp = f3[0](x, y, z + hz);
+        double f0_zm = f3[0](x, y, z - hz);
+        double f2_xp = f3[2](x + hx, y, z);
+        double f2_xm = f3[2](x - hx, y, z);
+        double f1_xp = f3[1](x + hx, y, z);
+        double f1_xm = f3[1](x - hx, y, z);
+        double f0_yp = f3[0](x, y + hy, z);
+        double f0_ym = f3[0](x, y - hy, z);
+        if (!ml_isfinite(f2_yp) || !ml_isfinite(f2_ym) ||
+            !ml_isfinite(f1_zp) || !ml_isfinite(f1_zm) ||
+            !ml_isfinite(f0_zp) || !ml_isfinite(f0_zm) ||
+            !ml_isfinite(f2_xp) || !ml_isfinite(f2_xm) ||
+            !ml_isfinite(f1_xp) || !ml_isfinite(f1_xm) ||
+            !ml_isfinite(f0_yp) || !ml_isfinite(f0_ym)) {
+            return;
+        }
+        {
+            double dwy = (f2_yp - f2_ym) / (2.0 * hy);
+            double dvz = (f1_zp - f1_zm) / (2.0 * hz);
+            double duz = (f0_zp - f0_zm) / (2.0 * hz);
+            double dwx = (f2_xp - f2_xm) / (2.0 * hx);
+            double dvx = (f1_xp - f1_xm) / (2.0 * hx);
+            double duy = (f0_yp - f0_ym) / (2.0 * hy);
+            if (!ml_isfinite(dwy) || !ml_isfinite(dvz) || !ml_isfinite(duz) ||
+                !ml_isfinite(dwx) || !ml_isfinite(dvx) || !ml_isfinite(duy)) {
+                return;
+            }
+            *cx = dwy - dvz;
+            *cy = duz - dwx;
+            *cz = dvx - duy;
+        }
     }
 }

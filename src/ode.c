@@ -82,8 +82,8 @@ ML_API double ml_ode_rk4(ml_ode_func_t f, double t0, double y0, double dt, int s
     }
 }
 
-ML_API double ml_ode_leapfrog(ml_ode_func_t f, double t0, double y0, double dt, int steps) {
-    /* Midpoint RK2 (explicit midpoint): y_{n+1} = y_n + dt*f(t+dt/2,
+ML_API double ml_ode_midpoint2(ml_ode_func_t f, double t0, double y0, double dt, int steps) {
+    /* Explicit midpoint RK2: y_{n+1} = y_n + dt*f(t+dt/2,
      * y+dt/2*f(t,y)). This is second-order but NOT symplectic
      * velocity-Verlet (which needs a 2nd-order Hamiltonian split).
      * Do not use as an energy-preserving integrator. */
@@ -111,6 +111,11 @@ ML_API double ml_ode_leapfrog(ml_ode_func_t f, double t0, double y0, double dt, 
         }
         return y;
     }
+}
+
+/* DEPRECATED ABI alias: explicit midpoint, not symplectic, do not use for energy. */
+ML_API double ml_ode_leapfrog(ml_ode_func_t f, double t0, double y0, double dt, int steps) {
+    return ml_ode_midpoint2(f, t0, y0, dt, steps);
 }
 
 ML_API double ml_ode_dp5(ml_ode_func_t f, double t0, double y0, double t1, double rtol, double atol) {
