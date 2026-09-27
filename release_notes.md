@@ -1,7 +1,7 @@
 # MathLib v12R2 — R2 Refinement Release
 
 **Tag:** v12R2-refinement
-**Date:** 2026-09-13
+**Date:** 2026-09-27
 **Oracle:** 212 passed, 0 failed (all functions ≤ 5 ULP vs mpmath 80-digit ground truth)
 **Gate:** Full closure gate passed (build, modular, edge, fuzz, boundary, oracle)
 
@@ -10,7 +10,7 @@
 ## What v12R2 Is
 
 v12R2 is the refinement cycle following the v12A1 architectural evolution release.
-v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs and improves numerical accuracy.
+v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs, improves numerical accuracy, achieves full thread-safety, and adds 12 new Batch-1 modules.
 
 ## Key Fixes in v12R2
 
@@ -46,17 +46,48 @@ v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs and
 
 **13. `ml_polynomial_eval` uses `ML_FMA`** — Horner evaluation now fused (single rounding per step).
 
-**14. All decimal constants → exact hex floats** — `ML_LN2_HI/LO`, `1/√2`, polynomial coefficients, thresholds (`ML_LOG_DBL_MAX`, `ML_LOG_UNDERFLOW`) now exact.
+**14. `ml_polynomial_newton`** — Removed bogus `fabs(dfx) < epsilon` check (epsilon is x-tolerance, not derivative threshold; only exact `dfx==0` aborts).
 
-### Robustness
+**15. All decimal constants → exact hex floats** — `ML_LN2_HI/LO`, `1/√2`, polynomial coefficients, thresholds (`ML_LOG_DBL_MAX`, `ML_LOG_UNDERFLOW`) now exact.
 
-**15. Complex division** — Added `denom == 0` check in Smith's method to guard against catastrophic cancellation.
+### Robustness & Thread-Safety
 
-**16. Newton-Raphson** — Removed bogus `ml_fabs(dfx) < epsilon` check in `ml_polynomial_newton` (epsilon is x-tolerance, not derivative threshold; only exact `dfx==0` aborts). `ml_newton_raphson` in `numerical.c` already used the correct `dfx==0` check.
+**16. Thread-safety: all mutable static scratch buffers removed (2026-09-27 despot audit)** — Verified by `grep "static ...\[" src/*.c` returning no per-call mutable state: `optim_n.c`, `mcmc.c`, `pde.c`, `manifold.c`, `harmonic.c`, `spectral.c`, `calculus.c` (spline Thomas), `linalg.c` (Jacobi `W`), `info.c` (`ml_mi_discrete` marginals), `numbertheory.c` (prime sieve now heap-allocated per call), and `analytic_nt.c` (partition table + zeta Euler table now stack-local) all use stack-local or heap-per-call scratch. Remaining `static` instances are read-only tables (`static const`) or function-linkage helpers, which are thread-safe. Core TUs (trig/exp_log/complex/fft/linalg-solve) remain stateless. The DESIGN_CONTRACT "Stateless & Thread-Safe, No Global State" claim now holds for the full tree.
 
-**17. Minimax header** — Renamed `maclaurin_*` → `taylor_*` with clarifying comments that these are Taylor, not minimax. True minimax in `minimax_coeffs.h` (DORMANT).
+**17. Complex division** — Added `denom == 0` check in Smith's method to guard against catastrophic cancellation.
 
-### Test Results
+**18. Quadratics / cubic** — Discriminant always in `long double`; `ml_cubic` uses trig fallback for casus irreducibilis (3 real roots); saturation cast on `long double`→`double` root.
+
+**19. Optimization / ODE** — Scale-aware convergence (`tol*(1+|x|)`), scale-aware finite-difference step (`sqrt(eps)*(1+|x|)`).
+
+**20. Linear algebra** — `ml_matrix_exp_2x2` per-element overflow fixup: diagonal entries round to signed Inf; off-diagonal `em*b*sh` with `b==0` is exactly 0, not Inf/NaN, even when `em` is +Inf.
+
+**21. SDE** — True Brownian bridge sampler (`ml_brownian_bridge_sample`) with variance `t*(T-t)/T`; OU exact transition density.
+
+**22. SIMD dispatch runtime guard** — `ml_cpu_has_fma/avx2/sse41` use `__builtin_cpu_supports` at runtime; compile-time macro `__FMA__` reflects build flags, not host CPU — old macro test risked SIGILL.
+
+**23. Benchmark rdtsc carve-out** — `benchmarks/bench.c` isolates non-portable `rdtsc` under x86 guard with `clock()` fallback, `BENCH_UNITS` cycles/ticks, excluded from lib build.
+
+### New Batch-1 Modules (v12R2 — no oracle coverage, see `docs/PRECISION_CONTRACT.md`)
+
+| Module | Header | Key Functions |
+|--------|--------|---------------|
+| **optim_n** | `ml_optim_n.h` | `ml_nelder_mead`, `ml_lbfgs_min`, `ml_adam_min` (n≤16/32) |
+| **ode_sys** | `ml_ode_sys.h` | `ml_ode_dp5_sys`, `ml_ode_be2_sys`, `ml_ode_symplectic_verlet` (n≤16) |
+| **spectral** | `ml_spectral.h` | `ml_cg_solve`, `ml_gmres_solve`, `ml_power_iter`, `ml_svd_jacobi`, `ml_qr_iter_eig` |
+| **stats_inv** | `ml_stats_inv.h` | `ml_gamma_inv`, `ml_beta_inv`, `ml_chi2_inv`, `ml_student_t_inv`, `ml_f_inv`, `ml_normal_logcdf` |
+| **sde** | `ml_sde.h` | `ml_sde_euler_maruyama`, `ml_sde_milstein`, `ml_brownian_bridge_sample`, `ml_ou_exact` |
+| **pde** | `ml_pde.h` | `ml_heat_explicit`, `ml_heat_implicit`, `ml_wave_leapfrog`, `ml_poisson_1d`, `ml_fem1d_assemble` |
+| **harmonic** | `ml_harmonic.h` | `ml_haar_fwt/iwt`, `ml_morlet_cwt`, `ml_fft_real`, `ml_fft2d_pow2` |
+| **mcmc** | `ml_mcmc.h` | `ml_mh_sample_ctx`, `ml_kde_gaussian`, `ml_ess`, `ml_gelman_rubin` |
+| **manifold** | `ml_manifold.h` | `ml_proj_sphere`, `ml_proj_stiefel`, `ml_exp_sphere`, `ml_sphere_dist` |
+| **info** | `ml_info.h` | `ml_entropy`, `ml_kl_div`, `ml_cross_entropy`, `ml_mi_discrete`, `ml_logistic`, `ml_softplus` |
+| **analytic_nt** | `ml_analytic_nt.h` | `ml_hurwitz_zeta` (stub for s≤1,a≠1), `ml_dirichlet_eta_cplx`, `ml_theta3`, `ml_partition_p`, `ml_zeta_cplx` |
+| **control** | `ml_control.h` | `ml_lqr_gain_2x2`, `ml_kalman_1d`, `ml_lyapunov_2x2_trace` |
+
+---
+
+## Test Results
 
 - **Oracle:** 212 passed, 0 failed (sin, cos, exp, log, gamma, lgamma, pow — all ≤ 5 ULP)
 - **Edge tests:** 22 suites, all passed (441 assertions)
@@ -64,6 +95,7 @@ v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs and
 - **Boundary gauntlet:** 25 passed, 0 failed
 - **Soak:** 10,000 iterations available via `--soak`
 - **Sanitizers:** ASan + UBSan clean
+- **Thread-safety:** verified — no per-call mutable static state in any TU
 
 ## Deferred to v12A2
 
@@ -72,6 +104,7 @@ v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs and
 - Automatic differentiation
 - Special functions (Bessel, elliptic, hypergeometric)
 - Adaptive quadrature with certified error estimates
+- Oracle coverage for Batch-1 modules
 
 ## What's Not In Scope
 
@@ -83,5 +116,5 @@ These are design choices, not hidden defects.
 
 ---
 
-*v11S shipped 2026-08-02. v12A1 A1 closure completed 2026-08-11. v12R2 refinement completed 2026-09-13.*
-*The gamma nightmare is over. The critical bugs are fixed.*
+*v11S shipped 2026-08-02. v12A1 A1 closure completed 2026-08-11. v12R2 refinement completed 2026-09-27.*
+*The gamma nightmare is over. The critical bugs are fixed. The thread-safety audit is complete. 12 new modules ship.*
