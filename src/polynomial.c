@@ -7,19 +7,39 @@ ML_API double ml_polynomial_eval(const double *coeffs, int degree, double x) {
     if (ML_UNLIKELY(coeffs == NULL || degree < 0)) {
         return ml_make_nan();
     }
-
-    double result = coeffs[degree];
-
-    for (int i = degree - 1; i >= 0; i--) {
-        result = ML_FMA(result, x, coeffs[i]);
+    /* Finite-input validation: non-finite x or coefficients -> NaN. */
+    if (ML_UNLIKELY(!ml_isfinite(x))) {
+        return ml_make_nan();
+    }
+    for (int i = 0; i <= degree; i++) {
+        if (ML_UNLIKELY(!ml_isfinite(coeffs[i]))) {
+            return ml_make_nan();
+        }
     }
 
-    return result;
+    {
+        double result = coeffs[degree];
+
+        for (int i = degree - 1; i >= 0; i--) {
+            result = ML_FMA(result, x, coeffs[i]);
+        }
+
+        return result;
+    }
 }
 
 ML_API void ml_polynomial_derivative(const double *coeffs, int degree, double *out) {
     if (ML_UNLIKELY(coeffs == NULL || out == NULL || degree < 0)) {
         return;
+    }
+    /* Finite-input validation: non-finite coefficients -> NaN outputs. */
+    for (int i = 0; i <= degree; i++) {
+        if (ML_UNLIKELY(!ml_isfinite(coeffs[i]))) {
+            for (int j = 0; j < degree; j++) {
+                out[j] = ml_make_nan();
+            }
+            return;
+        }
     }
 
     for (int i = 0; i < degree; i++) {
@@ -42,6 +62,13 @@ ML_API double ml_polynomial_newton(const double *coeffs, int degree, double x0, 
 
     if (ML_UNLIKELY(!ml_isfinite(x0))) {
         return ml_make_nan();
+    }
+
+    /* Finite-input validation: non-finite coefficients -> NaN. */
+    for (int i = 0; i <= degree; i++) {
+        if (ML_UNLIKELY(!ml_isfinite(coeffs[i]))) {
+            return ml_make_nan();
+        }
     }
 
     double x = x0;
@@ -84,5 +111,7 @@ ML_API double ml_polynomial_newton(const double *coeffs, int degree, double x0, 
         x = x_next;
     }
 
+    /* Convergence-failure signal: max_iter exhausted without meeting
+     * the epsilon criterion returns NaN (not the last iterate). */
     return ml_make_nan();
 }

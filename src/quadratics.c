@@ -1,5 +1,6 @@
 #include "ml_compiler.h"
 #include "ml_quadratics.h"
+#include <float.h>
 
 /* v11S CLOSURE IP-15: quadratics robustness */
 
@@ -7,17 +8,19 @@ static int ml_quad_nonfinite(double v) {
     return ml_isnan(v) || ml_isinf(v);
 }
 
-/* Scaled discriminant fallback via long double (1e4932 range). */
-static int ml_quad_scaled_sqrt(double a, double b, double c, double *out_sq) {
-    long double bd = (long double)b;
-    long double ad = (long double)a;
-    long double cd = (long double)c;
-    long double disc_ld = bd * bd - 4.0L * ad * cd;
-    if (!(disc_ld >= 0.0L)) {
-        return 0;
+/* Cast long-double root to double with overflow saturation.
+ * Avoids UB of out-of-range (long double)->double conversion. */
+static double ml_quad_cast_ld(long double r) {
+    if (!(r == r)) {
+        return ml_make_nan();
     }
-    *out_sq = (double)__builtin_sqrtl(disc_ld);
-    return (disc_ld < (long double)1e4932L) ? 1 : 0;
+    if (r > (long double)DBL_MAX) {
+        return ml_make_inf(0);
+    }
+    if (r < -(long double)DBL_MAX) {
+        return ml_make_inf(1);
+    }
+    return (double)r;
 }
 
 ML_API double ml_equation(double a, double b, double c, double x) {
@@ -42,45 +45,54 @@ ML_API double ml_formula_pos(double a, double b, double c) {
         return -c / b;
     }
 
-    double disc = b * b - 4.0 * a * c;
-    double sqrt_disc;
-
-    if (ml_isnan(disc) || ml_isinf(disc)) {
-        double sq = 0.0;
-        if (!ml_quad_scaled_sqrt(a, b, c, &sq)) {
+    /* Discriminant ALWAYS in long double: double b*b-4*a*c can
+     * overflow to Inf or round a tiny positive to 0/negative even
+     * though the true value is finite and positive. */
+    {
+        long double disc_ld = (long double)b * (long double)b - 4.0L * (long double)a * (long double)c;
+        long double sqrt_ld = 0.0L;
+        double sqrt_disc = 0.0;
+        if (!(disc_ld >= 0.0L)) {
             return ml_make_nan();
         }
-        if (sq == 0.0) {
+        if (disc_ld == 0.0L) {
             return -b / (2.0 * a);
         }
-        sqrt_disc = sq;
-    } else {
-        if (disc < 0.0) {
-            return ml_make_nan();
+        sqrt_ld = __builtin_sqrtl(disc_ld);
+        sqrt_disc = (double)sqrt_ld;
+        if (!ml_isfinite(sqrt_disc) || (sqrt_disc == 0.0 && sqrt_ld != 0.0L)) {
+            /* Cast underflowed to 0 or overflowed to Inf: compute the
+             * stable q-form in long double, then saturate on cast. */
+            long double bl = (long double)b;
+            long double al = (long double)a;
+            long double cl = (long double)c;
+            long double q_ld = 0.0L;
+            if (bl >= 0.0L) {
+                q_ld = -0.5L * (bl + sqrt_ld);
+                if (q_ld == 0.0L) {
+                    return -b / (2.0 * a);
+                }
+                return ml_quad_cast_ld(cl / q_ld);
+            }
+            q_ld = -0.5L * (bl - sqrt_ld);
+            return ml_quad_cast_ld(q_ld / al);
         }
+        /*
+         * Numerically stable branch:
+         * Use q-form to avoid catastrophic cancellation.
+         */
+        if (b >= 0.0) {
+            double q = -0.5 * (b + sqrt_disc);
 
-        if (disc == 0.0) {
-            return -b / (2.0 * a);
+            if (q == 0.0) {
+                return -b / (2.0 * a);
+            }
+
+            return c / q;
+        } else {
+            double q = -0.5 * (b - sqrt_disc);
+            return q / a;
         }
-
-        sqrt_disc = ml_sqrt(disc);
-    }
-
-    /*
-     * Numerically stable branch:
-     * Use q-form to avoid catastrophic cancellation.
-     */
-    if (b >= 0.0) {
-        double q = -0.5 * (b + sqrt_disc);
-
-        if (q == 0.0) {
-            return -b / (2.0 * a);
-        }
-
-        return c / q;
-    } else {
-        double q = -0.5 * (b - sqrt_disc);
-        return q / a;
     }
 }
 
@@ -101,41 +113,47 @@ ML_API double ml_formula_neg(double a, double b, double c) {
         return -c / b;
     }
 
-    double disc = b * b - 4.0 * a * c;
-    double sqrt_disc;
-
-    if (ml_isnan(disc) || ml_isinf(disc)) {
-        double sq = 0.0;
-        if (!ml_quad_scaled_sqrt(a, b, c, &sq)) {
+    /* Discriminant ALWAYS in long double (see ml_formula_pos). */
+    {
+        long double disc_ld = (long double)b * (long double)b - 4.0L * (long double)a * (long double)c;
+        long double sqrt_ld = 0.0L;
+        double sqrt_disc = 0.0;
+        if (!(disc_ld >= 0.0L)) {
             return ml_make_nan();
         }
-        if (sq == 0.0) {
+        if (disc_ld == 0.0L) {
             return -b / (2.0 * a);
         }
-        sqrt_disc = sq;
-    } else {
-        if (disc < 0.0) {
-            return ml_make_nan();
+        sqrt_ld = __builtin_sqrtl(disc_ld);
+        sqrt_disc = (double)sqrt_ld;
+        if (!ml_isfinite(sqrt_disc) || (sqrt_disc == 0.0 && sqrt_ld != 0.0L)) {
+            /* Cast underflow/overflow: long-double q-form + saturation. */
+            long double bl = (long double)b;
+            long double al = (long double)a;
+            long double cl = (long double)c;
+            long double q_ld = 0.0L;
+            if (bl >= 0.0L) {
+                q_ld = -0.5L * (bl + sqrt_ld);
+                return ml_quad_cast_ld(q_ld / al);
+            }
+            q_ld = -0.5L * (bl - sqrt_ld);
+            if (q_ld == 0.0L) {
+                return -b / (2.0 * a);
+            }
+            return ml_quad_cast_ld(cl / q_ld);
         }
+        if (b >= 0.0) {
+            double q = -0.5 * (b + sqrt_disc);
+            return q / a;
+        } else {
+            double q = -0.5 * (b - sqrt_disc);
 
-        if (disc == 0.0) {
-            return -b / (2.0 * a);
+            if (q == 0.0) {
+                return -b / (2.0 * a);
+            }
+
+            return c / q;
         }
-
-        sqrt_disc = ml_sqrt(disc);
-    }
-
-    if (b >= 0.0) {
-        double q = -0.5 * (b + sqrt_disc);
-        return q / a;
-    } else {
-        double q = -0.5 * (b - sqrt_disc);
-
-        if (q == 0.0) {
-            return -b / (2.0 * a);
-        }
-
-        return c / q;
     }
 }
 
