@@ -15,6 +15,12 @@
  * then rounded once to double. For n<=64, |x|<=2 the rounding error
  * dominates (<1 ULP vs mpmath on tested grid). Large n*x may grow to
  * ~n*eps; still backward-stable by three-term theory.
+ *
+ * Laguerre domain: ml_laguerre_l / ml_laguerre_l_gen reject x<0 with NaN
+ * as a domain choice for the weight e^-x (resp. x^alpha*e^-x) on [0,inf),
+ * even though the polynomial extends analytically to negative x.
+ * Overflow: when |result| exceeds DBL_MAX, signed INFINITY is returned
+ * (via copysign) preserving the true sign, not NaN.
  * ========================================================================== */
 
 ML_API double ml_legendre_p(int n, double x);

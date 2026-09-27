@@ -101,6 +101,8 @@ ML_API double ml_hermite_h(int n, double x) {
 ML_API double ml_laguerre_l(int n, double x) {
     if (ml_isnan(x) || ml_isinf(x)) return ml_make_nan();
     if (n < 0) return ml_make_nan();
+    /* Domain choice: Laguerre weight e^-x lives on [0,inf); x<0 is
+     * rejected as NaN even though the polynomial extends analytically. */
     if (x < 0.0) return ml_make_nan();
     if (n == 0) return 1.0;
     if (n == 1) return 1.0 - x;
@@ -112,14 +114,20 @@ ML_API double ml_laguerre_l(int n, double x) {
                   - (long double)k * l0) / (long double)(k + 1);
             l0 = l1; l1 = l2;
         }
-        double r = (double)l1;
-        return ml_isfinite(r) ? r : ml_make_nan();
+        {
+            double r = (double)l1;
+            if (ml_isfinite(r)) return r;
+            if (ml_isnan(r)) return ml_make_nan();
+            /* Overflow: true magnitude exceeds DBL_MAX, return signed Inf. */
+            return ml_copysign(ml_make_inf(0), r);
+        }
     }
 }
 
 ML_API double ml_laguerre_l_gen(int n, double alpha, double x) {
     if (ml_isnan(x) || ml_isnan(alpha) || ml_isinf(x) || ml_isinf(alpha)) return ml_make_nan();
     if (n < 0 || !(alpha > -1.0) || !ml_isfinite(alpha)) return ml_make_nan();
+    /* Domain choice: generalized weight x^alpha*e^-x on [0,inf); x<0 NaN. */
     if (x < 0.0) return ml_make_nan();
     if (n == 0) return 1.0;
     if (n == 1) return 1.0 + alpha - x;
@@ -131,7 +139,12 @@ ML_API double ml_laguerre_l_gen(int n, double alpha, double x) {
                   - ((long double)k + al) * l0) / (long double)(k + 1);
             l0 = l1; l1 = l2;
         }
-        double r = (double)l1;
-        return ml_isfinite(r) ? r : ml_make_nan();
+        {
+            double r = (double)l1;
+            if (ml_isfinite(r)) return r;
+            if (ml_isnan(r)) return ml_make_nan();
+            /* Overflow: true magnitude exceeds DBL_MAX, return signed Inf. */
+            return ml_copysign(ml_make_inf(0), r);
+        }
     }
 }

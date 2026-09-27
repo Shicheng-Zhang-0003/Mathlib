@@ -1,6 +1,7 @@
 #include "ml_compiler.h"
 #include "ml_linalg.h"
 #include "internal/hypot.h"
+#include <stdint.h>
 
 /* v11S CLOSURE IP-10: linear algebra edge hardening */
 
@@ -157,6 +158,11 @@ ML_API ml_status_t ml_lu_decomp(ml_tensor_view_t A, ml_tensor_view_t LU, int* P,
                 double updated = ML_TENSOR_AT(LU, k, j) - mult * ML_TENSOR_AT(LU, i, j);
 
                 if (ML_UNLIKELY(!ml_isfinite(updated))) {
+                    /* NOTE: ml_types.h defines no ML_ERR_OVERFLOW, so an
+                     * overflow-Inf update (|a| > ~1e308 growth) is masked
+                     * here as ML_ERR_SINGULAR. Genuine singularity (exact
+                     * zero pivot path) and overflow are indistinguishable
+                     * at this point without an overflow code. */
                     return ML_ERR_SINGULAR;
                 }
 
@@ -347,6 +353,18 @@ ML_API ml_status_t ml_qr_solve(ml_tensor_view_t A, const double* b, double* x, m
     }
     {
         size_t sm = (size_t)m, sn = (size_t)n;
+        const size_t size_max = (size_t)-1;
+        /* size_t overflow guards (same style as ml_solve): reject
+         * sm*sn / sn*sn element counts that would wrap before alloc. */
+        if (ML_UNLIKELY(sn > 0 && sm > size_max / sizeof(double) / sn)) {
+            return ML_ERR_WORKSPACE;
+        }
+        if (ML_UNLIKELY(sn > size_max / sizeof(double) / sn)) {
+            return ML_ERR_WORKSPACE;
+        }
+        if (ML_UNLIKELY(sn > size_max / sizeof(double))) {
+            return ML_ERR_WORKSPACE;
+        }
         size_t v_bytes = sm * sn * sizeof(double);
         size_t r_bytes = sn * sn * sizeof(double);
         size_t q = sn * sizeof(double);
@@ -414,13 +432,20 @@ ML_API ml_status_t ml_qr_solve(ml_tensor_view_t A, const double* b, double* x, m
 
 ML_API ml_status_t ml_solve_refined(ml_tensor_view_t A, double* b, double* x, ml_workspace_t* ws) {
     /* One step of iterative refinement: x0=solve, r=b-Ax0 (Kahan),
-     * solve A*d=r, x=x0+d. Halves forward error for ill-conditioned. */
+     * solve A*d=r, x=x0+d. Halves forward error for ill-conditioned.
+     * Workspace: ~2x one ml_solve (two extra n-vectors plus inner solve). */
     ml_status_t st = ml_solve(A, b, x, ws);
     if (st != ML_SUCCESS) return st;
     {
         int n = A.rows;
-        double* r = (double*)ml_workspace_alloc(ws, (size_t)n * sizeof(double));
-        double* d = (double*)ml_workspace_alloc(ws, (size_t)n * sizeof(double));
+        size_t sn = (size_t)n;
+        const size_t size_max = (size_t)-1;
+        /* size_t overflow guard (same style as ml_solve). */
+        if (ML_UNLIKELY(sn > size_max / sizeof(double))) {
+            return ML_ERR_WORKSPACE;
+        }
+        double* r = (double*)ml_workspace_alloc(ws, sn * sizeof(double));
+        double* d = (double*)ml_workspace_alloc(ws, sn * sizeof(double));
         if (ML_UNLIKELY(!r || !d)) return ML_ERR_WORKSPACE;
         for (int i = 0; i < n; i++) {
             double s = b[i];
@@ -465,6 +490,10 @@ ML_API double ml_determinant(ml_tensor_view_t A, ml_workspace_t* ws) {
     if (ML_UNLIKELY(A.cols != n)) return ml_make_nan();
     {
         size_t sn = (size_t)n;
+        const size_t size_max = (size_t)-1;
+        /* size_t overflow guards (same style as ml_solve). */
+        if (ML_UNLIKELY(sn > size_max / sizeof(double) / sn)) return ml_make_nan();
+        if (ML_UNLIKELY(sn > size_max / sizeof(int))) return ml_make_nan();
         double* lu = (double*)ml_workspace_alloc(ws, sn * sn * sizeof(double));
         int* P = (int*)ml_workspace_alloc(ws, sn * sizeof(int));
         if (ML_UNLIKELY(!lu || !P)) return ml_make_nan();
@@ -502,6 +531,17 @@ ML_API ml_status_t ml_inverse(ml_tensor_view_t A, ml_tensor_view_t Inv, ml_works
     if (ML_UNLIKELY(A.cols != n || Inv.rows != n || Inv.cols != n)) return ML_ERR_INVALID_ARG;
     {
         size_t sn = (size_t)n;
+        const size_t size_max = (size_t)-1;
+        /* size_t overflow guards (same style as ml_solve). */
+        if (ML_UNLIKELY(sn > size_max / sizeof(double) / sn)) {
+            return ML_ERR_WORKSPACE;
+        }
+        if (ML_UNLIKELY(sn > size_max / sizeof(int))) {
+            return ML_ERR_WORKSPACE;
+        }
+        if (ML_UNLIKELY(sn > size_max / sizeof(double))) {
+            return ML_ERR_WORKSPACE;
+        }
         double* lu = (double*)ml_workspace_alloc(ws, sn * sn * sizeof(double));
         int* P = (int*)ml_workspace_alloc(ws, sn * sizeof(int));
         double* e = (double*)ml_workspace_alloc(ws, sn * sizeof(double));
@@ -717,15 +757,28 @@ ML_API ml_status_t ml_jacobi_eigen_symmetric(ml_tensor_view_t A, double *evals,
     }
     {
         size_t sn = (size_t)n;
-        /* Work copy in V-less path uses evals as scratch? Use static cap. */
-        static double W[1024 * 4];
+        /* Stack-local work copy (thread-safe; no static storage).
+         * Capacity 4096 doubles => n<=64 cap (64*64 == 4096). */
+        double W[1024 * 4];
         double *w = W;
         int need = n * n;
         if (need > (int)(sizeof(W) / sizeof(W[0]))) return ML_ERR_WORKSPACE;
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) w[(size_t)i * sn + (size_t)j] = ML_TENSOR_AT(A, i, j);
         }
-        for (int sw = 0; sw < max_sweeps; sw++) {
+        /* Scale-invariant stop: off <= eps^2 * ||A||_F^2, with the squared
+         * Frobenius norm captured at entry (long double accumulation). */
+        long double fnorm = 0.0L;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                long double v = (long double)w[(size_t)i * sn + (size_t)j];
+                fnorm += v * v;
+            }
+        }
+        {
+            const long double eps = 2.220446049250313e-16L;
+            const long double tol = eps * eps * fnorm;
+            for (int sw = 0; sw < max_sweeps; sw++) {
             long double off = 0.0L;
             for (int i = 0; i < n; i++) {
                 for (int j = i + 1; j < n; j++) {
@@ -734,7 +787,7 @@ ML_API ml_status_t ml_jacobi_eigen_symmetric(ml_tensor_view_t A, double *evals,
                 }
             }
             if (!(off > 0.0L)) break;
-            if (off < 1e-30L) break;
+            if (off <= tol) break;
             for (int p = 0; p < n - 1; p++) {
                 for (int q2 = p + 1; q2 < n; q2++) {
                     double apq = w[(size_t)p * sn + (size_t)q2];
@@ -773,6 +826,7 @@ ML_API ml_status_t ml_jacobi_eigen_symmetric(ml_tensor_view_t A, double *evals,
                         }
                     }
                 }
+            }
             }
         }
         for (int i = 0; i < n; i++) evals[i] = w[(size_t)i * sn + (size_t)i];
@@ -823,31 +877,90 @@ ML_API ml_status_t ml_matrix_exp_2x2(double a, double b, double c, double d,
         long double m = ((long double)a + (long double)d) * 0.5L;
         long double ah = ((long double)a - (long double)d) * 0.5L;
         long double D = ah * ah + (long double)b * (long double)c;
+        /* e^m computed separately so the overflow path can inspect it
+         * per element below. */
         long double em = __builtin_expl(m);
+        long double l00 = 0.0L, l01 = 0.0L, l10 = 0.0L, l11 = 0.0L;
         if (D >= 0.0L) {
             long double s = __builtin_sqrtl(D);
             long double ch = (s == 0.0L) ? 1.0L : __builtin_coshl(s);
             long double sh = (s == 0.0L) ? 1.0L : __builtin_sinhl(s) / s;
-            *e00 = (double)(em * (ch + ah * sh));
-            *e01 = (double)(em * (long double)b * sh);
-            *e10 = (double)(em * (long double)c * sh);
-            *e11 = (double)(em * (ch - ah * sh));
+            /* Avoid 0*Inf -> NaN when ah==0 and sh==Inf (or b/c==0):
+             * the exact term is 0 in those cases. */
+            long double ah_sh = (ah == 0.0L) ? 0.0L : ah * sh;
+            l00 = em * (ch + ah_sh);
+            l01 = (b == 0.0) ? 0.0L : em * (long double)b * sh;
+            l10 = (c == 0.0) ? 0.0L : em * (long double)c * sh;
+            l11 = em * (ch - ah_sh);
+            *e00 = (double)l00;
+            *e01 = (double)l01;
+            *e10 = (double)l10;
+            *e11 = (double)l11;
         } else {
             long double s = __builtin_sqrtl(-D);
             long double cs = __builtin_cosl(s);
             long double sn = (s == 0.0L) ? 1.0L : __builtin_sinl(s) / s;
-            *e00 = (double)(em * (cs + ah * sn));
-            *e01 = (double)(em * (long double)b * sn);
-            *e10 = (double)(em * (long double)c * sn);
-            *e11 = (double)(em * (cs - ah * sn));
+            long double ah_sn = (ah == 0.0L) ? 0.0L : ah * sn;
+            l00 = em * (cs + ah_sn);
+            l01 = (b == 0.0) ? 0.0L : em * (long double)b * sn;
+            l10 = (c == 0.0) ? 0.0L : em * (long double)c * sn;
+            l11 = em * (cs - ah_sn);
+            *e00 = (double)l00;
+            *e01 = (double)l01;
+            *e10 = (double)l10;
+            *e11 = (double)l11;
         }
         if (!ml_isfinite(*e00) || !ml_isfinite(*e01) || !ml_isfinite(*e10) || !ml_isfinite(*e11)) {
-            if (em > 1e308L) {
-                *e00 = ml_make_inf(0); *e01 = ml_make_inf(0);
-                *e10 = ml_make_inf(0); *e11 = ml_make_inf(0);
-                return ML_SUCCESS;
+            /* Per-element overflow fixup: diagonal entries round to signed
+             * Inf; off-diagonal em*b*sh with b==0 (resp. c==0) is exactly
+             * 0, not Inf/NaN, even when em is +Inf. */
+            if (!ml_isfinite(*e00)) {
+                if (l00 == 0.0L) {
+                    *e00 = 0.0;
+                } else if (l00 != l00) {
+                    return ML_ERR_SINGULAR;
+                } else {
+                    *e00 = ml_make_inf((l00 < 0.0L) ? 1 : 0);
+                }
             }
-            return ML_ERR_SINGULAR;
+            if (!ml_isfinite(*e01)) {
+                if (b == 0.0) {
+                    *e01 = 0.0;
+                } else if (l01 != l01) {
+                    return ML_ERR_SINGULAR;
+                } else if (l01 == 0.0L) {
+                    *e01 = 0.0;
+                } else {
+                    *e01 = ml_make_inf((l01 < 0.0L) ? 1 : 0);
+                }
+            }
+            if (!ml_isfinite(*e10)) {
+                if (c == 0.0) {
+                    *e10 = 0.0;
+                } else if (l10 != l10) {
+                    return ML_ERR_SINGULAR;
+                } else if (l10 == 0.0L) {
+                    *e10 = 0.0;
+                } else {
+                    *e10 = ml_make_inf((l10 < 0.0L) ? 1 : 0);
+                }
+            }
+            if (!ml_isfinite(*e11)) {
+                if (l11 == 0.0L) {
+                    *e11 = 0.0;
+                } else if (l11 != l11) {
+                    return ML_ERR_SINGULAR;
+                } else {
+                    *e11 = ml_make_inf((l11 < 0.0L) ? 1 : 0);
+                }
+            }
+            /* Overflow rounded to signed Inf is representable: only NaN
+             * remains a failure here. */
+            if (ml_isnan(*e00) || ml_isnan(*e01) ||
+                ml_isnan(*e10) || ml_isnan(*e11)) {
+                return ML_ERR_SINGULAR;
+            }
+            return ML_SUCCESS;
         }
         return ML_SUCCESS;
     }

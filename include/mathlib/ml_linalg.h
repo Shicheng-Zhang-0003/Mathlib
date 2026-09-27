@@ -10,6 +10,9 @@ ML_API ml_status_t ml_lu_decomp(ml_tensor_view_t A, ml_tensor_view_t LU, int* P,
 ML_API ml_status_t ml_solve(ml_tensor_view_t A, double* b, double* x, ml_workspace_t* ws);
 ML_API ml_status_t ml_cholesky(ml_tensor_view_t A, ml_tensor_view_t L);
 ML_API ml_status_t ml_qr_solve(ml_tensor_view_t A, const double* b, double* x, ml_workspace_t* ws);
+/* ml_solve_refined: one step of iterative refinement on top of ml_solve.
+ * Workspace: needs ~2x one ml_solve workspace (two extra n-vectors plus
+ * the inner ml_solve call's LU + permutation + RHS vector). */
 ML_API ml_status_t ml_solve_refined(ml_tensor_view_t A, double* b, double* x, ml_workspace_t* ws);
 ML_API double ml_determinant(ml_tensor_view_t A, ml_workspace_t* ws);
 ML_API ml_status_t ml_inverse(ml_tensor_view_t A, ml_tensor_view_t Inv, ml_workspace_t* ws);
@@ -23,7 +26,10 @@ ML_API ml_status_t ml_eigen2x2(double a, double b, double c, double d, double *l
 /* Undergraduate spectral theorems: Jacobi symmetric eigensolver
  * (spectral theorem), analytic SVD 2x2 (SVD existence), 2x2 matrix
  * exponential (functional calculus / Jordan form). Jacobi is backward
- * stable; 2x2 closed forms are <1 ULP. */
+ * stable; 2x2 closed forms are <1 ULP.
+ * ml_jacobi_eigen_symmetric: n<=64 cap (stack work buffer holds 4096
+ * doubles, i.e. 64x64). Larger n returns ML_ERR_WORKSPACE. Stop is
+ * scale-invariant: off <= eps^2 * ||A||_F^2 with ||A||_F at entry. */
 ML_API ml_status_t ml_jacobi_eigen_symmetric(ml_tensor_view_t A, double *evals,
                                              ml_tensor_view_t V, int max_sweeps);
 ML_API ml_status_t ml_svd_2x2(double a, double b, double c, double d,
