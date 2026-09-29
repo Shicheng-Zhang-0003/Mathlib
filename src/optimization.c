@@ -117,14 +117,17 @@ ML_API double ml_optimize_gradient_descent(ml_opt_func_t f, double start, double
             return ml_make_nan();
         }
 
+        /* Converge on a small gradient, not a small step.  The step is
+         * lr*grad, so a tiny lr makes it vanish long before the minimum is
+         * reached and the old check reported that as success. */
+        if (ml_fabs(grad) <= tol) {
+            return x;
+        }
+
         double x_new = x - lr * grad;
 
         if (ML_UNLIKELY(!ml_isfinite(x_new))) {
             return ml_make_nan();
-        }
-
-        if (ml_fabs(x_new - x) <= tol * (1.0 + ml_fabs(x_new))) {
-            return x_new;
         }
 
         x = x_new;

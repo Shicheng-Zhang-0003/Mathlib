@@ -115,11 +115,12 @@ ML_API double ml_sinpi(double x) {
         if (r == 0.5) return 1.0;
         if (r == -0.5) return -1.0;
         {
+            /* pi*r as an exact double-double (ahi, alo).  Collapsing it to a
+             * single double drops alo below the ULP of ahi, which costs
+             * ~1e-13 relative accuracy near the zeros of sin. */
             double ahi = r * ML_PI_HI_D;
             double alo = ML_FMA(r, ML_PI_HI_D, -ahi) + r * ML_PI_LO_D;
-            double arg = ahi + alo;
-            if (!ml_isfinite(arg)) return ml_sin(ML_PI * x);
-            return ml_sin(arg);
+            return ml_sin(ahi) + alo * ml_cos(ahi);
         }
     }
 }
@@ -136,11 +137,11 @@ ML_API double ml_cospi(double x) {
         if (r < -1.0) r += 2.0;
         if (r == 0.5 || r == -0.5) return 0.0;
         {
+            /* Same double-double argument handling as ml_sinpi: keep alo
+             * instead of folding it into ahi, where it would round away. */
             double ahi = r * ML_PI_HI_D;
             double alo = ML_FMA(r, ML_PI_HI_D, -ahi) + r * ML_PI_LO_D;
-            double arg = ahi + alo;
-            if (!ml_isfinite(arg)) return ml_cos(ML_PI * x);
-            return ml_cos(arg);
+            return ml_cos(ahi) - alo * ml_sin(ahi);
         }
     }
 }

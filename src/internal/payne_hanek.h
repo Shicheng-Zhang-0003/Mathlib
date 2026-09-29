@@ -55,7 +55,7 @@ static const double ML_PH_TWO_OVER_PI = 0.63661977236758134308;
 * Kahan-accumulates fractional part into *acc / *comp.
 */
 static inline void ml_ph_process_term(
-    double prod, int shift, int *n, double *acc, double *comp
+    double prod, int shift, int *n, long double *acc, long double *comp
 ) {
     if (shift >= 2) {
         /* prod * 2^shift is integer divisible by 4. No contribution. */
@@ -86,11 +86,16 @@ static inline void ml_ph_process_term(
         /* t < 1, purely fractional */
         frac_part = t;
     }
-    /* Kahan summation of fractional part */
-    double y_k = frac_part - *comp;
-    double t_k = *acc + y_k;
-    *comp = (t_k - *acc) - y_k;
-    *acc = t_k;
+    /* Kahan summation of fractional part in long double: the partial sums
+     * reach ~0.5 while the result is ~0.1, so a double accumulator loses
+     * ~1e-16 absolute, which is ~1e2 ULP of the final sin/cos. */
+    {
+        long double fp = (long double)frac_part;
+        long double y_k = fp - *comp;
+        long double t_k = *acc + y_k;
+        *comp = (t_k - *acc) - y_k;
+        *acc = t_k;
+    }
 }
 
 /*
@@ -130,8 +135,8 @@ static inline int ml_rem_pio2_large(double x, double *y) {
 
     /* Accumulate quadrant and fractional part */
     int    n         = 0;
-    double frac_acc  = 0.0;
-    double frac_comp = 0.0;
+    long double frac_acc  = 0.0L;
+    long double frac_comp = 0.0L;
 
     for (int k = k_start; k <= k_end; k++) {
         double tk = (double)ml_two_over_pi[k];
@@ -151,20 +156,22 @@ static inline int ml_rem_pio2_large(double x, double *y) {
     /* Extract integer part from fractional accumulator */
     int extra = (int)(long long)frac_acc;
     n = (n + (extra & 3)) & 3;
-    double frac = frac_acc - (double)extra;
+    long double frac = frac_acc - (long double)extra + frac_comp;
 
     /* Center fractional part in [-0.5, 0.5] */
-    if (frac >  0.5) { frac -= 1.0; n = (n + 1) & 3; }
-    if (frac < -0.5) { frac += 1.0; n = (n + 3) & 3; }
+    if (frac >  0.5L) { frac -= 1.0L; n = (n + 1) & 3; }
+    if (frac < -0.5L) { frac += 1.0L; n = (n + 3) & 3; }
 
-    /* Reconstruct: reduced_arg = frac * pi/2 */
-    double result = ML_FMA(frac, ML_PH_PI2_HI, frac * ML_PH_PI2_LO);
+    /* Reconstruct: reduced_arg = frac * pi/2, kept in long double so the
+     * final rounding to double costs ~ULP(y)/2 rather than ~ULP(1). */
+    long double result = frac * (long double)ML_PH_PI2_HI
+                       + frac * (long double)ML_PH_PI2_LO;
 
     if (sign) {
         result = -result;
         n = (4 - n) & 3;
     }
-    *y = result;
+    *y = (double)result;
     return n;
 }
 

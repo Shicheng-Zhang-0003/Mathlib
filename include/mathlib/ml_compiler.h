@@ -1,6 +1,7 @@
 #ifndef MATHLIB_COMPILER_H
 #define MATHLIB_COMPILER_H
 
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -121,21 +122,43 @@ static inline double ml_fma_soft_impl(double a, double b, double c) {
             return (a * b) + c;
         }
     }
-    double p = a * b;
-    double c2 = c;
-    /* Two-Product: p = fl(a*b), err = a*b - p */
-    double ca = a * 134217729.0;
-    double a_hi = ca - (ca - a);
-    double a_lo = a - a_hi;
-    double cb = b * 134217729.0;
-    double b_hi = cb - (cb - b);
-    double b_lo = b - b_hi;
-    double err = ((a_hi * b_hi - p) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
-    /* Two-Sum: s = fl(p + c), err2 = p + c - s */
-    double s = p + c2;
-    double v = s - p;
-    double err2 = (p - (s - v)) + (c2 - v);
-    return s + (err + err2);
+    /* Dekker splitting multiplies each operand by 2^27+1, which overflows
+     * for |operand| > DBL_MAX/(2^27+1) (~1.3e300) and would turn a perfectly
+     * ordinary product into NaN. Pre-scale each oversized operand by its own
+     * power of two (exact, and only ever downward, so the pair product stays
+     * in range) and rescale the result exactly with ldexp. Scaling each
+     * operand independently is what keeps asymmetric cases such as
+     * fma(1e300, 1e-300, 1) exact. */
+    {
+        int ka = 0, kb = 0, kk;
+        double p, perr, s, v, aerr, r, prod;
+        if (fabs(a) > 0x1p500) { ka = ilogb(a) - 500; a = ldexp(a, -ka); }
+        if (fabs(b) > 0x1p500) { kb = ilogb(b) - 500; b = ldexp(b, -kb); }
+        kk = ka + kb; /* <= 0, so the rescaled product never overflows here */
+        /* Two-Product: p = fl(a*b) on the scaled operands, perr = residual */
+        p = a * b;
+        {
+            double ca = a * 134217729.0;
+            double a_hi = ca - (ca - a);
+            double a_lo = a - a_hi;
+            double cb = b * 134217729.0;
+            double b_hi = cb - (cb - b);
+            double b_lo = b - b_hi;
+            perr = ((a_hi * b_hi - p) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
+        }
+        prod = (kk != 0) ? ldexp(p, kk) : p;
+        /* Two-Sum: s = fl(prod + c), aerr = prod + c - s */
+        s = prod + c;
+        if (!isfinite(s)) {
+            /* prod+c genuinely overflows; the exact residual is below one
+             * ulp of prod and cannot bring it back into range. */
+            return s;
+        }
+        v = s - prod;
+        aerr = (prod - (s - v)) + (c - v);
+        r = s + (((kk != 0) ? ldexp(perr, kk) : perr) + aerr);
+        return r;
+    }
 }
 #  define ML_FMA(a, b, c) ml_fma_soft_impl((double)(a), (double)(b), (double)(c))
 #endif

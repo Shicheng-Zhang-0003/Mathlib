@@ -457,8 +457,8 @@ ML_API double ml_digamma(double x) {
      * critical for Y1/K1 series which call digamma ~240x. */
     if (ml_isnan(x)) return x;
     if (ml_isinf(x)) return x;
-    if (x <= 0.0 && x == ml_round(x)) return ml_make_nan();
     if (x == 0.0) return -ml_make_inf(0);
+    if (x < 0.0 && x == ml_round(x)) return ml_make_nan();
     if (x < 0.0) {
         /* Reflection psi(1-x)-psi(x)=pi*cot(pi x) avoids ~1e15-step
          * recurrence hang for digamma(-1e15). */
@@ -473,17 +473,21 @@ ML_API double ml_digamma(double x) {
         }
     }
     {
-        double r = 0.0;
+        double r = 0.0, cr = 0.0;
         double xx = x;
         while (xx < 32.0) {
-            r -= 1.0 / xx;
+            double w = -1.0 / xx - cr;
+            double t = r + w;
+            cr = (t - r) - w;
+            r = t;
             xx += 1.0;
         }
         {
             double inv = 1.0 / xx;
             double inv2 = inv * inv;
             double s = ml_log(xx) - 0.5 * inv
-                - inv2 * (1.0/12.0 - inv2 * (1.0/120.0 - inv2 * (1.0/252.0)));
+                - inv2 * (1.0/12.0 - inv2 * (1.0/120.0 - inv2 * (1.0/252.0
+                  - inv2 * (1.0/240.0 - inv2 * (1.0/132.0 - inv2 * (691.0/32760.0))))));
             return r + s;
         }
     }
@@ -564,38 +568,130 @@ ML_API double ml_beta(double a, double b) {
     }
 }
 
+/* ---- Bessel helpers -------------------------------------------------
+ * Hankel asymptotic polynomials, DLMF 10.17.3, for integer order nu.
+ *   a_k(nu) = prod_{j=1..k} (4 nu^2 - (2j-1)^2) / (k! 8^k)
+ *   P = sum_k (-1)^k a_{2k}   / x^{2k}
+ *   Q = sum_k (-1)^k a_{2k+1} / x^{2k+1}
+ * Each sum is truncated at its least term, so no term count needs tuning.
+ * Accumulated in long double: the optimal-truncation series still cancels
+ * for moderate x, and the ascending series below cancels harder. */
+/* Airy: Taylor series handles [-ML_AIRY_XN, ML_AIRY_XP]; outside, the
+ * DLMF 9.7.5/9.7.6 asymptotics are summed to the least term.  The branches
+ * cross near |x| ~ 5-7, where the Taylor series starts losing digits to
+ * cancellation and the asymptotic starts losing them to its least term. */
+#define ML_AIRY_XP 5.5
+#define ML_AIRY_XN 7.0
+#define ML_AIRY_TERMS 40
+
+#define ML_BESSEL_ASYM_MAX 40
+
+/* Ascending-series / asymptotic crossovers, chosen where the two branches
+ * have comparable error.  The ascending series loses digits to cancellation
+ * that grows like exp(x^2/4); the asymptotic series bottoms out at its least
+ * term, whose error falls like exp(-2x).  The optimum sits where they meet. */
+#define ML_BESSEL_XJ 14.0
+#define ML_BESSEL_XY 14.0
+#define ML_BESSEL_XK 9.0
+#define ML_BESSEL_XI 20.0
+
+static void ml_hankel_pq(long double nu, long double x,
+                         long double *pp, long double *pq) {
+    long double a = 1.0L;                       /* a_0 */
+    long double inv = 1.0L;                     /* becomes 1/x on first pass */
+    long double n2 = 4.0L * nu * nu;
+    long double sP = 1.0L, sQ = 0.0L;
+    long double pP = 1e300L, pQ = 1e300L;   /* sentinel: force first term in */
+    int n;
+    for (n = 1; n <= ML_BESSEL_ASYM_MAX; n++) {
+        long double f = (long double)(2 * n - 1);
+        long double t;
+        a = a * (n2 - f * f) / ((long double)(8 * n));
+        inv /= x;
+        t = a * inv;
+        if (n % 2 == 0) {            /* P: (-1)^(n/2) a_n / x^n */
+            if (((n / 2) % 2) != 0) t = -t;
+            if (__builtin_fabsl(t) > __builtin_fabsl(pP)) break;
+            sP += t;
+            pP = t;
+        } else {                     /* Q: (-1)^((n-1)/2) a_n / x^n */
+            if ((((n - 1) / 2) % 2) != 0) t = -t;
+            if (__builtin_fabsl(t) > __builtin_fabsl(pQ)) break;
+            sQ += t;
+            pQ = t;
+        }
+    }
+    *pp = sP;
+    *pq = sQ;
+}
+
+/* Modified-Bessel single series, DLMF 10.40.2/10.40.3.
+ *   sgn < 0: I_nu = e^x / sqrt(2 pi x) * sum_k (-1)^k a_k / x^k
+ *   sgn > 0: K_nu = sqrt(pi / 2x) e^-x * sum_k a_k / x^k          */
+static long double ml_bessel_sk(long double nu, long double x, int sgn) {
+    long double a = 1.0L, inv = 1.0L;
+    long double n2 = 4.0L * nu * nu;
+    long double s = 1.0L, prev = 1.0L;
+    int k;
+    for (k = 1; k <= ML_BESSEL_ASYM_MAX; k++) {
+        long double f = (long double)(2 * k - 1);
+        long double t;
+        a = a * (n2 - f * f) / ((long double)(8 * k));
+        inv /= x;
+        t = a * inv;
+        if (sgn < 0 && (k % 2)) t = -t;
+        if (__builtin_fabsl(t) > __builtin_fabsl(prev)) break;
+        s += t;
+        prev = t;
+    }
+    return s;
+}
+
+/* Oscillatory part of J_nu/Y_nu, evaluated without ever forming
+ * x - (2nu+1)pi/4 in double: that subtraction loses every digit of x for
+ * large x.  Instead rotate the unit phasor (cos x, sin x) -- which
+ * ml_sin/ml_cos already reduce accurately -- by the exact angle.
+ * 1/sqrt(2) is exact to 64 bits, so cos/sin of pi/4 and 3pi/4 are the
+ * same constant with a sign. */
+#define ML_RSQRT2 0.70710678118654752440
+
+static void ml_bessel_phase(int n, double x, double *cwp, double *swp) {
+    double s = ml_sin(x), c = ml_cos(x);
+    double cc = (n == 0) ? ML_RSQRT2 : -ML_RSQRT2;
+    double ss = ML_RSQRT2;
+    *cwp = c * cc + s * ss;   /* cos(x - (2n+1)pi/4) */
+    *swp = s * cc - c * ss;   /* sin(x - (2n+1)pi/4) */
+}
+
 ML_API double ml_bessel_j0(double x) {
     if (ml_isnan(x)) return x;
     if (ml_isinf(x)) return 0.0;
     {
         double ax = ml_fabs(x);
         if (ax == 0.0) return 1.0;
-        if (ax <= 16.0) {
-            /* J0 = sum (-1)^m (x^2/4)^m/(m!^2), recurrence, Kahan. */
-            double y = (ax * ax) * 0.25;
-            double t = 1.0, sum = 1.0, comp = 0.0;
-            for (int m = 1; m < 120; m++) {
-                t *= -y / ((double)m * (double)m);
-                {
-                    double w = t - comp;
-                    double tt = sum + w;
-                    comp = (tt - sum) - w;
-                    sum = tt;
-                }
-                if (ml_fabs(t) < 1e-18 * ml_fabs(sum)) break;
+        if (ax < ML_BESSEL_XJ) {
+            /* J0 = sum (-1)^m (x^2/4)^m/(m!^2), long double + Kahan. */
+            long double y = (long double)ax * (long double)ax * 0.25L;
+            long double t = 1.0L, s = 1.0L, c = 0.0L;
+            int m;
+            for (m = 1; m < 200; m++) {
+                long double w, tt;
+                t *= -y / ((long double)m * (long double)m);
+                w = t - c;
+                tt = s + w;
+                c = (tt - s) - w;
+                s = tt;
+                if (__builtin_fabsl(t) < 1e-22L * __builtin_fabsl(s)) break;
             }
-            return sum;
+            return (double)s;
         }
-        /* Asymptotic: sqrt(2/pi x)[cos(x-pi/4)P - sin(x-pi/4)Q],
-         * P=1-9/128z^2+..., Q=1/8z-..., z=x^2. 3 terms: ~1e-9 at x=8. */
         {
-            double z = ax * ax;
-            double p = 1.0 - 9.0 / (128.0 * z) + 3675.0 / (32768.0 * z * z);
-            double q = 1.0 / (8.0 * ax) - 75.0 / (1024.0 * ax * z);
-            double chi = ax - 0.78539816339744830962;
-            double amp = 0.79788456080286535588 / ml_sqrt(ax);
-            double r = amp * (ml_cos(chi) * p - ml_sin(chi) * q);
-            return r;
+            long double P, Q;
+            double cw, sw;
+            ml_hankel_pq(0.0L, (long double)ax, &P, &Q);
+            ml_bessel_phase(0, ax, &cw, &sw);
+            return (double)((0.79788456080286535588L / __builtin_sqrtl((long double)ax))
+                   * ((long double)cw * P - (long double)sw * Q));
         }
     }
 }
@@ -607,30 +703,28 @@ ML_API double ml_bessel_j1(double x) {
     {
         double ax = ml_fabs(x);
         double sgn = (x < 0.0) ? -1.0 : 1.0;
-        if (ax <= 16.0) {
-            double y = (ax * ax) * 0.25;
-            double t = 0.5 * ax;
-            double sum = t, comp = 0.0;
-            for (int m = 1; m < 120; m++) {
-                t *= -y / ((double)m * (double)(m + 1));
-                {
-                    double w = t - comp;
-                    double tt = sum + w;
-                    comp = (tt - sum) - w;
-                    sum = tt;
-                }
-                if (ml_fabs(t) < 1e-18 * ml_fabs(sum)) break;
+        if (ax < ML_BESSEL_XJ) {
+            long double y = (long double)ax * (long double)ax * 0.25L;
+            long double t = 0.5L * (long double)ax, s = t, c = 0.0L;
+            int m;
+            for (m = 1; m < 200; m++) {
+                long double w, tt;
+                t *= -y / ((long double)m * (long double)(m + 1));
+                w = t - c;
+                tt = s + w;
+                c = (tt - s) - w;
+                s = tt;
+                if (__builtin_fabsl(t) < 1e-22L * __builtin_fabsl(s)) break;
             }
-            return sgn * sum;
+            return sgn * (double)s;
         }
         {
-            double z = ax * ax;
-            double p = 1.0 + 15.0 / (128.0 * z) - 4725.0 / (32768.0 * z * z);
-            double q = 3.0 / (8.0 * ax) - 105.0 / (1024.0 * ax * z);
-            double chi = ax - 2.35619449019234492885;
-            double amp = 0.79788456080286535588 / ml_sqrt(ax);
-            double r = amp * (ml_cos(chi) * p - ml_sin(chi) * q);
-            return sgn * r;
+            long double P, Q;
+            double cw, sw;
+            ml_hankel_pq(1.0L, (long double)ax, &P, &Q);
+            ml_bessel_phase(1, ax, &cw, &sw);
+            return sgn * (double)((0.79788456080286535588L / __builtin_sqrtl((long double)ax))
+                   * ((long double)cw * P - (long double)sw * Q));
         }
     }
 }
@@ -1045,31 +1139,31 @@ ML_API double ml_bessel_y0(double x) {
         return ml_make_nan();
     }
     if (ml_isinf(x)) return 0.0;
-    if (x <= 16.0) {
-        double j0 = ml_bessel_j0(x);
-        double y = (x * x) * 0.25;
-        double t = 1.0, s = 0.0, comp = 0.0;
-        double hn = 0.0;
-        for (int m = 1; m < 60; m++) {
-            hn += 1.0 / (double)m;
-            t *= -y / ((double)m * (double)m);
-            /* Series needs (-1)^{m+1} H_m y^m/(m!^2) = -t*H_m. */
-            {
-                double w = (-t * hn - comp);
-                double tt = s + w;
-                comp = (tt - s) - w;
-                s = tt;
-            }
-            if (ml_fabs(t * hn) < 1e-18 * (ml_fabs(s) + 1.0)) break;
+    if (x < ML_BESSEL_XY) {
+        long double j0 = (long double)ml_bessel_j0(x);
+        long double y = (long double)x * (long double)x * 0.25L;
+        long double t = 1.0L, s = 0.0L, c = 0.0L, hn = 0.0L;
+        int m;
+        for (m = 1; m < 200; m++) {
+            long double w, tt;
+            hn += 1.0L / (long double)m;
+            t *= -y / ((long double)m * (long double)m);
+            w = -t * hn - c;
+            tt = s + w;
+            c = (tt - s) - w;
+            s = tt;
+            if (__builtin_fabsl(t * hn) < 1e-22L * (__builtin_fabsl(s) + 1.0L)) break;
         }
-        return (2.0 / ML_PI) * ((ml_log(x * 0.5) + GAM) * j0 + s);
+        return (double)(2.0L / 3.14159265358979323846264338327950288L
+                        * ((ml_log(x * 0.5) + GAM) * (double)j0 + (double)s));
     }
     {
-        double p = 1.0 - 9.0 / (128.0 * x * x);
-        double q = 1.0 / (8.0 * x);
-        double chi = x - 0.78539816339744830962;
-        double amp = 0.79788456080286535588 / ml_sqrt(x);
-        return amp * (ml_sin(chi) * p + ml_cos(chi) * q);
+        long double P, Q;
+        double cw, sw;
+        ml_hankel_pq(0.0L, (long double)x, &P, &Q);
+        ml_bessel_phase(0, x, &cw, &sw);
+        return (double)((0.79788456080286535588L / __builtin_sqrtl((long double)x))
+               * ((long double)sw * P + (long double)cw * Q));
     }
 }
 
@@ -1080,37 +1174,39 @@ ML_API double ml_bessel_y1(double x) {
         return ml_make_nan();
     }
     if (ml_isinf(x)) return 0.0;
-    if (x <= 16.0) {
+    if (x < ML_BESSEL_XY) {
         /* DLMF 10.8.1 (n=1): -2/(pi z) + (2/pi)ln(z/2)J1
          *                    - (z/2)/pi * S,
          * S = sum_{k>=0} (psi(k+1)+psi(k+2)) (-y)^k/(k!(k+1)!). */
-        double j1 = ml_bessel_j1(x);
-        double y = (x * x) * 0.25;
-        double t = 1.0, s = 0.0, comp = 0.0;
-        for (int k = 0; k < 120; k++) {
-            double ck = ml_digamma((double)k + 1.0) + ml_digamma((double)k + 2.0);
-            {
-                double w = (t * ck - comp);
-                double tt = s + w;
-                comp = (tt - s) - w;
-                s = tt;
-            }
-            if (k > 3 && ml_fabs(t * ck) < 1e-17 * ml_fabs(s)) break;
-            t *= -y / ((double)(k + 1) * (double)(k + 2));
+        long double j1 = (long double)ml_bessel_j1(x);
+        long double y = (long double)x * (long double)x * 0.25L;
+        long double t = 1.0L, s = 0.0L, c = 0.0L;
+        int k;
+        for (k = 0; k < 200; k++) {
+            long double ck = (long double)ml_digamma((double)k + 1.0)
+                           + (long double)ml_digamma((double)k + 2.0);
+            long double w, tt;
+            w = t * ck - c;
+            tt = s + w;
+            c = (tt - s) - w;
+            s = tt;
+            if (k > 3 && __builtin_fabsl(t * ck) < 1e-22L * __builtin_fabsl(s)) break;
+            t *= -y / ((long double)(k + 1) * (long double)(k + 2));
         }
         {
-            double lead = -2.0 / (ML_PI * x);
-            double lterm = (2.0 / ML_PI) * ml_log(x * 0.5) * j1;
-            double sterm = -(x * 0.5) / ML_PI * s;
-            return lead + lterm + sterm;
+            long double pi = 3.14159265358979323846264338327950288L;
+            return (double)(-2.0L / (pi * (long double)x)
+                   + (2.0L / pi) * (long double)ml_log(x * 0.5) * j1
+                   - ((long double)x * 0.5L) / pi * s);
         }
     }
     {
-        double p = 1.0 + 15.0 / (128.0 * x * x);
-        double q = 3.0 / (8.0 * x);
-        double chi = x - 2.35619449019234492885;
-        double amp = 0.79788456080286535588 / ml_sqrt(x);
-        return amp * (ml_sin(chi) * p + ml_cos(chi) * q);
+        long double P, Q;
+        double cw, sw;
+        ml_hankel_pq(1.0L, (long double)x, &P, &Q);
+        ml_bessel_phase(1, x, &cw, &sw);
+        return (double)((0.79788456080286535588L / __builtin_sqrtl((long double)x))
+               * ((long double)sw * P + (long double)cw * Q));
     }
 }
 
@@ -1119,24 +1215,28 @@ ML_API double ml_bessel_i0(double x) {
     if (ml_isinf(x)) return ml_make_inf(0);
     {
         double ax = ml_fabs(x);
-        if (ax <= 16.0) {
-            double y = (ax * ax) * 0.25;
-            double t = 1.0, sum = 1.0, comp = 0.0;
-            for (int m = 1; m < 120; m++) {
-                t *= y / ((double)m * (double)m);
-                double w = t - comp;
-                double tt = sum + w;
-                comp = (tt - sum) - w;
-                sum = tt;
-                if (ml_fabs(t) < 1e-18 * sum) break;
+        if (ax < ML_BESSEL_XI) {
+            /* All terms positive, so this series never cancels; long double
+             * keeps it exact to well past the asymptotic crossover. */
+            long double y = (long double)ax * (long double)ax * 0.25L;
+            long double t = 1.0L, s = 1.0L, c = 0.0L;
+            int m;
+            for (m = 1; m < 400; m++) {
+                long double w, tt;
+                t *= y / ((long double)m * (long double)m);
+                w = t - c;
+                tt = s + w;
+                c = (tt - s) - w;
+                s = tt;
+                if (__builtin_fabsl(t) < 1e-22L * s) break;
             }
-            return sum;
+            return (double)s;
         }
         {
-            double e = ml_exp(ax);
-            double amp = e / ml_sqrt(2.0 * ML_PI * ax);
-            double corr = 1.0 + 1.0 / (8.0 * ax) + 9.0 / (128.0 * ax * ax);
-            return amp * corr;
+            long double pi = 3.14159265358979323846264338327950288L;
+            long double sk = ml_bessel_sk(0.0L, (long double)ax, -1);
+            return (double)(__builtin_expl((long double)ax)
+                   / __builtin_sqrtl(2.0L * pi * (long double)ax) * sk);
         }
     }
 }
@@ -1148,24 +1248,26 @@ ML_API double ml_bessel_i1(double x) {
     {
         double ax = ml_fabs(x);
         double sgn = (x < 0.0) ? -1.0 : 1.0;
-        if (ax <= 16.0) {
-            double y = (ax * ax) * 0.25;
-            double t = 0.5 * ax, sum = t, comp = 0.0;
-            for (int m = 1; m < 120; m++) {
-                t *= y / ((double)m * (double)(m + 1));
-                double w = t - comp;
-                double tt = sum + w;
-                comp = (tt - sum) - w;
-                sum = tt;
-                if (ml_fabs(t) < 1e-18 * sum) break;
+        if (ax < ML_BESSEL_XI) {
+            long double y = (long double)ax * (long double)ax * 0.25L;
+            long double t = 0.5L * (long double)ax, s = t, c = 0.0L;
+            int m;
+            for (m = 1; m < 400; m++) {
+                long double w, tt;
+                t *= y / ((long double)m * (long double)(m + 1));
+                w = t - c;
+                tt = s + w;
+                c = (tt - s) - w;
+                s = tt;
+                if (__builtin_fabsl(t) < 1e-22L * s) break;
             }
-            return sgn * sum;
+            return sgn * (double)s;
         }
         {
-            double e = ml_exp(ax);
-            double amp = e / ml_sqrt(2.0 * ML_PI * ax);
-            double corr = 1.0 - 3.0 / (8.0 * ax) - 15.0 / (128.0 * ax * ax);
-            return sgn * amp * corr;
+            long double pi = 3.14159265358979323846264338327950288L;
+            long double sk = ml_bessel_sk(1.0L, (long double)ax, -1);
+            return sgn * (double)(__builtin_expl((long double)ax)
+                   / __builtin_sqrtl(2.0L * pi * (long double)ax) * sk);
         }
     }
 }
@@ -1178,28 +1280,28 @@ ML_API double ml_bessel_k0(double x) {
         return ml_make_nan();
     }
     if (ml_isinf(x)) return 0.0;
-    if (x <= 16.0) {
-        double i0 = ml_bessel_i0(x);
-        double y = (x * x) * 0.25;
-        double t = 1.0, s = 0.0, comp = 0.0;
-        double hn = 0.0;
-        for (int m = 1; m < 60; m++) {
-            hn += 1.0 / (double)m;
-            t *= y / ((double)m * (double)m);
-            {
-                double w = (t * hn - comp);
-                double tt = s + w;
-                comp = (tt - s) - w;
-                s = tt;
-            }
-            if (ml_fabs(t * hn) < 1e-18 * (ml_fabs(s) + 1.0)) break;
+    if (x < ML_BESSEL_XK) {
+        long double i0 = (long double)ml_bessel_i0(x);
+        long double y = (long double)x * (long double)x * 0.25L;
+        long double t = 1.0L, s = 0.0L, c = 0.0L, hn = 0.0L;
+        int m;
+        for (m = 1; m < 200; m++) {
+            long double w, tt;
+            hn += 1.0L / (long double)m;
+            t *= y / ((long double)m * (long double)m);
+            w = t * hn - c;
+            tt = s + w;
+            c = (tt - s) - w;
+            s = tt;
+            if (__builtin_fabsl(t * hn) < 1e-22L * (__builtin_fabsl(s) + 1.0L)) break;
         }
-        return -(ml_log(x * 0.5) + GAM) * i0 + s;
+        return -(ml_log(x * 0.5) + GAM) * (double)i0 + (double)s;
     }
     {
-        double e = ml_exp(-x);
-        double amp = e * ml_sqrt(ML_PI / (2.0 * x));
-        return amp * (1.0 - 1.0 / (8.0 * x));
+        long double pi = 3.14159265358979323846264338327950288L;
+        long double sk = ml_bessel_sk(0.0L, (long double)x, 1);
+        return (double)(__builtin_sqrtl(pi / (2.0L * (long double)x))
+               * __builtin_expl(-(long double)x) * sk);
     }
 }
 
@@ -1210,29 +1312,33 @@ ML_API double ml_bessel_k1(double x) {
         return ml_make_nan();
     }
     if (ml_isinf(x)) return 0.0;
-    if (x <= 16.0) {
+    if (x < ML_BESSEL_XK) {
         /* DLMF 10.31.1 (n=1): 1/z + ln(z/2)I1 - (z/2) S,
          * S = sum (psi(k+1)+psi(k+2)) y^k/(k!(k+1)!). */
-        double i1 = ml_bessel_i1(x);
-        double y = (x * x) * 0.25;
-        double t = 1.0, s = 0.0, comp = 0.0;
-        for (int k = 0; k < 120; k++) {
-            double ck = ml_digamma((double)k + 1.0) + ml_digamma((double)k + 2.0);
-            {
-                double w = (t * ck - comp);
-                double tt = s + w;
-                comp = (tt - s) - w;
-                s = tt;
-            }
-            if (k > 3 && ml_fabs(t * ck) < 1e-17 * ml_fabs(s)) break;
-            t *= y / ((double)(k + 1) * (double)(k + 2));
+        long double i1 = (long double)ml_bessel_i1(x);
+        long double y = (long double)x * (long double)x * 0.25L;
+        long double t = 1.0L, s = 0.0L, c = 0.0L;
+        int k;
+        for (k = 0; k < 200; k++) {
+            long double ck = (long double)ml_digamma((double)k + 1.0)
+                           + (long double)ml_digamma((double)k + 2.0);
+            long double w, tt;
+            w = t * ck - c;
+            tt = s + w;
+            c = (tt - s) - w;
+            s = tt;
+            if (k > 3 && __builtin_fabsl(t * ck) < 1e-22L * __builtin_fabsl(s)) break;
+            t *= y / ((long double)(k + 1) * (long double)(k + 2));
         }
-        return 1.0 / x + ml_log(x * 0.5) * i1 - (x * 0.5) * s;
+        return (double)(1.0L / (long double)x
+               + (long double)ml_log(x * 0.5) * i1
+               - ((long double)x * 0.25L) * s);
     }
     {
-        double e = ml_exp(-x);
-        double amp = e * ml_sqrt(ML_PI / (2.0 * x));
-        return amp * (1.0 + 3.0 / (8.0 * x));
+        long double pi = 3.14159265358979323846264338327950288L;
+        long double sk = ml_bessel_sk(1.0L, (long double)x, 1);
+        return (double)(__builtin_sqrtl(pi / (2.0L * (long double)x))
+               * __builtin_expl(-(long double)x) * sk);
     }
 }
 
@@ -1244,7 +1350,7 @@ ML_API double ml_airy_ai(double x) {
     static const double A1 = -0.25881940379280679841;
     if (ml_isnan(x)) return x;
     if (ml_isinf(x)) return (x > 0.0) ? 0.0 : ml_make_nan();
-    if (ml_fabs(x) <= 5.0) {
+    if (x >= -ML_AIRY_XN && x <= ML_AIRY_XP) {
         /* a[0]=A0, a[1]=A1, a[2]=0, a[n+2]=a[n-1]/((n+2)(n+1)). Kahan. */
         double a[102];
         a[0] = A0; a[1] = A1;
@@ -1271,20 +1377,53 @@ ML_API double ml_airy_ai(double x) {
             return s;
         }
     }
-    if (x > 5.0) {
-        /* Ai(x)~e^{-z}/(2 sqrt(pi) x^{1/4}) u(z), u=1-5/48z+385/4608z^2. */
-        double z = 2.0 * ml_pow(x, 1.5) / 3.0;
-        double e = ml_exp(-z);
-        double u = 1.0 - 5.0 / (48.0 * z) + 385.0 / (4608.0 * z * z);
-        return e * u / (2.0 * ml_sqrt(ML_PI) * ml_pow(x, 0.25));
+    if (x > ML_AIRY_XP) {
+        /* Ai(x) ~ e^-z/(2 sqrt(pi) x^(1/4)) * U,  U = sum_k (-1)^k c_k,
+         * z = 2 x^(3/2)/3,  c_0 = 1,  c_k = c_{k-1} (6k-5)(6k-1)/(72 k z). */
+        long double xx = (long double)x;
+        long double z = (2.0L / 3.0L) * xx * __builtin_sqrtl(xx);
+        long double c = 1.0L, u = 1.0L, prev = 1.0L;
+        int k;
+        for (k = 1; k <= ML_AIRY_TERMS; k++) {
+            c = c * (long double)(6 * k - 5) * (long double)(6 * k - 1)
+                / ((long double)(72 * k) * z);
+            if (__builtin_fabsl(c) > prev) break;
+            u += (k & 1) ? -c : c;
+            prev = __builtin_fabsl(c);
+        }
+        return (double)(__builtin_expl(-z) * u
+               / (2.0L * __builtin_sqrtl(3.14159265358979323846264338327950288L)
+                  * __builtin_sqrtl(__builtin_sqrtl(xx))));
     }
-    /* x < -5: Ai(-z)~[sin f - cos g]/... f=1-..., g=5/48z-... */
-    {
-        double z = -x;
-        double zt = 2.0 * ml_pow(z, 1.5) / 3.0;
-        double ph = zt + ML_PI / 4.0;
-        double f = 1.0 - 385.0 / (4608.0 * zt * zt);
-        double g = 5.0 / (48.0 * zt) - 85085.0 / (663552.0 * zt * zt * zt);
-        return (ml_sin(ph) * f - ml_cos(ph) * g) / (ml_sqrt(ML_PI) * ml_pow(z, 0.25));
+    if (x < -ML_AIRY_XN) {
+        /* Ai(-z) ~ 1/(sqrt(2 pi) z^(1/4)) * [ (sin w + cos w) F
+         *                                       - (cos w - sin w) G ],
+         * w = zeta,  F = sum_j (-1)^j c_{2j},  G = sum_j (-1)^j c_{2j+1}. */
+        long double xx = -(long double)x;
+        long double z = (2.0L / 3.0L) * xx * __builtin_sqrtl(xx);
+        long double c = 1.0L, f = 1.0L, g = 0.0L, pf = 1.0L, pg = 1.0L;
+        long double sz, cz, r2;
+        int k;
+        for (k = 1; k <= ML_AIRY_TERMS; k++) {
+            c = c * (long double)(6 * k - 5) * (long double)(6 * k - 1)
+                / ((long double)(72 * k) * z);
+            if (k & 1) {
+                if (c > pg) break;
+                g += ((k / 2) & 1) ? -c : c;
+                pg = c;
+            } else {
+                if (c > pf) break;
+                f += ((k / 2) & 1) ? -c : c;
+                pf = c;
+            }
+        }
+        /* sin(w+pi/4) = (sin w + cos w)/sqrt2 without forming w+pi/4,
+         * which would round away every digit of w once w is large. */
+        sz = __builtin_sinl(z);
+        cz = __builtin_cosl(z);
+        r2 = __builtin_sqrtl(2.0L * 3.14159265358979323846264338327950288L);
+        return (double)(((sz + cz) * f - (cz - sz) * g)
+               / (r2 * __builtin_sqrtl(__builtin_sqrtl(xx))));
     }
+    return 0.0;   /* unreachable; silences -Wreturn-type on float compares */
 }

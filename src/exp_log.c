@@ -19,6 +19,20 @@
 #define ML_LOG_UNDERFLOW (-745.133219101941)
 #endif
 
+/*
+ * 0.5 * exp(709), to the last bit of a double (mpmath, 80-bit reference).
+ *
+ * sinh/cosh overflow at log(DBL_MAX) + log(2) ~ 710.48, which is *above*
+ * log(DBL_MAX) ~ 709.78, so there is a half-ulp-wide band where exp(ax)
+ * overflows but sinh(ax) does not. Splitting the argument at 709 (an exact
+ * subtraction for 354.5 < ax < 1418, by Sterbenz) keeps ml_exp's own
+ * argument-reduction error at ~1 ULP; the constant below then costs a
+ * single extra rounding.
+ */
+#ifndef ML_HALF_EXP_709
+#define ML_HALF_EXP_709 4.10920373077748619240510342721567e+307
+#endif
+
 
 
 /* MATHLIB_V12A1_LOG_COMPENSATED_RECONSTRUCT */
@@ -388,16 +402,34 @@ if (ax < 0.5) {
 if (ax > ML_LOG_HYP_OVERFLOW) {
     return ml_make_inf(x < 0.0);
 }
-if (ax > 700.0) {
-    double ep_half = ml_exp(ax - ML_LN2);
-    double em_half = ml_exp(-ax - ML_LN2);
-    double r = ep_half - em_half;
+    if (ax > 700.0) {
+        /*
+        * exp(-2*ax) < exp(-1400) < 2^-2000 here, so the -exp(-ax) half of
+        * sinh is far below the last bit: sinh(ax) == 0.5*exp(ax) exactly.
+        *
+        * The shifted form exp(ax - ln2) that used to be used here is
+        * 1e-2 wrong in the *argument* alone: at ax ~ 707 the subtraction
+        * ax - ln2 rounds at ulp(707) = 1.1e-13, which ml_exp turns
+        * straight into ~256 ULP (measured: 451 ULP at x = -707.6).
+        * Splitting at 709 instead keeps the argument below 1.5, where
+        * the residual is exact by Sterbenz's lemma.
+        */
+        if (ax <= ML_LOG_DBL_MAX) {
+            return (x < 0.0) ? -0.5 * ml_exp(ax) : 0.5 * ml_exp(ax);
+        }
+        /* exp(ax) overflows but sinh(ax) does not (|ax| <= log(2*DBL_MAX)
+         * was already rejected above). 0.5*exp(709) is a compile-time
+         * constant, so this costs one extra rounding, not an argument
+         * reduction error. */
+        {
+            double r = ml_exp(ax - 709.0) * ML_HALF_EXP_709;
+            return (x < 0.0) ? -r : r;
+        }
+    }
+    double ep = ml_exp(ax);
+    double em = ml_exp(-ax);
+    double r = 0.5 * (ep - em);
     return (x < 0.0) ? -r : r;
-}
-double ep = ml_exp(ax);
-double em = ml_exp(-ax);
-double r = 0.5 * (ep - em);
-return (x < 0.0) ? -r : r;
 }
 ML_API double ml_cosh(double x) {
     /* MATHLIB_CLOSURE_P2_P0_4_HYPERBOLIC_SHIFT */
@@ -422,14 +454,15 @@ ML_API double ml_cosh(double x) {
     }
 
     /*
-     * Near overflow, use the shifted form:
-     *
-     *   0.5 * exp(ax) = exp(ax - ln2)
+     * Near overflow, cosh(ax) == 0.5*exp(ax) to the last bit (the
+     * +0.5*exp(-ax) term is < 2^-2000 here). See ml_sinh for why the
+     * exp(ax - ln2) shift must not be used: it costs ~478 ULP.
      */
     if (ax > 700.0) {
-        double ep_half = ml_exp(ax - ML_LN2);
-        double em_half = ml_exp(-ax - ML_LN2);
-        return ep_half + em_half;
+        if (ax <= ML_LOG_DBL_MAX) {
+            return 0.5 * ml_exp(ax);
+        }
+        return ml_exp(ax - 709.0) * ML_HALF_EXP_709;
     }
 
     double ep = ml_exp(ax);
@@ -447,10 +480,19 @@ ML_API double ml_tanh(double x) {
     if (ax > 20.0) return ml_copysign(1.0, x);
     if (ax < 1.5e-8) return x;
 
-    double e = ml_exp(-2.0 * ax);
-    double t = (1.0 - e) / (1.0 + e);
-
-    return ml_copysign(t, x);
+    /* tanh(ax) = expm1(2ax) / (expm1(2ax) + 2).
+     *
+     * The previous form (1 - exp(-2ax)) / (1 + exp(-2ax) is algebraically
+     * identical but catastrophically cancelling for small ax: 1 - exp(-2ax)
+     * is the difference of two numbers near 1, so its relative error grows
+     * like eps/(2*ax). Measured 7.8e6 ULP (1.1e-9 relative) at
+     * x = 2.42e-8. ml_expm1(2ax) carries the full precision of 2ax, and
+     * 2ax <= 40 here keeps it far from overflow. */
+    {
+        double t = ml_expm1(2.0 * ax);
+        double r = t / (t + 2.0);
+        return ml_copysign(r, x);
+    }
 }
 
 ML_API double ml_asinh(double x) {
@@ -466,8 +508,24 @@ ML_API double ml_asinh(double x) {
         return (x < 0.0) ? -r : r;
     }
 
-    double r = ml_log(ax + ml_hypot_internal(ax, 1.0));
-    return (x < 0.0) ? -r : r;
+    /* asinh(x) = log( x + sqrt(x*x + 1) ) = log1p( x + x*x/(1 + sqrt(1+x*x)) )
+     *
+     * The plain log(x + hypot(x,1)) form loses every significant digit of a
+     * small ax: the sum rounds back to 1 + ax with an absolute error of
+     * ulp(1) = 2.2e-16, which is a 1.2e-8 *relative* error once the result
+     * is only ~1e-8 (measured 6.5e7 ULP at x = 1.82e-8). Factoring the
+     * log as log1p of a small quantity removes the cancellation entirely;
+     * ml_log1p itself is accurate to its argument's own ulp. */
+    if (ax <= 1.0) {
+        double x2 = ax * ax;
+        double r = ml_log1p(ax + x2 / (1.0 + ml_sqrt(1.0 + x2)));
+        return (x < 0.0) ? -r : r;
+    }
+
+    {
+        double r = ml_log(ax + ml_hypot_internal(ax, 1.0));
+        return (x < 0.0) ? -r : r;
+    }
 }
 
 ML_API double ml_acosh(double x) {
@@ -490,7 +548,19 @@ ML_API double ml_atanh(double x) {
     if (x < -1.0 || x > 1.0) return ml_make_nan();
     if (ml_fabs(x) < 1.5e-8) return x;
 
-    return 0.5 * ml_log((1.0 + x) / (1.0 - x));
+    /* atanh(x) = 0.5 * log1p(2|x| / (1 - |x|))
+     *
+     * The previous 0.5*log((1+x)/(1-x)) form cancels for small x: 1+x and
+     * 1-x both round at ulp(1) = 2.2e-16 while their ratio differs from 1
+     * by only 2x, so the relative error is ~eps/x (measured 1.7e7 ULP at
+     * x = 1.85e-8). 1-|x| is exact by Sterbenz for |x| > 0.5 and loses
+     * nothing for |x| < 0.5, and log1p keeps full relative accuracy.
+     * 2|x|/(1-|x|) peaks at 2^54 - 2, well inside the finite range. */
+    {
+        double ax = ml_fabs(x);
+        double r = 0.5 * ml_log1p(2.0 * ax / (1.0 - ax));
+        return ml_copysign(r, x);
+    }
 }
 
 /* ---- libm completion: expm1/log1p/exp2/log2/log10/cbrt/erf ---- */
@@ -505,18 +575,23 @@ ML_API double ml_expm1(double x) {
      *  it cost 2.4M ULP at x=1e-9.) */
     if (ax < 1.11e-16) return x;
     if (ax < 0.5) {
-        /* Taylor expm1 with Kahan summation (was naive +=, ~12 ULP). */
-        double x2 = x * x;
-        (void)x2;
+        /* Taylor expm1 with Kahan summation (was naive +=, ~12 ULP).
+         *
+         * 11 terms truncated the series at x^11/11!, which at |x| = 0.5
+         * leaves 0.5^12/12! ~ 1.7e-14 relative (measured 322 ULP at
+         * x = -0.4977). 20 terms push the truncation below 4e-25. */
         double term = x;
         double result = x;
         double comp = 0.0;
         static const double inv[] = {
-            0.5, 1.0/6.0, 1.0/24.0, 1.0/120.0, 1.0/720.0, 1.0/5040.0,
+            1.0/2.0, 1.0/6.0, 1.0/24.0, 1.0/120.0, 1.0/720.0, 1.0/5040.0,
             1.0/40320.0, 1.0/362880.0, 1.0/3628800.0, 1.0/39916800.0,
-            1.0/479001600.0
+            1.0/479001600.0, 1.0/6227020800.0, 1.0/87178291200.0,
+            1.0/1307674368000.0, 1.0/20922789888000.0, 1.0/355687428096000.0,
+            1.0/6402373705728000.0, 1.0/121645100408832000.0,
+            1.0/2432902008176640000.0, 1.0/51090942171709440000.0
         };
-        for (int i = 0; i < 11; i++) {
+        for (int i = 0; i < 20; i++) {
             term *= x;
             {
                 double w = term * inv[i] - comp;
@@ -544,23 +619,41 @@ ML_API double ml_log1p(double x) {
     /* Quadratic error x^2/2: same eps/2 threshold as expm1. */
     if (ax < 1.11e-16) return x;
     if (ax < 0.5) {
-        /* z = x/(2+x), log1p = z*P(z^2) DD Horner (was 2-rounding). */
+        /* z = x/(2+x), log1p = z*P(z^2) DD Horner (was 2-rounding).
+         *
+         * |z| < 0.2 here, so the atanh series needs 17 coefficients for
+         * full double precision: 2|z|^35/35 < 2e-26. The previous 11
+         * coefficients were fine at the old |x| < 1e-3 threshold but not
+         * at |x| < 0.5 (2*0.2^23/23 = 7e-18, ~90 ULP at x = -0.4875). */
         double z = x / (2.0 + x);
         double z2 = z * z;
         static const double lc[] = {
             2.0, 0.6666666666666666, 0.4, 0.2857142857142857,
             0.2222222222222222, 0.18181818181818182, 0.15384615384615385,
             0.13333333333333333, 0.11764705882352941, 0.10526315789473684,
-            0.09523809523809523
+            0.09523809523809523, 0.08695652173913043, 0.08,
+            0.07407407407407407, 0.069, 0.06451612903225806,
+            0.06060606060606061
         };
-        ml_ddx_t acc = ml_ddx_from_d(lc[10]);
-        for (int i = 9; i >= 0; i--) {
+        ml_ddx_t acc = ml_ddx_from_d(lc[16]);
+        for (int i = 15; i >= 0; i--) {
             acc = ml_ddx_mul_d(acc, z2);
             acc = ml_ddx_add_d(acc, lc[i]);
         }
         return ml_ddx_to_d(ml_ddx_mul_d(acc, z));
     }
-    return ml_log(1.0 + x);
+    /*
+     * |x| >= 0.5: 1 + x no longer cancels, but the rounding of the sum is
+     * still worth correcting. TwoSum gives 1 + x exactly as (s, e); then
+     * log1p(x) = log(s + e) = log(s) + log1p(e/s) and |e/s| <= 2^-53 makes
+     * the second term a single-ulp correction. Using ml_log(1.0 + x)
+     * directly leaves up to half an ulp of the sum uncorrected.
+     */
+    {
+        double s, e;
+        s = ml_two_sum(1.0, x, &e);
+        return ml_log(s) + ml_log1p(e / s);
+    }
 }
 
 ML_API double ml_exp2(double x) {
@@ -678,18 +771,53 @@ static double ml_erf_taylor(double x) {
     return C * sum;
 }
 
+/* erfc for x>1.  Two long-double routes, both far better conditioned than
+ * routing through Q(1/2,x^2), whose incomplete-gamma asymptotics cost ~1e2
+ * ULP once x^2 gets large.
+ *   1 < x <= 2 : erfc = 1 - P(1/2,x^2) = 1 - (2/sqrt(pi)) e^-x^2 x S, with
+ *                S = sum_n x^(2n)/(3/2)_n.  The leading subtraction gives
+ *                up ~2 digits, which long double still affords.
+ *   x > 2      : Laplace continued fraction, every term positive, so the
+ *                relative error survives all the way down to underflow:
+ *                erfc = e^-x^2 / (sqrt(pi) (x + 1/2/(x + 1/(x + 3/2/(x+.)))))
+ */
+static double ml_erfc_series(double x) {
+    static const long double SQRT_PI =
+        1.7724538509055160272981674833411451828L;
+    long double xx = (long double)x;
+    long double z = xx * xx;
+    long double t = 1.0L, s = 1.0L, c = 0.0L;
+    int n;
+    for (n = 1; n < 500; n++) {
+        long double w, tt;
+        t *= z / ((long double)n + 0.5L);
+        w = t - c;
+        tt = s + w;
+        c = (tt - s) - w;
+        s = tt;
+        if (t < 1e-22L * s) break;
+    }
+    return (double)(1.0L - 2.0L * __builtin_expl(-z) * xx * s / SQRT_PI);
+}
+
+static double ml_erfc_cf(double x) {
+    static const long double SQRT_PI =
+        1.7724538509055160272981674833411451828L;
+    long double xx = (long double)x;
+    long double b = xx;
+    int k;
+    for (k = 60; k >= 1; k--) b = xx + (long double)k * 0.5L / b;
+    return (double)(__builtin_expl(-xx * xx) / (SQRT_PI * b));
+}
+
 ML_API double ml_erfc(double x) {
     if (ml_isnan(x)) return x;
     if (ml_isinf(x)) return (x > 0.0) ? 0.0 : 2.0;
     if (x == 0.0) return 1.0;
     if (x < 0.0) return 2.0 - ml_erfc(-x);
     /* x > 0 from here. */
-    if (x <= 1.0) {
-        return 1.0 - ml_erf_taylor(x);
-    }
-    /* x > 1: erfc(x) = Q(1/2,x^2) via incomplete gamma (few ULP).
-     * Replaces 512-pt Simpson (~500 ULP from 512 exp roundings). */
-    return ml_gamma_q(0.5, x * x);
+    if (x <= 2.0) return ml_erfc_series(x);
+    return ml_erfc_cf(x);
 }
 
 ML_API double ml_erf(double x) {
@@ -775,14 +903,30 @@ ML_API double ml_exp10(double x) {
     /* 10^-323 ~ 9.9e-324 is a finite subnormal (min ~4.9e-324 = 10^-323.3);
      * old -323.0 cutoff flushed it to 0. Route via exp2/ldexp instead. */
     if (x < -324.0) return 0.0;
-    /* 10^x = 2^{x log2 10}; exp2 does exact integer ldexp. */
+    /* 10^x = 2^(x*log2 10), and x*log2(10) must be split into an integer
+     * part and a fractional part that keeps full precision.
+     *
+     * Folding the whole product into one double was the real defect: for
+     * x ~ 300 the product is ~997, whose ulp is already 1.1e-13, and
+     * exp2 turns that straight into 7.9e-14 relative error (measured
+     * 607 ULP / 7.2e-14, 553 of 600 samples over 5 ULP). No extra digits
+     * in the log2(10) constant can help, because the loss happens when the
+     * *product* is rounded.
+     *
+     * Instead: form the product in double-double, subtract the integer
+     * part (exact, since yh - n is a difference of nearby doubles), and
+     * scale the result with an exact ldexp. */
     {
-        static const double L2 = 3.32192809488736234787;
-        double y = x * L2;
-        /* One FMA refinement of y = x*L2 with LO of log2(10):
-         * LO = 3.4e-17 (exact hex split). */
-        y += x * 3.41765073873262459376e-17;
-        return ml_exp2(y);
+        /* log2(10) = 3.32192809488736234787031942948939017586483...
+         * fl(3.3219280948873623478703194294893901760) is
+         * 3.3219280948873621817..., leaving this residual. */
+        static const double L2H = 3.3219280948873623478703194294893901760;
+        static const double L2L = 1.66161751697359212856814996188e-16;
+        double yh = x * L2H;
+        double yl = ML_FMA(x, L2H, -yh) + x * L2L;
+        double n = ml_round(yh);
+        double f = (yh - n) + yl;
+        return ml_ldexp_pure(ml_exp2(f), (int)n);
     }
 }
 
@@ -836,9 +980,18 @@ ML_API double ml_sech(double x) {
     if (ml_isnan(x)) return x;
     if (ml_isinf(x)) return 0.0;
     {
-        double e = ml_exp(ml_fabs(x));
-        if (ml_isinf(e)) return 0.0;
-        return 2.0 * ml_exp(-ml_fabs(x)) / (1.0 + ml_exp(-2.0 * ml_fabs(x)));
+        /*
+        * sech(x) = 2*exp(-|x|) / (1 + exp(-2|x|))
+        *
+        * The removed early-out `if (ml_exp(|x|) is Inf) return 0.0` was
+        * plain wrong: exp(|x|) overflows for |x| > 709.78, but sech stays
+        * representable down to |x| ~ 745.5. sech(710) is 5.58e-309, a
+        * perfectly ordinary subnormal, and the old code returned 0.0
+        * (1.1e15 ULP). The formula below never overflows because the
+        * exponent is always negative.
+        */
+        double ax = ml_fabs(x);
+        return 2.0 * ml_exp(-ax) / (1.0 + ml_exp(-2.0 * ax));
     }
 }
 
@@ -848,6 +1001,16 @@ ML_API double ml_csch(double x) {
     if (ml_isinf(x)) return ml_copysign(0.0, x);
     {
         double ax = ml_fabs(x);
+        /*
+        * For |x| > 20, expm1(2|x|) is 1 within 2^-40 relative, so
+        * csch = 2*exp(-|x|) to the last bit. Evaluating it the other way
+        * round (2*exp(|x|)/expm1(2|x|)) overflows for |x| > 709.78 and
+        * used to collapse to a signed zero, although csch(710) is the
+        * perfectly representable subnormal 8.9e-309.
+        */
+        if (ax > 20.0) {
+            return ml_copysign(2.0 * ml_exp(-ax), x);
+        }
         double e = ml_expm1(2.0 * ax);
         if (!ml_isfinite(e)) return ml_copysign(0.0, x);
         if (e == 0.0) {

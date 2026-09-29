@@ -9,6 +9,25 @@ ML_API ml_status_t ml_lqr_gain_2x2(double a00, double a01, double a10, double a1
     /* Solve continuous ARE A'P+PA-PBR^{-1}B'P+Q=0 via Newton-Kleinman
      * from P0=Q*I; 2x2 closed Lyapunov solves per step. */
     double p00 = q, p01 = 0, p11 = q;
+    /* Newton-Kleinman needs A - G*P Hurwitz at every step, and P0 = Q*I
+     * does not guarantee that: for the double integrator it gives
+     * det(A_c) = 0, so the Lyapunov solve is singular and the iteration
+     * aborts.  Nudge the initial P until the closed loop is stable. */
+    {
+        double g00 = b0 * b0 / r, g01 = b0 * b1 / r;
+        double g10 = b1 * b0 / r, g11 = b1 * b1 / r;
+        for (int attempt = 0; attempt < 500; attempt++) {
+            double a00c = a00 - (g00 * p00 + g01 * p01);
+            double a01c = a01 - (g00 * p01 + g01 * p11);
+            double a10c = a10 - (g10 * p00 + g11 * p01);
+            double a11c = a11 - (g10 * p01 + g11 * p11);
+            double tr = a00c + a11c;
+            double det = a00c * a11c - a01c * a10c;
+            if (tr < 0.0 && det > 0.0) break;
+            if (det <= 0.0) p01 += 0.25 * (1.0 + ml_fabs(p01));
+            if (tr >= 0.0) { p00 += 0.5; p11 += 0.5; }
+        }
+    }
     for (int it = 0; it < 100; it++) {
         double s0 = (b0*b0*p00 + 2*b0*b1*p01 + b1*b1*p11) / r;
         double a00c = a00 - (b0*b0*p00 + b0*b1*p01) / r;

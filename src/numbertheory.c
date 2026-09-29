@@ -29,22 +29,31 @@ ML_API int ml_jacobi_symbol(int64_t a, uint64_t n) {
     if (n == 0 || (n & 1ULL) == 0ULL) return 0;
     if (n == 1) return 1;
     {
-        int64_t aa = a;
-        uint64_t nn = n;
+        uint64_t aa, nn = n;
         int t = 1;
-        aa %= (int64_t)nn;
+        /* (a/n) depends only on a mod n, reduced into [0,n).  Reducing in
+         * the magnitude domain keeps this exact for a = INT64_MIN and for
+         * n > 2^63-1, and the loop below stays entirely unsigned. */
+        if (a < 0) {
+            uint64_t m = (uint64_t)(-(a + 1)) + 1ULL;   /* |a|, no INT64_MIN UB */
+            uint64_t r = m % nn;
+            aa = (r == 0ULL) ? 0ULL : nn - r;
+        } else {
+            aa = (uint64_t)a % nn;
+        }
         while (aa != 0) {
-            while ((aa & 1LL) == 0) {
+            while ((aa & 1ULL) == 0ULL) {
+                uint64_t r;
                 aa >>= 1;
-                {
-                    uint64_t r = nn & 7ULL;
-                    if (r == 3 || r == 5) t = -t;
-                }
+                r = nn & 7ULL;
+                if (r == 3ULL || r == 5ULL) t = -t;
             }
             {
-                int64_t tmp = aa; aa = (int64_t)nn; nn = ml_abs_u64(tmp);
-                if ((tmp & 3LL) == 3 && (nn & 3ULL) == 3) t = -t;
-                aa %= (int64_t)nn;
+                uint64_t tmp = aa;
+                aa = nn;
+                nn = tmp;
+                if ((aa & 3ULL) == 3ULL && (nn & 3ULL) == 3ULL) t = -t;
+                aa %= nn;
             }
         }
         return (nn == 1) ? t : 0;

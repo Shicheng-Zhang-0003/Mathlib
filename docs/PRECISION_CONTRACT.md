@@ -17,7 +17,14 @@ Rules:
 2. Smoke/modular tolerances exist to catch regressions and crashes, not to
    bound error. Do not tighten them into pseudo-oracles and do not quote
    them as accuracy figures.
-3. New Batch-1 modules (`optim_n`, `ode_sys`, `spectral`, `stats_inv`, `sde`,
+3. `tests/test_edge_accuracy_audit.c` (v12R2) is a **regression guard**, not an
+   oracle-tier certification. It pins mpmath-derived references with ULP
+   tolerances for functions outside the 212-vector oracle grid (erfc, the
+   eight integer-order Bessel functions, Airy, digamma, Jacobi, exp10,
+   cosh/sinh). Its tolerances are chosen to catch regressions, not to
+   certify precision; the K and Airy transition bands use loose guards
+   (~1e-8 relative) because those are documented limits, not defects.
+4. New Batch-1 modules (`optim_n`, `ode_sys`, `spectral`, `stats_inv`, `sde`,
    `pde`, `harmonic`, `mcmc`, `manifold`, `info`, `analytic_nt`, `control`)
    have **no oracle coverage** and inherit no precision guarantee until
    oracle vectors exist for them. See `docs/API_STATUS.md`.

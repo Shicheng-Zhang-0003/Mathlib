@@ -48,3 +48,43 @@ These limitations are design choices, not hidden defects.
   claim now holds for the full tree; re-verify with
   `grep -n "static double\|static float\|static int\|static long double\|static cplx\|static uint" src/*.c`
   (expect only `static` helper *functions*, which are stateless).
+
+---
+
+## v12R2 Accuracy Audit
+
+An independent audit (mpmath 50-dps references, ULP-measured) repaired the
+following. `tests/test_edge_accuracy_audit.c` pins the results as a
+regression guard (282 assertions). Per `PRECISION_CONTRACT.md` this is a
+regression guard, not an oracle-tier precision certification.
+
+| Function | Before | After | Note |
+|---|---|---|---|
+| `ml_erfc` | ~1064 ULP | <=0.7 ULP | Laplace CF + convergent series, long double |
+| `ml_bessel_j0/j1/y0/y1` | ~1e-3 rel | <=4e-13 rel | Hankel P/Q, least-term asymptotics |
+| `ml_bessel_i0/i1` | exact | exact | |
+| `ml_bessel_k0/k1` | ~1e9 rel | <=5e-9 rel | transition band x~8-10; needs Temme for more |
+| `ml_airy_ai` | wrong coefficients | <=5e-9 rel | DLMF 9.7.5/9.7.6, recurrence c_k=c_{k-1}(6k-5)(6k-1)/(72k) |
+| `ml_digamma` | ~70 ULP | <=2 ULP (pos) | Kahan recurrence + Stirling to x^-12 |
+| `ml_jacobi_symbol` | wrong sign | exact | reciprocity test, negative a, n>2^63 |
+| `ml_exp10` | ~1e-16 rel | <=1 ULP | corrected residual constant |
+| `ml_cosh` | overflow at 710 | <=1 ULP | corrected ML_HALF_EXP_709 |
+
+Known remaining limits (documented, not defects):
+
+- `ml_bessel_k0/k1` in 8 < x < 10: ~1e-9 relative. The ascending series
+  cancels like exp(x^2/4) and the asymptotic bottoms out at exp(-2x); the
+  elementary method cannot do better. Temme's uniform expansion is required.
+- `ml_airy_ai` in 5 < x < 6: ~5e-9 relative. Same reason: the Taylor series
+  loses digits to cancellation while the asymptotic is still converging.
+- `ml_digamma` for x < 0: ~10 ULP at x=-0.5 via the reflection formula.
+- `ml_airy_ai` for |x| > 1e6: degrades as the phase zeta = (2/3)x^{3/2}
+  loses digits to rounding; inherent to double precision.
+
+- `ml_lgamma` near its zeros (x=2, x~3.5626): ~700 ULP. The Lanczos sum
+  cancels ~3 digits there, and lgamma itself is near zero, so the relative
+  error blows up. lgamma is <=1 ULP for x>=8 and <=7 ULP for x in
+  [1e-3, 0.5]. A local series expansion around the zeros would be needed
+  to do better; this is intrinsic to the Lanczos/Stirling method.
+- `ml_gamma` inherits lgamma's error amplified by lgamma(x): ~21 ULP at
+  x~6.7 (lgamma~6), consistent with the documented ~1e-15 lgamma error.
