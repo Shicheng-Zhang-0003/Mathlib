@@ -625,6 +625,32 @@ if (x < 0.5) {
         long double q = pi / denom;
         double r = (double)q;
         if (ml_isfinite(r) && r != 0.0) return r;
+    } else if (x > -1.0) {
+        /* (-1,0) recurrence in LD (exact x+1, no double rounding):
+         * gamma(x)=gamma(x+1)/x. Fixes -0.9 (1 ULP via reflection
+         * sin/G/division triple rounding); -0.1 already 0, kept. */
+        long double x1 = (long double)x + 1.0L;
+        long double Ls = __builtin_lgammal(x1);
+        if (ml_isfinite((double)Ls) || Ls == 0.0L) {
+            long double lr = __builtin_expl(Ls) / (long double)x;
+            double r = (double)lr;
+            if (ml_isfinite(r) && r != 0.0) return r;
+        }
+    } else {
+        /* Non-half (e.g. -0.1, -0.9, the last 1-ULP oracle vectors):
+         * full-LD reflection sinl(pi_LD*x) + lgammal + expl, single round.
+         * Previous double sinpi + double denom + DD division held 1 ULP. */
+        long double pi = (long double)ML_PI_HI_D + (long double)ML_PI_LO_D;
+        long double pix = (long double)x * pi;
+        long double sn = __builtin_sinl(pix);
+        if (sn != 0.0L && ml_isfinite((double)sn)) {
+            long double Ls = __builtin_lgammal((long double)pos_arg);
+            if (ml_isfinite((double)Ls) || Ls == 0.0L) {
+                long double lr = pi / (sn * __builtin_expl(Ls));
+                double r = (double)lr;
+                if (ml_isfinite(r) && r != 0.0) return r;
+            }
+        }
     }
 #endif
     /* Full pi (HI+LO) for ~0.5 ULP gain over HI-only. Double-double
