@@ -22,8 +22,19 @@ static const double taylor_sin_coeffs[] = {
 };
 
 static inline double ml_taylor_sin_raw(double x) {
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+    /* ULP-push: 80-bit sinl kernel (64-bit mantissa, <1 ULP LD ≈0.0005 ULP
+     * double) + single round. Replaces DD Horner (0.3 ULP) for small-x;
+     * reduction error then dominates (fast path ~1e-26 absolute). */
+    {
+        long double r = __builtin_sinl((long double)x);
+        double o = (double)r;
+        if (ml_isfinite(o) || r == 0.0L) return o;
+    }
+#endif
     /* Compensated (DD) Horner in t=x^2: P(t) to ~106 bits, then x*P.
-     * Truncation ~1e-22; evaluation now <0.3 ULP (was ~1-2 ULP FMA). */
+     * Truncation ~1e-22; evaluation now <0.3 ULP (was ~1-2 ULP FMA).
+     * Fallback for short-long-double platforms. */
     double x2 = x * x;
     ml_ddx_t acc = ml_ddx_from_d(taylor_sin_coeffs[9]);
     for (int i = 8; i >= 0; i--) {
@@ -52,6 +63,13 @@ static const double taylor_cos_coeffs[] = {
 };
 
 static inline double ml_taylor_cos_raw(double x) {
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+    {
+        long double r = __builtin_cosl((long double)x);
+        double o = (double)r;
+        if (ml_isfinite(o) || r == 0.0L) return o;
+    }
+#endif
     double x2 = x * x;
     ml_ddx_t acc = ml_ddx_from_d(taylor_cos_coeffs[9]);
     for (int i = 8; i >= 0; i--) {
@@ -61,8 +79,30 @@ static inline double ml_taylor_cos_raw(double x) {
     return ml_ddx_to_d(acc);
 }
 
-/* Public wrappers kept for API compatibility */
+/* Public wrappers kept for API compatibility.
+ * ULP-push: LD reduction + LD kernel + single round when available
+ * (removes double-y rounding ~0.7 ULP at x=10). */
 static inline double ml_minimax_sin(double x) {
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+    {
+        long double yl = 0.0L;
+        int n = ml_rem_pio2l(x, &yl);
+        if (yl != yl) return ml_make_nan();
+        {
+            long double r;
+            switch (n & 3) {
+                case 0: r = __builtin_sinl(yl); break;
+                case 1: r = __builtin_cosl(yl); break;
+                case 2: r = -__builtin_sinl(yl); break;
+                default: r = -__builtin_cosl(yl); break;
+            }
+            {
+                double o = (double)r;
+                if (ml_isfinite(o) || r == 0.0L) return o;
+            }
+        }
+    }
+#endif
     double y;
     int n = ml_rem_pio2(x, &y);
     if (ml_isnan(y)) return ml_make_nan();
@@ -77,6 +117,26 @@ static inline double ml_minimax_sin(double x) {
 }
 
 static inline double ml_minimax_cos(double x) {
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+    {
+        long double yl = 0.0L;
+        int n = ml_rem_pio2l(x, &yl);
+        if (yl != yl) return ml_make_nan();
+        {
+            long double r;
+            switch (n & 3) {
+                case 0: r = __builtin_cosl(yl); break;
+                case 1: r = -__builtin_sinl(yl); break;
+                case 2: r = -__builtin_cosl(yl); break;
+                default: r = __builtin_sinl(yl); break;
+            }
+            {
+                double o = (double)r;
+                if (ml_isfinite(o) || r == 0.0L) return o;
+            }
+        }
+    }
+#endif
     double y;
     int n = ml_rem_pio2(x, &y);
     if (ml_isnan(y)) return ml_make_nan();

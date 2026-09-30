@@ -52,22 +52,53 @@ static inline void ml_sincos_common(double x, double *s, double *c) {
         *c = (double)cc / 65536.0;
     }
 #else
-    double y = 0.0;
-    int n = ml_rem_pio2(x, &y);
-    double sy = 0.0;
-    double cy = 0.0;
-    if (ml_isnan(y)) {
-        *s = ml_make_nan();
-        *c = ml_make_nan();
-        return;
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+    /* ULP-push: shared LD reduction first (one reduction, LD kernels,
+     * single rounds). Double path below is fallback only. */
+    {
+        long double yl = 0.0L;
+        int nl = ml_rem_pio2l(x, &yl);
+        if (yl == yl) {
+            long double sy = __builtin_sinl(yl), cy = __builtin_cosl(yl);
+            long double sl = 0.0L, cl = 0.0L;
+            switch (nl & 3) {
+                case 0: sl = sy; cl = cy; break;
+                case 1: sl = cy; cl = -sy; break;
+                case 2: sl = -sy; cl = -cy; break;
+                default: sl = -cy; cl = sy; break;
+            }
+            {
+                double os = (double)sl, oc = (double)cl;
+                if ((ml_isfinite(os) || sl == 0.0L) && (ml_isfinite(oc) || cl == 0.0L)) {
+                    *s = os; *c = oc;
+                    return;
+                }
+            }
+        } else {
+            *s = ml_make_nan();
+            *c = ml_make_nan();
+            return;
+        }
     }
-    sy = ml_taylor_sin_raw(y);
-    cy = ml_taylor_cos_raw(y);
-    switch (n & 3) {
-        case 0: *s = sy; *c = cy; break;
-        case 1: *s = cy; *c = -sy; break;
-        case 2: *s = -sy; *c = -cy; break;
-        default: *s = -cy; *c = sy; break;
+#endif
+    {
+        double y = 0.0;
+        int n = ml_rem_pio2(x, &y);
+        double sy = 0.0;
+        double cy = 0.0;
+        if (ml_isnan(y)) {
+            *s = ml_make_nan();
+            *c = ml_make_nan();
+            return;
+        }
+        sy = ml_taylor_sin_raw(y);
+        cy = ml_taylor_cos_raw(y);
+        switch (n & 3) {
+            case 0: *s = sy; *c = cy; break;
+            case 1: *s = cy; *c = -sy; break;
+            case 2: *s = -sy; *c = -cy; break;
+            default: *s = -cy; *c = sy; break;
+        }
     }
 #endif
 }

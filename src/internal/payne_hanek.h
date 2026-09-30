@@ -211,4 +211,87 @@ static inline int ml_rem_pio2(double x, double *y) {
     return ml_rem_pio2_large(x, y);
 }
 
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+/* LD reduction: returns reduced argument in long double (no double rounding
+ * of y). Fast path reconstructs in LD; large path returns pre-cast LD.
+ * ULP-push: double-y rounding cost ~0.7 ULP at x=10 (y≈0.5, ULP(y)≈1e-16,
+ * sin'≈0.8). LD-y + sinl single round removes it. */
+static inline int ml_rem_pio2l_large(double x, long double *yl);
+static inline int ml_rem_pio2l(double x, long double *yl) {
+    if (ml_isnan(x) || ml_isinf(x)) {
+        *yl = (long double)ml_make_nan();
+        return 0;
+    }
+    {
+        double ax = ml_fabs(x);
+        if (ax <= 1.0e6) {
+            double fn = ml_round(x * ML_PH_TWO_OVER_PI);
+            long long n_ll = (long long)fn;
+            int n = (int)(n_ll % 4);
+            if (n < 0) n += 4;
+            {
+                double p = fn * ML_PH_PIO2_HI;
+                double p_err = ML_FMA(fn, ML_PH_PIO2_HI, -p);
+                double r1_err = 0.0;
+                double r1 = ml_two_sum(x, -p, &r1_err);
+                (void)r1;
+                {
+                    long double rl = ((long double)x - (long double)p)
+                        + ((long double)r1_err - (long double)p_err
+                           - (long double)fn * (long double)ML_PH_PIO2_LO);
+                    *yl = rl;
+                    return n;
+                }
+            }
+        }
+    }
+    return ml_rem_pio2l_large(x, yl);
+}
+static inline int ml_rem_pio2l_large(double x, long double *yl) {
+    /* Full LD slow path: identical sweep to ml_rem_pio2_large but returns
+     * the pre-cast long double result (saves ULP(y)/2 double rounding).
+     * Slow-path fractional error still dominates for huge |x|, but the
+     * rounding floor is removed. */
+    uint64_t bits;
+    double ax = ml_fabs(x);
+    int sign = (x < 0.0);
+    memcpy(&bits, &ax, sizeof(uint64_t));
+    {
+        int biased_e = (int)((bits >> 52) & 0x7FF);
+        int E = biased_e - 1075;
+        uint64_t m = (bits & 0x000FFFFFFFFFFFFFULL) | (1ULL << 52);
+        double m_hi = (double)(m >> 25);
+        double m_lo = (double)(m & 0x1FFFFFFULL);
+        int n = 0;
+        long double frac_acc = 0.0L;
+        long double frac_comp = 0.0L;
+        for (int k = 0; k <= 65; k++) {
+            double tk = (double)ml_two_over_pi[k];
+            int base_shift = E - 24 * k - 24;
+            double prod_hi = m_hi * tk;
+            ml_ph_process_term(prod_hi, base_shift + 25, &n, &frac_acc, &frac_comp);
+            double prod_lo = m_lo * tk;
+            ml_ph_process_term(prod_lo, base_shift, &n, &frac_acc, &frac_comp);
+        }
+        {
+            int extra = (int)(long long)frac_acc;
+            n = (n + (extra & 3)) & 3;
+            long double frac = frac_acc - (long double)extra + frac_comp;
+            if (frac > 0.5L) { frac -= 1.0L; n = (n + 1) & 3; }
+            if (frac < -0.5L) { frac += 1.0L; n = (n + 3) & 3; }
+            {
+                long double result = frac * (long double)ML_PH_PI2_HI
+                                   + frac * (long double)ML_PH_PI2_LO;
+                if (sign) {
+                    result = -result;
+                    n = (4 - n) & 3;
+                }
+                *yl = result;
+                return n;
+            }
+        }
+    }
+}
+#endif
+
 #endif /* LIBMATHC_PAYNE_HANEK_H */
