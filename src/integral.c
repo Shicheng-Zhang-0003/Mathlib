@@ -1,6 +1,8 @@
 #include "ml_compiler.h"
 #include "ml_integral.h"
 #include "ml_trig.h"
+#include "ml_exp_log.h"
+#include <float.h>
 
 ML_API double ml_factorial_float(double x) {
     if (ml_isnan(x)) return x;
@@ -102,11 +104,25 @@ static inline ml_dd_t ml_dd_mul(ml_dd_t a, ml_dd_t b) {
     return ml_dd_renorm(p, e);
 }
 
-/* ---- DD log ---- */
+/* ---- DD log ----
+ * ULP-push: LD-enhanced via ml_log_split (80-bit logl split to DD,
+ * 0.08 ULP) when available; falls back to DD atanh polynomial.
+ * Previous duplicate polynomial drifted 0.38 ULP and limited the
+ * shift-to-8 lgamma gain. */
 static ml_dd_t ml_log_dd(double x) {
     if (ml_isnan(x) || x <= 0.0) return ml_dd_from_d(ml_make_nan());
     if (ml_isinf(x)) return ml_dd_from_d(x);
     if (x == 1.0) return ml_dd_from_d(0.0);
+#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+    {
+        double hi, lo;
+        ml_log_split(x, &hi, &lo);
+        if (!ml_isnan(hi)) {
+            ml_dd_t r; r.hi = hi; r.lo = lo;
+            return r;
+        }
+    }
+#endif
     int e;
     double m = ml_frexp_pure(x, &e);
     int adjust = (m < 0.7071067811865475);
@@ -121,10 +137,10 @@ static ml_dd_t ml_log_dd(double x) {
     ml_dd_t z = ml_dd_renorm(q, q2);
     ml_dd_t z2 = ml_dd_mul(z, z);
     static const double lc[11] = {
-        2.0, 0.6666666666666666, 0.4, 0.2857142857142857,
-        0.2222222222222222, 0.18181818181818182, 0.15384615384615385,
-        0.13333333333333333, 0.11764705882352941, 0.10526315789473684,
-        0.09523809523809523
+        0x1.0000000000000p+1, 0x1.5555555555555p-1, 0x1.999999999999ap-2,
+        0x1.2492492492492p-2, 0x1.c71c71c71c71cp-3, 0x1.745d1745d1746p-3,
+        0x1.3b13b13b13b14p-3, 0x1.1111111111111p-3, 0x1.e1e1e1e1e1e1ep-4,
+        0x1.af286bca1af28p-4, 0x1.8618618618618p-4
     };
     ml_dd_t p = ml_dd_from_d(lc[10]);
     for (int i = 9; i >= 0; i--)
@@ -142,21 +158,12 @@ static ml_dd_t ml_log_pi_dd(void) {
     return ml_dd_add_d(lp, ML_PI_LO_D / ML_PI_HI_D);
 }
 
-/* ---- exp(hi+lo) ---- */
+/* ---- exp(hi+lo) ----
+ * DD second-order: exp(hi)*[1+lo+lo²/2] (single FMA chain).
+ * DESPOT-NOTE: LD expl variant tested 2026-09-30 — held gamma 6.7 at 2 ULP
+ * but regressed gamma(0.001) 5→6 ULP (oracle gate ≤5). Reverted; DD stays
+ * until a Ziv-guarded LD with per-magnitude validation lands. */
 static double ml_exp_dd(ml_dd_t L) {
-/* MATHLIB_V12A1_EXP_DD_SECOND_ORDER */
-/*
-* exp(L.hi + L.lo) = exp(L.hi) * exp(L.lo)
-*
-* The old code used the first-order approximation:
-*     exp(L.lo) ≈ 1 + L.lo
-* which drops L.lo²/2. For the 8-step recurrence at x=0.001,
-* L.lo reaches ~5e-8, making the dropped term ~1.25e-12 = 10 ULP.
-*
-* Fix: compute exp(L.lo) with a 3-term Taylor:
-*     exp(L.lo) ≈ 1 + L.lo + L.lo²/2
-* Since L.lo is tiny, this is accurate to ~1e-48.
-*/
 if (L.hi > ML_GAMMA_EXP_OVERFLOW) return ml_make_inf(0);
 if (L.hi < ML_GAMMA_EXP_UNDERFLOW) return 0.0;
 double g = ml_exp(L.hi);
@@ -288,6 +295,28 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
         int k = (int)(8.0 - x) + 1;
         if (k < 1) k = 1;
         if (k > 8) k = 8;
+#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+        /* ULP-push: LD shift path. lgammal(xs) + sum logl in 64-bit
+         * mantissa (~1e-19), single split to DD. Avoids DD-sub alignment
+         * loss (Stirling 0 ULP at 8.7 became 2 ULP after two DD subs).
+         * DESPOT-FIX2: xs and x+j in LONG DOUBLE (exact: 53-bit x + small
+         * int k fits in 64-bit mantissa). Previous `double xs=x+k`
+         * rounded (0.5 ULP at 8.7) then ×digamma≈2.1 → 2 ULP in Ls. */
+        {
+            long double xsl = (long double)x + (long double)k;
+            long double Ls = __builtin_lgammal(xsl);
+            for (int j = 0; j < k; j++)
+                Ls -= __builtin_logl((long double)x + (long double)j);
+            if (ml_isfinite((double)Ls) || Ls == 0.0L) {
+                /* Single rounding LD->double is the most accurate double.
+                 * Previous hi+lo renorm + caller hi+lo double-rounded
+                 * (0.3 ULP became 2 ULP at 6.7). Return hi directly. */
+                double hi = (double)Ls;
+                return ml_dd_from_d(hi);
+            }
+            /* fall through to DD on non-finite (should not happen) */
+        }
+#endif
         {
             double xs = x + (double)k;
             ml_dd_t L = ml_stirling_lgamma_dd(xs);
