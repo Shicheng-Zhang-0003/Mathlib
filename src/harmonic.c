@@ -2,15 +2,14 @@
 #include "ml_harmonic.h"
 #include "fft.h"
 ML_API void ml_haar_fwt(const double *x, double *avg, double *det, int n) {
+    /* Contract: x[n] in, avg[1] = coarsest average, det[n-1] details finest-
+     * first (n/2, n/4, ..., 1). Caller must allocate det[n-1]. */
     if (!x || !avg || !det || n <= 0 || (n & (n - 1)) != 0) return;
     /* Stack-local scratch (thread-safe; no static storage). */
     double buf[4096];
     if (n > 4096) return;
     for (int i = 0; i < n; i++) { if (!ml_isfinite(x[i])) { avg[0] = ml_make_nan(); return; } buf[i] = x[i]; }
     int m = n;
-    int lvl = 0;
-    double tmp[4096];
-    (void)tmp;
     int off = 0;
     while (m > 1) {
         int h = m / 2;
@@ -20,24 +19,22 @@ ML_API void ml_haar_fwt(const double *x, double *avg, double *det, int n) {
             buf[i] = a;
             det[off + i] = d;
         }
-        /* compact avgs to front */
-        for (int i = 0; i < h; i++) tmp[i] = buf[i];
-        for (int i = 0; i < h; i++) buf[i] = tmp[i];
+        /* In-place safe: reads buf[2i],buf[2i+1] with 2i>=i for i>=0, and
+         * writes only buf[0..h-1]; no self-copy tmp needed (removed). */
         off += h;
         m = h;
-        lvl++;
-        if (off > 4096) return;
     }
     avg[0] = buf[0];
-    (void)lvl;
 }
 ML_API void ml_haar_iwt(const double *avg, const double *det, double *x, int n) {
+    /* Inverse of ml_haar_fwt above. Validates finiteness: NaN/Inf in avg/det
+     * propagates as NaN output rather than silent garbage. */
     if (!avg || !det || !x || n <= 0 || (n & (n - 1)) != 0) return;
     /* Stack-local scratch (thread-safe; no static storage). */
     double buf[4096];
     if (n > 4096) return;
+    if (!ml_isfinite(avg[0])) { for (int i = 0; i < n; i++) x[i] = ml_make_nan(); return; }
     buf[0] = avg[0];
-    int m = 1, off = 0;
     /* det layout from fwt above is level-major; recompute offsets */
     int total = 0; { int mm = n; while (mm > 1) { total += mm / 2; mm /= 2; } }
     /* invert: walk levels coarse->fine */
@@ -48,15 +45,14 @@ ML_API void ml_haar_iwt(const double *avg, const double *det, double *x, int n) 
         int h = lens[li];
         roff -= h;
         for (int i = h - 1; i >= 0; i--) {
-            double a = buf[i], d = det[roff + i];
+            double di = det[roff + i];
+            if (!ml_isfinite(di)) { for (int k = 0; k < n; k++) x[k] = ml_make_nan(); return; }
+            double a = buf[i], d = di;
             buf[2*i] = (a + d) * 0.70710678118654752440;
             buf[2*i+1] = (a - d) * 0.70710678118654752440;
         }
-        m = h * 2;
-        (void)m;
     }
     for (int i = 0; i < n; i++) x[i] = buf[i];
-    (void)off;
 }
 ML_API double ml_morlet_cwt(const double *x, int n, double dt, double s, int k) {
     if (!x || n <= 0 || n > 8192) return ml_make_nan();

@@ -3,6 +3,9 @@
 #include "ml_compiler.h"
 #include "ml_core.h"
 #include "ml_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 ML_API ml_status_t ml_proj_sphere(const double *x, double *y, int n);
 /* Thin-QR Stiefel projection (MGS + one re-orthogonalization pass).
  * Orthonormalizes A's columns; NOT the polar-factor nearest point in
@@ -11,4 +14,7 @@ ML_API ml_status_t ml_proj_sphere(const double *x, double *y, int n);
 ML_API ml_status_t ml_proj_stiefel(const double *A, double *Q, int m, int n);
 ML_API ml_status_t ml_exp_sphere(const double *x, const double *v, double *y, int n);
 ML_API double ml_sphere_dist(const double *x, const double *y, int n);
+#ifdef __cplusplus
+}
+#endif
 #endif

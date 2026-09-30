@@ -32,7 +32,7 @@ static inline int64_t ml_i64_asr(int64_t value, int shift) {
         return value >> shift;
     }
 
-    int64_t divisor = (int64_t)1 << shift;
+    int64_t divisor = (int64_t)1LL << shift;
     int64_t pos = -value;
 
     /*
@@ -60,7 +60,7 @@ static inline ml_q16_16_t ml_q16_asr(ml_q16_16_t value, int shift) {
         return (ml_q16_16_t)(v >> shift);
     }
 
-    int64_t divisor = (int64_t)1 << shift;
+    int64_t divisor = (int64_t)1LL << shift;
     int64_t pos = -v;
     int64_t rounded = (pos + divisor - 1) >> shift;
 

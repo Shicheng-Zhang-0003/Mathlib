@@ -507,6 +507,12 @@ ML_API double ml_determinant(ml_tensor_view_t A, ml_workspace_t* ws) {
                 for (int i = 0; i < n; i++) {
                     if (P[i] != i) swaps++;
                     det *= ML_TENSOR_AT(LU, i, i);
+                    /* DESPOT-AUDIT: overflow guard. Product of U diagonal
+                     * can overflow to Inf silently; propagate as Inf only
+                     * when the true determinant overflows (all factors
+                     * finite). Non-finite factor here means LU already
+                     * singular/overflowed upstream. */
+                    if (!ml_isfinite(det)) break;
                 }
                 /* Parity via permutation sign: count inversions of P. */
                 {
@@ -778,6 +784,7 @@ ML_API ml_status_t ml_jacobi_eigen_symmetric(ml_tensor_view_t A, double *evals,
         {
             const long double eps = 2.220446049250313e-16L;
             const long double tol = eps * eps * fnorm;
+            long double off_last = 0.0L;
             for (int sw = 0; sw < max_sweeps; sw++) {
             long double off = 0.0L;
             for (int i = 0; i < n; i++) {
@@ -786,8 +793,9 @@ ML_API ml_status_t ml_jacobi_eigen_symmetric(ml_tensor_view_t A, double *evals,
                     off += v * v;
                 }
             }
-            if (!(off > 0.0L)) break;
-            if (off <= tol) break;
+            if (!(off > 0.0L)) { off_last = 0.0L; break; }
+            if (off <= tol) { off_last = off; break; }
+            off_last = off;
             for (int p = 0; p < n - 1; p++) {
                 for (int q2 = p + 1; q2 < n; q2++) {
                     double apq = w[(size_t)p * sn + (size_t)q2];
@@ -828,6 +836,11 @@ ML_API ml_status_t ml_jacobi_eigen_symmetric(ml_tensor_view_t A, double *evals,
                 }
             }
             }
+            /* DESPOT-AUDIT: fail-loud non-convergence. Previous code always
+             * returned SUCCESS even when off>tol after max_sweeps, leaving
+             * evals unsorted and silently wrong. Now SINGULAR on exhaustion
+             * (no CONVERGENCE code exists yet; see ml_types.h). */
+            if (off_last > tol) return ML_ERR_SINGULAR;
         }
         for (int i = 0; i < n; i++) evals[i] = w[(size_t)i * sn + (size_t)i];
         return ML_SUCCESS;

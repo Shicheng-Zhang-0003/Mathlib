@@ -47,12 +47,26 @@ ML_API ml_status_t ml_proj_stiefel(const double *A, double *Q, int m, int n) {
 }
 ML_API ml_status_t ml_exp_sphere(const double *x, const double *v, double *y, int n) {
     if (!x || !v || !y || n <= 0 || n > 256) return ML_ERR_INVALID_ARG;
-    long double nv = 0, dot = 0;
+    long double nv = 0, dot = 0, nx = 0;
     for (int i = 0; i < n; i++) {
         if (!ml_isfinite(x[i]) || !ml_isfinite(v[i])) return ML_ERR_NAN_INPUT;
         nv += (long double)v[i]*v[i]; dot += (long double)x[i]*v[i];
+        nx += (long double)x[i]*x[i];
     }
-    if (ml_fabs((double)dot) > 1e-12) return ML_ERR_INVALID_ARG;
+    /* DESPOT-AUDIT: enforce unit basepoint |x|=1 (was unchecked, silently
+     * producing off-manifold y). Tolerance 1e-12 absolute on ||x|-1| plus
+     * scale-aware tangency |<x,v>| <= 1e-12*(1+|x||v|). */
+    {
+        long double nmx = __builtin_sqrtl(nx);
+        if (!ml_isfinite((double)nmx) || __builtin_fabsl(nmx - 1.0L) > 1e-12L)
+            return ML_ERR_INVALID_ARG;
+    }
+    {
+        long double sv = __builtin_sqrtl(nv);
+        long double nmx = __builtin_sqrtl(nx);
+        long double tol = 1e-12L * (1.0L + nmx * sv);
+        if (__builtin_fabsl(dot) > (double)tol) return ML_ERR_INVALID_ARG;
+    }
     long double th = __builtin_sqrtl(nv);
     if (th == 0) { for (int i = 0; i < n; i++) y[i] = x[i]; return ML_SUCCESS; }
     long double c = __builtin_cosl(th), s = __builtin_sinl(th) / th;
@@ -61,10 +75,33 @@ ML_API ml_status_t ml_exp_sphere(const double *x, const double *v, double *y, in
 }
 ML_API double ml_sphere_dist(const double *x, const double *y, int n) {
     if (!x || !y || n <= 0 || n > 4096) return ml_make_nan();
-    long double d = 0;
+    /* DESPOT-AUDIT: stable small-angle form d=2*asin(|x-y|/2) instead of
+     * acos(<x,y>) (cancellation for d~0). Falls back to acos-clamp only if
+     * the chord path is non-finite. Inputs must be unit (tolerance 1e-9 on
+     * |norm-1|); non-unit returns NaN rather than a misleading angle. */
+    long double chord2 = 0, d = 0, nx = 0, ny = 0;
     for (int i = 0; i < n; i++) {
         if (!ml_isfinite(x[i]) || !ml_isfinite(y[i])) return ml_make_nan();
+        long double df = (long double)x[i] - (long double)y[i];
+        chord2 += df * df;
         d += (long double)x[i]*(long double)y[i];
+        nx += (long double)x[i]*(long double)x[i];
+        ny += (long double)y[i]*(long double)y[i];
+    }
+    {
+        long double nmx = __builtin_sqrtl(nx), nmy = __builtin_sqrtl(ny);
+        if (!ml_isfinite((double)nmx) || !ml_isfinite((double)nmy)) return ml_make_nan();
+        if (__builtin_fabsl(nmx - 1.0L) > 1e-9L || __builtin_fabsl(nmy - 1.0L) > 1e-9L) return ml_make_nan();
+    }
+    {
+        long double half = __builtin_sqrtl(chord2) * 0.5L;
+        if (half < 0) half = 0;
+        if (half > 1.0L) half = 1.0L;
+        /* 2*asin is accurate for small d; for antipodal d~pi both forms
+         * agree to ~1 ULP. */
+        long double r = 2.0L * __builtin_asinl(half);
+        double o = (double)r;
+        if (ml_isfinite(o)) return o;
     }
     if (d > 1.0L) { d = 1.0L; }
     if (d < -1.0L) { d = -1.0L; }

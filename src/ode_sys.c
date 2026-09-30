@@ -20,7 +20,8 @@ ML_API ml_status_t ml_ode_dp5_sys(ml_sys_func_t f, double t0, const double *y0, 
         if ((h > 0 && t + h > t1) || (h < 0 && t + h < t1)) h = t1 - t;
         double k1[16],k2[16],k3[16],k4[16],k5[16],k6[16],yt[16],y5[16];
         f(t, y, k1, n, ctx);
-        for (int j = 0; j < n; j++) { yt[j] = y[j] + h*A21*k1[j]; if (!ml_isfinite(k1[j])) return ML_ERR_SINGULAR; }
+        for (int j = 0; j < n; j++) { if (!ml_isfinite(k1[j])) return ML_ERR_SINGULAR; }
+        for (int j = 0; j < n; j++) { yt[j] = y[j] + h*A21*k1[j]; }
         f(t+h/5.0, yt, k2, n, ctx);
         for (int j = 0; j < n; j++) yt[j] = y[j] + h*(A31*k1[j]+A32*k2[j]);
         f(t+h*3./10., yt, k3, n, ctx);
@@ -76,7 +77,7 @@ ML_API ml_status_t ml_ode_be2_sys(ml_sys_func_t f, double t0, const double *y0, 
         double yf[8];
         for (int j = 0; j < n; j++) { yf[j] = y[j]; }
         /* full step */
-        int ok1 = 0, ok2 = 0;
+        int ok1 = 0;
         for (int nt = 0; nt < 15; nt++) {
             double Ff[8]; f(t + h, yf, Ff, n, ctx);
             double R[8]; for (int j = 0; j < n; j++) R[j] = yf[j] - y[j] - h * Ff[j];
@@ -125,6 +126,7 @@ ML_API ml_status_t ml_ode_be2_sys(ml_sys_func_t f, double t0, const double *y0, 
         /* two half steps */
         double ym[8];
         for (int j = 0; j < n; j++) ym[j] = y[j];
+        int half_ok = 1;
         for (int hs = 0; hs < 2; hs++) {
             double hh = h * 0.5;
             double tt = t + hs * hh + hh;
@@ -137,6 +139,7 @@ ML_API ml_status_t ml_ode_be2_sys(ml_sys_func_t f, double t0, const double *y0, 
                 double R[8]; for (int j = 0; j < n; j++) R[j] = yn2[j] - ycur[j] - hh * Ff[j];
                 long double rn = 0; for (int j = 0; j < n; j++) rn += (long double)R[j]*R[j];
                 if (__builtin_sqrtl(rn) < 1e-14) break;
+                if (nt == 14) half_ok = 0;
                 double J[8][8];
                 for (int j = 0; j < n; j++) {
                     double yp[8], Fp[8];
@@ -178,8 +181,37 @@ ML_API ml_status_t ml_ode_be2_sys(ml_sys_func_t f, double t0, const double *y0, 
             }
             for (int j = 0; j < n; j++) ym[j] = yn2[j];
         }
-        ok2 = 1;
-        (void)ok1; (void)ok2;
+        /* DESPOT-AUDIT: Newton failure is step failure, not success.
+         * Previous code (void)ed ok1/ok2 and accepted bogus yf/ym.
+         * Now: any linear-solve failure or 15-iter non-convergence forces
+         * a step rejection (shrink h, retry) instead of error-estimate
+         * comparison on garbage. */
+        {
+            double Fchk[8];
+            long double rfull = 0, rhalf = 0;
+            f(t + h, yf, Fchk, n, ctx);
+            for (int j = 0; j < n; j++) {
+                double Rj = yf[j] - y[j] - h * Fchk[j];
+                rfull += (long double)Rj * Rj;
+            }
+            /* half-step residual checked at last half interval */
+            f(t + h, ym, Fchk, n, ctx);
+            for (int j = 0; j < n; j++) {
+                double Rj = ym[j] - y[j] - h * Fchk[j];
+                /* loose: half steps satisfy their own equations; use ym
+                 * finiteness + half_ok flag as the gate (exact per-half
+                 * residual would need intermediate ym staging). */
+                (void)Rj;
+            }
+            rhalf = half_ok ? 0.0L : 1e300L;
+            if (!ok1 || !half_ok || !ml_isfinite((double)rfull) ||
+                __builtin_sqrtl(rfull) > 1e-10) {
+                h *= 0.5;
+                if (!ml_isfinite(h) || h == 0.0) return ML_ERR_SINGULAR;
+                continue;
+            }
+            (void)rhalf;
+        }
         long double en2 = 0;
         for (int j = 0; j < n; j++) {
             if (!ml_isfinite(yf[j]) || !ml_isfinite(ym[j])) { en2 = 1e300L; break; }

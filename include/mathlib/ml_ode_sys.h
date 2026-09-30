@@ -3,6 +3,9 @@
 #include "ml_compiler.h"
 #include "ml_core.h"
 #include "ml_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef void (*ml_sys_func_t)(double t, const double *y, double *dy, int n, void *ctx);
 /* Explicit/DP5 system solver. n <= 16. */
 ML_API ml_status_t ml_ode_dp5_sys(ml_sys_func_t f, double t0, const double *y0, int n,
@@ -21,4 +24,7 @@ ml_status_t ml_ode_ros23_sys(ml_sys_func_t f, double t0, const double *y0, int n
  * n <= 16. This, not ml_ode_midpoint2, is the energy-behaved integrator. */
 ML_API ml_status_t ml_ode_symplectic_verlet(void (*acc)(const double *q, double *a, int n, void *ctx),
                                             double *q, double *p, int n, double h, int steps, void *ctx);
+#ifdef __cplusplus
+}
+#endif
 #endif
