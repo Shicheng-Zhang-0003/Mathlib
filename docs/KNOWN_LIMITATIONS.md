@@ -21,9 +21,10 @@ These limitations are design choices, not hidden defects.
   double range up to ~1.8e308. `sin(1e50)` and `cos(1e300)` produce
   finite, correct results.
 
-- **A1 closure freeze is in effect.** No new modules, APIs, or math
-  families are permitted. Only closure fixes, tests, validation,
-  and documentation alignment are allowed.
+- **A1 closure freeze is lifted for the despot audit.** v12R2 shipped 12
+  Batch-1 modules plus kelvin (34 TUs); the freeze document is historical.
+  No further silent scope creep: CMake/Makefile/run_all_tests.py/
+  run_edge_tests.sh canonical lists must match (34 TUs).
 
 - **Gamma uses Lanczos g=7 n=9.** This coefficient set has ~1e-15
   intrinsic approximation error. Half-integers bypass Lanczos entirely

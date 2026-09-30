@@ -2,7 +2,7 @@
 
 v12R2 is the refinement cycle following the v12A1 architectural evolution.
 
-v12A1 proved the architecture. v12R2 fixes critical bugs, improves numerical accuracy, and adds 12 new Batch-1 modules.
+v12A1 proved the architecture. v12R2 fixes critical bugs, improves numerical accuracy, and adds 12 new Batch-1 modules + kelvin (34 TUs).
 
 <!-- MATHLIB_V12A1_DOCS_ALIGNMENT -->
 v12R2 key fixes:
@@ -36,6 +36,15 @@ New Batch-1 modules (v12R2):
 - `ml_info` — entropy, KL, cross-entropy, discrete MI, logistic, softplus
 - `ml_analytic_nt` — Hurwitz zeta (stub for s≤1,a≠1), Dirichlet eta, theta3, partition p, complex zeta
 - `ml_control` — 2x2 LQR (Newton-Kleinman), 1D Kalman, Lyapunov trace margin
+- `ml_kelvin` — ber/bei/ker/kei series + asymptotic (XMAX=20)
+
+Despot audit (2026-09-30, see `docs/DESPOT_AUDIT.md`): exp2 subnormal, remainder
+long-double quotient, crt2 `%q` fix, kronecker INT64_MIN, mobius sentinel,
+mult_order exact reduction, cross_entropy +Inf, MH rejection accounting, SDE
+ctx variants + forward-only dt, BE2 Newton fail-loud, CG/GMRES relative tol,
+SVD/Jacobi scale-invariant stops + convergence signals, kelvin Inf, fixed-point
+rounding, DST-I alias, Haar/manifold contracts, EMBEDDED rsqrt, new status
+codes, `extern "C"` throughout, 34-TU build coherence.
 
 ## Build
 
@@ -55,10 +64,10 @@ python3 run_all_tests.py
 <!-- MATHLIB_V12A1_A1_FREEZE -->
 A1 closure is **complete** with R2 refinements.
 
-- Oracle validation: **212 passed, 0 failed** (all functions ≤ 5 ULP vs mpmath ground truth)
-- Full test gauntlet: **31/32 passed** (modular, smoke, edge, fuzz, oracle, boundary)
+- Oracle validation: **212 passed, 0 failed** (7 core families ≤ 5 ULP vs mpmath 50-dps ground truth; see `docs/PRECISION_CONTRACT.md`)
+- Full test gauntlet: modular, smoke, edge (23 suites), fuzz, oracle, boundary — all passing in despot re-verification (oracle 212/0, god-mode 61393/0, boundary 25/0)
 - Closure gate: **PASSED**
-- Thread-safety: **verified** — no per-call mutable static state in any TU
+- Thread-safety: **verified** — no per-call mutable static state in any TU (grep + build; no TSan/helgrind evidence claimed)
 
 See `docs/V12A1_ROADMAP.md` for the work plan.
 See `release_notes.md` for the v12R2 refinement summary.

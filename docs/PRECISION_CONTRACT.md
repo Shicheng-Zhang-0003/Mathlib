@@ -6,9 +6,9 @@ another. This table resolves the split.
 
 | Tier | Ground truth | Gate | What it proves |
 | :--- | :--- | :--- | :--- |
-| **Oracle** (`tests/test_oracle.c` + `tests/oracle_data.h`) | mpmath at 80 decimal places | **<= 5 ULP** per call, all 7 families (sin, cos, exp, log, gamma, lgamma, pow), 212 vectors | Numerical accuracy of the validated core. This is the only tier that certifies precision. |
+| **Oracle** (`tests/test_oracle.c` + `tests/oracle_data.h`) | mpmath at 50 decimal places (`scripts/oracles/generate_oracles.py: mp.dps=50`; sufficient for double ULP work) | **<= 5 ULP** per call, all 7 families (sin, cos, exp, log, gamma, lgamma, pow), 212 vectors | Numerical accuracy of the validated core. This is the only tier that certifies precision. |
 | **Smoke / modular** (`tests/test.c`, `test_core`, `test_trig`, `test_linalg`, `test_dsp`) | Self-agreement / mathematical identities (e.g. `fft_dc`, round-trip solves) | Loose absolute `ASSERT_NEAR` tolerances (`1e-9` … `1e-15`); at magnitude ~1, `1e-12` is ~4500 ULP | No-crash, no-NaN, plausible-output smoke coverage. A pass here is **not** a precision claim. |
-| **Edge directed** (`tests/test_edge_*.c`, 22 suites / 441 assertions) | Exact IEEE-754 / boundary expectations (signed zero, Inf/NaN guards, `fmod` identities, domain clamps) | Exact or near-exact match on directed cases (`1e-15` on identities such as `atan2(±0,-1) == ±π`) | Boundary and special-value correctness. Covers branches the oracle grid never hits. |
+| **Edge directed** (`tests/test_edge_*.c`, 23 suites / 700+ assertions) | Exact IEEE-754 / boundary expectations (signed zero, Inf/NaN guards, `fmod` identities, domain clamps) | Exact or near-exact match on directed cases (`1e-15` on identities such as `atan2(±0,-1) == ±π`) | Boundary and special-value correctness. Covers branches the oracle grid never hits. |
 
 Rules:
 
@@ -25,6 +25,11 @@ Rules:
    certify precision; the K and Airy transition bands use loose guards
    (~1e-8 relative) because those are documented limits, not defects.
 4. New Batch-1 modules (`optim_n`, `ode_sys`, `spectral`, `stats_inv`, `sde`,
-   `pde`, `harmonic`, `mcmc`, `manifold`, `info`, `analytic_nt`, `control`)
-   have **no oracle coverage** and inherit no precision guarantee until
-   oracle vectors exist for them. See `docs/API_STATUS.md`.
+    `pde`, `harmonic`, `mcmc`, `manifold`, `info`, `analytic_nt`, `control`,
+    `kelvin`)
+    have **no oracle coverage** and inherit no precision guarantee until
+    oracle vectors exist for them. See `docs/API_STATUS.md`.
+5. Despot audit (2026-09-30): targeted regression `/tmp/opencode/mathlib-work/
+   despot_check` pins the fixed semantics (exp2 subnormal, crt2 24/30,
+   cross_entropy +Inf, ber/bei NaN, sphere unit gates, fixed-point rounding).
+   It is a contract guard, not a ULP certification.
