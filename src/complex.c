@@ -106,8 +106,6 @@ ML_API cplx ml_cplx_sqrt(cplx a) {
         }
         if (ml_isinf(a.real)) {
             if (a.real > 0.0) {
-                double m = ml_fabs(a.imag);
-                (void)m;
                 return (cplx){ml_make_inf(0), ml_copysign(ml_make_inf(0), a.imag)};
             }
             return (cplx){0.0, ml_copysign(ml_make_inf(0), a.imag)};
@@ -116,7 +114,8 @@ ML_API cplx ml_cplx_sqrt(cplx a) {
     }
     {
         double r = ml_cplx_abs(a);
-        if (r == 0.0) return (cplx){ml_copysign(0.0, a.real), ml_copysign(0.0, a.imag)};
+        /* C99 Annex G: csqrt(-0,+0) = (+0,+0). Force +0 real for zero input. */
+        if (r == 0.0) return (cplx){0.0, ml_copysign(0.0, a.imag)};
         {
             double re = ml_sqrt((r + a.real) * 0.5);
             double im = ml_sqrt((r - a.real) * 0.5);

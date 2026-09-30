@@ -3,6 +3,9 @@
 
 #include "ml_compiler.h"
 #include "ml_core.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* FIX: Added const to non-mutating coefficient arrays */
 /* Polynomial contract:
@@ -20,4 +23,7 @@ ML_API double ml_polynomial_eval(const double *coeffs, int degree, double x);
 ML_API void ml_polynomial_derivative(const double *coeffs, int degree, double *out);
 ML_API double ml_polynomial_newton(const double *coeffs, int degree, double x0, double epsilon, int max_iter);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_POLYNOMIAL_H */

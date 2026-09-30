@@ -3,6 +3,9 @@
 
 #include "ml_compiler.h"
 #include "ml_core.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 ML_API double ml_exp(double x);
 ML_API double ml_log(double x);
@@ -34,4 +37,7 @@ ML_API double ml_asinh(double x);
 ML_API double ml_acosh(double x);
 ML_API double ml_atanh(double x);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_EXP_LOG_H */

@@ -4,13 +4,16 @@
 #include <stdint.h>
 #include <string.h>
 #include "ml_core.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
- * v11S AUDIT IP-1:
- * These helpers are still experimental, but they are now safe against:
- *   - unbounded integer casts
- *   - NaN / Inf misuse
- *   - obvious mantissa-balancing bugs
+ * DEPRECATED (despot audit): legacy inline log/exp below are naive series
+ * (7-term log, 15-term exp, single-term reduction, subnormal flush at
+ * new_exp <= 0). They are an order of magnitude less accurate than
+ * src/exp_log.c and NOTHING in src/ includes this header. Do not use for
+ * new code; kept only for ABI archaeology. Prefer ml_log/ml_exp.
  * ========================================================================== */
 
 ML_INLINE double logarithm_ieee754(double x) {
@@ -104,4 +107,7 @@ ML_INLINE double exponential_ieee754(double x) {
     return final_res;
 }
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* LIBMATHC_IEEE754_H */

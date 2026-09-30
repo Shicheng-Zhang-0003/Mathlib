@@ -661,10 +661,12 @@ ML_API double ml_exp2(double x) {
     if (ml_isinf(x)) return (x > 0.0) ? ml_make_inf(0) : 0.0;
     if (x == 0.0) return 1.0;
     if (x >= 1024.0) return ml_make_inf(0);
-    if (x < -1074.0) return 0.0;
+    /* DESPOT-AUDIT: subnormal edge. 2^x for x in (-1075,-1074) rounds to
+     * DBL_TRUE_MIN (2^-1074), not zero. Only x < -1075.0 flushes to zero
+     * under round-to-nearest. Previous cutoff <-1074.0 lost min subnormal. */
+    if (x < -1075.0) return 0.0;
     {
-        double n = ml_round(x);
-        /* Use floor semantics via round-then-fix for negatives. */
+        /* Floor semantics via trunc-then-fix for negatives. */
         double fl = (x >= 0.0) ? ml_trunc(x) : (ml_trunc(x) - ((x == ml_trunc(x)) ? 0.0 : 1.0));
         double f = x - fl;
         double p;
@@ -683,7 +685,6 @@ ML_API double ml_exp2(double x) {
                 p = ML_FMA(g, elo, 0.0);
             }
         }
-        (void)n;
         return ml_ldexp_pure(p, (int)fl);
     }
 }
@@ -931,7 +932,11 @@ ML_API double ml_exp10(double x) {
 }
 
 ML_API double ml_erfinv(double p) {
-    /* Winitzki/Strecok initial + 3 Halley steps via erf. */
+    /* Acklam rational starter (via normal_inv relation
+     * erfinv(p) = inv_cdf((p+1)/2)/sqrt(2)) + 5 Newton steps via erf.
+     * Contract: p in (-1,1); p = +/-1 returns NaN (limit is +/-Inf).
+     * NaN is the fail-loud choice: callers must handle tails explicitly
+     * rather than receive a silent Inf that overflows downstream. */
     if (ml_isnan(p)) return p;
     if (p <= -1.0 || p >= 1.0) {
         if (p == 0.0) return p;
@@ -939,9 +944,7 @@ ML_API double ml_erfinv(double p) {
     }
     if (p == 0.0) return p;
     {
-        double w = -ml_log((1.0 - p) * (1.0 + p));
         double x;
-        (void)w;
         /* Acklam-style central starter via normal_inv relation:
          * erfinv(p) = inv_cdf((p+1)/2)/sqrt(2). Reuse rational below. */
         {
@@ -1042,7 +1045,6 @@ ML_API double ml_coth(double x) {
         double r = (1.0 + e) / denom;
         /* coth = (1+e)/(1-e); 1+e computed directly is exact here
          * since e in (0,1); denom above is the accurate part. */
-        (void)e;
         return ml_copysign(r, x);
     }
 }

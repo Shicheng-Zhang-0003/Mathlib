@@ -248,25 +248,28 @@ ML_API double ml_hypot(double x, double y) {
 }
 
 ML_API double ml_remainder(double x, double y) {
-    /* C99 remainder: x - n*y with n=rint_half_even(x/y). */
+    /* C99 remainder: x - n*y with n=rint_half_even(x/y).
+     * DESPOT-AUDIT: n is selected from the long-double quotient so a true
+     * quotient within ~1 ULP of a half-integer tie cannot pick the wrong
+     * neighbor due to double rounding of x/y. Final step is single FMA. */
     if (ml_isnan(x) || ml_isnan(y)) return ml_make_nan();
     if (ml_isinf(x) || y == 0.0) return ml_make_nan();
     if (ml_isinf(y)) return x;
     if (x == 0.0) return x;
     {
-        double q = x / y;
-        double aq = ml_fabs(q);
+        long double ql = (long double)x / (long double)y;
+        long double aql = ql >= 0 ? ql : -ql;
         double n;
-        if (!(aq < 9007199254740992.0)) {
-            n = q;
+        if (!(aql < 9007199254740992.0L)) {
+            n = (double)ql;
         } else {
-            double f = ml_floor(aq);
-            double d = aq - f;
+            double f = ml_floor((double)aql);
+            double d = (double)(aql - (long double)f);
             double ni;
             if (d < 0.5) ni = f;
             else if (d > 0.5) ni = f + 1.0;
             else ni = (ml_fmod(f, 2.0) == 0.0) ? f : f + 1.0;
-            n = ml_copysign(ni, q);
+            n = ml_copysign(ni, (double)ql);
         }
         return ML_FMA(-n, y, x);
     }

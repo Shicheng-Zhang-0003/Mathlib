@@ -32,6 +32,10 @@ ML_API void ml_polynomial_derivative(const double *coeffs, int degree, double *o
     if (ML_UNLIKELY(coeffs == NULL || out == NULL || degree < 0)) {
         return;
     }
+    /* DESPOT-AUDIT: degree==0 has no derivative coefficients; contract says
+     * "fills with NaN" on bad input — degree 0 is vacuous, return without
+     * touching out (no coefficients to write). Documented in header. */
+    if (degree == 0) return;
     /* Finite-input validation: non-finite coefficients -> NaN outputs. */
     for (int i = 0; i <= degree; i++) {
         if (ML_UNLIKELY(!ml_isfinite(coeffs[i]))) {

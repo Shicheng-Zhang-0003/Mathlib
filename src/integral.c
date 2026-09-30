@@ -758,10 +758,9 @@ ML_API double ml_carlson_rf(double x, double y, double z) {
             double ep = ax > ay ? ax : ay;
             ep = ep > az ? ep : az;
             if (ep < 1e-3) {
-                double e2 = dx * dy - dz * dz;
-                /* Carlson: e2 = dx*dy+dy*dz+dz*dx but dx+dy+dz=0 so
-                 * dx*dy+dy*dz+dz*dx = dx*dy - dz^2 when dz=-(dx+dy)? Use full. */
-                e2 = dx * dy + dy * dz + dz * dx;
+                /* Carlson: e2 = dx*dy+dy*dz+dz*dx (dx+dy+dz=0 constrained).
+                 * DESPOT-AUDIT: removed dead first e2 assignment. */
+                double e2 = dx * dy + dy * dz + dz * dx;
                 {
                     double e3 = dx * dy * dz;
                     double s = ml_rf_poly(e2, e3);

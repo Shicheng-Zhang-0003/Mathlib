@@ -4,6 +4,9 @@
 
 #include "ml_compiler.h"
 #include "ml_exp_log.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef MATHLIB_PI
 #define MATHLIB_PI ML_PI
@@ -44,4 +47,7 @@ ML_API double ml_hyp2f1(double a, double b, double c, double z);
 ML_API double ml_hyp1f1(double a, double b, double z);
 ML_API double ml_zeta(double s);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_INTEGRAL_H */

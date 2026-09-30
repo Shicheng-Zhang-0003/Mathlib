@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <string.h>
 #include "ml_compiler.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Safe IEEE-754 Specials (UBSan-proof, MSVC-compatible) */
 static inline double ml_make_inf(int negative) {
@@ -69,4 +72,7 @@ ML_API double ml_fmin(double x, double y);
 #define ML_LN2 0.693147180559945309417
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* ML_CORE_H */

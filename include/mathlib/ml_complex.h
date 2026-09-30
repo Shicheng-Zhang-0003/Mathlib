@@ -5,6 +5,9 @@
 #include "ml_core.h"
 #include "ml_exp_log.h"
 #include "ml_trig.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct { double real; double imag; } cplx;
 
@@ -24,4 +27,7 @@ ML_API cplx ml_cplx_power(cplx a, cplx b);
 ML_API cplx ml_cplx_sqrt(cplx a);
 ML_API cplx ml_cplx_nth_root(cplx a, int n, int k);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* LIBMATHC_ML_COMPLEX_H */
