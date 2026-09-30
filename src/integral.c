@@ -390,24 +390,58 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
     return ml_lgamma_lanczos_dd(x);
 }
 
-/* ---- Positive-domain gamma dispatch ---- */
+/* ---- Positive-domain gamma dispatch ----
+ * ULP-push: LD direct path (lgamma in LD + expl single round) for x>=2
+ * non-half. Previous DD (lgamma DD hi-direct + exp_dd double exp) held
+ * gamma 6.7 at 2 ULP even with lgamma 0 ULP (exp(hi) 0.5-1 ULP + lo drop).
+ * LD holds <1 ULP typical; half-integers keep exact product (0 ULP). */
 static double ml_gamma_positive(double x) {
-/* MATHLIB_V12A1_GAMMA_DIVIDE_FIX */
-/*
-* For x >= 8: Stirling DD -> exp.
-* For half-integers: exact product formula.
-* For 0 < x < 8: use the DD lgamma path (log subtraction),
-*   then exponentiate. This avoids the product-then-divide
-*   approach which introduced two extra double roundings.
-*/
 if (x >= 8.0) {
-ml_dd_t L = ml_stirling_lgamma_dd(x);
-return ml_exp_dd(L);
+#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+    {
+        long double Ls = __builtin_lgammal((long double)x);
+        if (ml_isfinite((double)Ls) || Ls == 0.0L) {
+            long double lr = __builtin_expl(Ls);
+            double r = (double)lr;
+            if (ml_isfinite(r) && r != 0.0) return r;
+        }
+    }
+#endif
+    ml_dd_t L = ml_stirling_lgamma_dd(x);
+    return ml_exp_dd(L);
 }
 if (ml_is_half_integer(x)) {
-return ml_gamma_half_positive(x);
+    return ml_gamma_half_positive(x);
 }
-/* DD log-subtract-then-exp: same path as lgamma, proven accurate */
+#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+    if (x >= 2.0) {
+        long double Ls;
+        {
+            int k = (int)(8.0 - x) + 1;
+            if (k < 1) k = 1;
+            if (k > 8) k = 8;
+            long double xsl = (long double)x + (long double)k;
+            Ls = __builtin_lgammal(xsl);
+            for (int j = 0; j < k; j++)
+                Ls -= __builtin_logl((long double)x + (long double)j);
+        }
+        if (ml_isfinite((double)Ls) || Ls == 0.0L) {
+            long double lr = __builtin_expl(Ls);
+            double r = (double)lr;
+            if (ml_isfinite(r) && r != 0.0) return r;
+        }
+    } else if (x >= 0.5) {
+        /* [0.5,2): lgammal direct in LD (covers 1.1 for gamma 0.1 path?
+         * No, 0.1 uses recurrence below; this is 0.5<=x<2 direct). */
+        long double Ls = __builtin_lgammal((long double)x);
+        if (ml_isfinite((double)Ls) || Ls == 0.0L) {
+            long double lr = __builtin_expl(Ls);
+            double r = (double)lr;
+            if (ml_isfinite(r) && r != 0.0) return r;
+        }
+    }
+#endif
+/* DD log-subtract-then-exp fallback: same path as lgamma */
 ml_dd_t L = ml_lgamma_positive_dd(x);
 return ml_exp_dd(L);
 }
