@@ -27,13 +27,22 @@ ML_API double ml_kl_div(const double *p, const double *q, int n) {
 }
 ML_API double ml_cross_entropy(const double *p, const double *q, int n) {
     if (!p || !q || n <= 0) return ml_make_nan();
+    /* DESPOT-AUDIT: H(p)+KL(p||q) with support mismatch is +Inf, not NaN.
+     * Previous code mapped any non-finite h/kl to NaN, hiding the legitimate
+     * +Inf case (p>0 where q==0). Propagate Inf; NaN only for bad input. */
     double h = ml_entropy(p, n), kl = ml_kl_div(p, q, n);
-    if (!ml_isfinite(h) || !ml_isfinite(kl)) return ml_make_nan();
+    if (ml_isnan(h) || ml_isnan(kl)) return ml_make_nan();
+    if (!ml_isfinite(h) || !ml_isfinite(kl)) {
+        if (ml_isinf(h) || ml_isinf(kl)) {
+            /* +Inf dominates: support mismatch. -Inf cannot occur here. */
+            return ml_make_inf(0);
+        }
+        return ml_make_nan();
+    }
     return h + kl;
 }
 ML_API double ml_mi_discrete(const double *joint, int nr, int nc) {
     if (!joint || nr <= 0 || nc <= 0 || nr > 1024 || nc > 1024) return ml_make_nan();
-    long double *pm = 0; (void)pm;
     /* Stack-local marginals (was static): thread-safe, no cross-call state. */
     long double pr[1024], pc[1024];
     for (int i = 0; i < nr; i++) pr[i] = 0;

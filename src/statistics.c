@@ -362,8 +362,10 @@ ML_API double ml_median(const double *data, int n, double *tmp) {
 
 ML_API double ml_covariance(const double *x, const double *y, int n) {
     /* Sample covariance (divide by n-1), matching ml_variance_s.
-     * Contrast ml_variance, which is population (divide by n). */
-    if (ML_UNLIKELY(!x || !y || n <= 0)) return ml_make_nan();
+     * Contrast ml_variance, which is population (divide by n).
+     * DESPOT-AUDIT: n<=1 has no degrees of freedom -> NaN (was 0.0 for
+     * n==1, inconsistent with variance_s). */
+    if (ML_UNLIKELY(!x || !y || n <= 1)) return ml_make_nan();
     {
         double mx = 0.0, my = 0.0;
         for (int i = 0; i < n; i++) {
@@ -378,7 +380,7 @@ ML_API double ml_covariance(const double *x, const double *y, int n) {
             c = (t - s) - p;
             s = t;
         }
-        return (n > 1) ? s / (double)(n - 1) : 0.0;
+        return s / (double)(n - 1);
     }
 }
 

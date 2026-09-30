@@ -3,6 +3,9 @@
 #include "ml_compiler.h"
 #include "ml_core.h"
 #include "ml_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef double (*ml_sde_drift_t)(double t, double x, void *ctx);
 typedef double (*ml_sde_diff_t)(double t, double x, void *ctx);
 ML_API ml_status_t ml_sde_euler_maruyama(ml_sde_drift_t a, ml_sde_diff_t b, double t0, double x0,
@@ -10,6 +13,18 @@ ML_API ml_status_t ml_sde_euler_maruyama(ml_sde_drift_t a, ml_sde_diff_t b, doub
 ML_API ml_status_t ml_sde_milstein(ml_sde_drift_t a, ml_sde_diff_t b,
                                    double (*dbdx)(double t, double x, void *ctx),
                                    double t0, double x0, double t1, int steps, uint64_t seed, double *x1);
+/* DESPOT-AUDIT: ctx-threading variants (legacy above passes NULL ctx).
+ * Backward integration (t1<t0) is rejected: Wiener sqrt(|dt|) is
+ * direction-free but drift/Milstein correction assume forward time. */
+ML_API ml_status_t ml_sde_euler_maruyama_ctx(ml_sde_drift_t a, ml_sde_diff_t b,
+                                             double t0, double x0, double t1,
+                                             int steps, uint64_t seed,
+                                             double *x1, void *ctx);
+ML_API ml_status_t ml_sde_milstein_ctx(ml_sde_drift_t a, ml_sde_diff_t b,
+                                       double (*dbdx)(double t, double x, void *ctx),
+                                       double t0, double x0, double t1,
+                                       int steps, uint64_t seed,
+                                       double *x1, void *ctx);
 /* Mean-only pinned bridge E[W_t | W_0=a, W_T=wT] = a+(wT-a)*t/T.
  * b is kept for API symmetry and ignored (must equal wT for a pinned
  * bridge). Deterministic: for a random draw use ml_brownian_bridge_sample. */
@@ -21,4 +36,7 @@ ML_API double ml_brownian_bridge_mean(double t, double T, double a, double b, do
  * stream, deterministic in seed (seed 0 falls back to a fixed nonzero). */
 ML_API double ml_brownian_bridge_sample(double a, double b, double T, double t, uint64_t seed);
 ML_API double ml_ou_exact(double x0, double theta, double mu, double sigma, double t, double dw);
+#ifdef __cplusplus
+}
+#endif
 #endif

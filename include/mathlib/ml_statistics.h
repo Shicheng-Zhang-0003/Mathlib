@@ -5,6 +5,9 @@
 #include "ml_core.h"
 #include "ml_combinatorics.h"
 #include "ml_exp_log.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* FIX: Added const to non-mutating data arrays */
 ML_API double ml_mean(const double *data, int n);
@@ -41,4 +44,7 @@ ML_API double ml_beta_cdf(double x, double a, double b);
 ML_API double ml_student_t_cdf(double t, int nu);
 ML_API double ml_f_cdf(double x, int d1, int d2);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_STATISTICS_H */

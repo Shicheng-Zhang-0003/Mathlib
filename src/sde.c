@@ -19,12 +19,17 @@ ML_API ml_status_t ml_sde_euler_maruyama(ml_sde_drift_t a, ml_sde_diff_t b, doub
     if (!ml_isfinite(t0) || !ml_isfinite(t1) || !ml_isfinite(x0)) return ML_ERR_NAN_INPUT;
     double dt = (t1 - t0) / steps;
     if (!ml_isfinite(dt) || dt == 0.0) return ML_ERR_INVALID_ARG;
+    /* Backward integration (t1<t0, dt<0) is rejected: the Wiener increment
+     * sqrt(|dt|)*N is direction-free but the drift/discretization assumes
+     * forward time. Callers must integrate forward. */
+    if (!(dt > 0.0)) return ML_ERR_INVALID_ARG;
     uint64_t s = seed ? seed : 0x123456789ABCDEFULL;
     double t = t0, x = x0;
     for (int i = 0; i < steps; i++) {
         double ai = a(t, x, 0), bi = b(t, x, 0);
         if (!ml_isfinite(ai) || !ml_isfinite(bi)) return ML_ERR_SINGULAR;
-        double dW = __builtin_sqrt(ml_fabs(dt)) * ml_sde_normal(&s);
+        /* dt>0 enforced above, so fabs(dt)==dt; kept explicit for clarity. */
+        double dW = __builtin_sqrt(dt) * ml_sde_normal(&s);
         x += ai * dt + bi * dW;
         t += dt;
         if (!ml_isfinite(x) || !ml_isfinite(t)) return ML_ERR_SINGULAR;
@@ -39,12 +44,13 @@ ML_API ml_status_t ml_sde_milstein(ml_sde_drift_t a, ml_sde_diff_t b,
     if (!ml_isfinite(t0) || !ml_isfinite(t1) || !ml_isfinite(x0)) return ML_ERR_NAN_INPUT;
     double dt = (t1 - t0) / steps;
     if (!ml_isfinite(dt) || dt == 0.0) return ML_ERR_INVALID_ARG;
+    if (!(dt > 0.0)) return ML_ERR_INVALID_ARG;
     uint64_t s = seed ? seed : 0x123456789ABCDEFULL;
     double t = t0, x = x0;
     for (int i = 0; i < steps; i++) {
         double ai = a(t, x, 0), bi = b(t, x, 0), di = dbdx(t, x, 0);
         if (!ml_isfinite(ai) || !ml_isfinite(bi) || !ml_isfinite(di)) return ML_ERR_SINGULAR;
-        double dW = __builtin_sqrt(ml_fabs(dt)) * ml_sde_normal(&s);
+        double dW = __builtin_sqrt(dt) * ml_sde_normal(&s);
         x += ai * dt + bi * dW + 0.5 * bi * di * (dW * dW - dt);
         t += dt;
         if (!ml_isfinite(x)) return ML_ERR_SINGULAR;
@@ -104,4 +110,50 @@ ML_API double ml_ou_exact(double x0, double theta, double mu, double sigma, doub
     if (var < 0) var = 0;
     double r = (double)((long double)mu + ((long double)x0 - (long double)mu) * e1 + (long double)sigma * __builtin_sqrtl(var) * (long double)dw);
     return ml_isfinite(r) ? r : ml_make_nan();
+}
+/* DESPOT-AUDIT: ctx-threading variants. Legacy ml_sde_euler_maruyama /
+ * ml_sde_milstein pass NULL ctx (closures impossible). New _ctx entry
+ * points thread user state through; legacy wrappers delegate with NULL. */
+ML_API ml_status_t ml_sde_euler_maruyama_ctx(ml_sde_drift_t a, ml_sde_diff_t b,
+                                             double t0, double x0, double t1,
+                                             int steps, uint64_t seed,
+                                             double *x1, void *ctx) {
+    if (!a || !b || !x1 || steps <= 0 || steps > 1000000) return ML_ERR_INVALID_ARG;
+    if (!ml_isfinite(t0) || !ml_isfinite(t1) || !ml_isfinite(x0)) return ML_ERR_NAN_INPUT;
+    double dt = (t1 - t0) / steps;
+    if (!ml_isfinite(dt) || !(dt > 0.0)) return ML_ERR_INVALID_ARG;
+    uint64_t s = seed ? seed : 0x123456789ABCDEFULL;
+    double t = t0, x = x0;
+    for (int i = 0; i < steps; i++) {
+        double ai = a(t, x, ctx), bi = b(t, x, ctx);
+        if (!ml_isfinite(ai) || !ml_isfinite(bi)) return ML_ERR_SINGULAR;
+        double dW = __builtin_sqrt(dt) * ml_sde_normal(&s);
+        x += ai * dt + bi * dW;
+        t += dt;
+        if (!ml_isfinite(x) || !ml_isfinite(t)) return ML_ERR_SINGULAR;
+    }
+    *x1 = x;
+    return ML_SUCCESS;
+}
+ML_API ml_status_t ml_sde_milstein_ctx(ml_sde_drift_t a, ml_sde_diff_t b,
+                                       double (*dbdx)(double t, double x, void *ctx),
+                                       double t0, double x0, double t1,
+                                       int steps, uint64_t seed,
+                                       double *x1, void *ctx) {
+    if (!a || !b || !dbdx || !x1 || steps <= 0 || steps > 1000000) return ML_ERR_INVALID_ARG;
+    if (!ml_isfinite(t0) || !ml_isfinite(t1) || !ml_isfinite(x0)) return ML_ERR_NAN_INPUT;
+    double dt = (t1 - t0) / steps;
+    if (!ml_isfinite(dt) || !(dt > 0.0)) return ML_ERR_INVALID_ARG;
+    uint64_t s = seed ? seed : 0x123456789ABCDEFULL;
+    double t = t0, x = x0;
+    for (int i = 0; i < steps; i++) {
+        double ai = a(t, x, ctx), bi = b(t, x, ctx), di = dbdx(t, x, ctx);
+        if (!ml_isfinite(ai) || !ml_isfinite(bi) || !ml_isfinite(di)) return ML_ERR_SINGULAR;
+        double dW = __builtin_sqrt(dt) * ml_sde_normal(&s);
+        x += ai * dt + bi * dW + 0.5 * bi * di * (dW * dW - dt);
+        t += dt;
+        if (!ml_isfinite(x)) return ML_ERR_SINGULAR;
+    }
+    *x1 = x;
+    return ML_SUCCESS;
 }

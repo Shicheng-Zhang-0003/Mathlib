@@ -29,10 +29,23 @@ ML_API ml_status_t ml_mh_sample_ctx(ml_logpdf_t logp, const double *x0, int n, u
     for (int t = 0; t < steps; t++) {
         for (int j = 0; j < n; j++) prop[j] = cur[j] + proposal_std * ml_mcmc_normal(&s);
         double plp = logp(prop, n, ctx);
-        if (!ml_isfinite(plp)) continue;
+        /* DESPOT-AUDIT: a non-finite proposal is a REJECTION, not a skip.
+         * Previous `continue` advanced t without accumulating, shrinking the
+         * effective sample while the denominator steps-steps/2 overcounted.
+         * Stay at cur, count as rejection, still accumulate post-burn-in. */
+        if (!ml_isfinite(plp)) {
+            int burn = steps / 2;
+            if (t >= burn) for (int j = 0; j < n; j++) sum[j] += cur[j];
+            /* RNG draw still consumed for the accept test to keep the stream
+             * deterministic independent of accept/reject path. */
+            (void)ml_mcmc_rng(&s);
+            continue;
+        }
         double alpha = plp - cur_lp;
         double u = (double)(ml_mcmc_rng(&s) >> 11) * (1.0 / 9007199254740992.0);
-        double lu = __builtin_log(u + 1e-300);
+        /* u in (0,1): u==0 has prob 2^-53 and maps to -Inf (never accept),
+         * which is the correct MH behavior. No 1e-300 shift. */
+        double lu = (u <= 0.0) ? -ml_make_inf(0) : __builtin_log(u);
         if (lu < alpha) { for (int j = 0; j < n; j++) cur[j] = prop[j]; cur_lp = plp; acc += 1.0L; }
         int burn = steps / 2;
         if (t >= burn) for (int j = 0; j < n; j++) sum[j] += cur[j];

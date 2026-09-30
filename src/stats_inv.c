@@ -3,6 +3,11 @@
 #include "ml_integral.h"
 #include "ml_statistics.h"
 ML_API double ml_gamma_inv(double p, double a, double b) {
+    /* Bracket-expansion + bisection on the monotone CDF. Robust (no
+     * divergence) but slow (~200 CDF evals) and tail-limited: when the
+     * forward CDF underflows to 0/1 in far tails the midpoint stalls and
+     * the bracket midpoint is returned. For production quantiles use an
+     * asymptotic starter + Newton polish (deferred to v12A2). */
     if (ml_isnan(p) || ml_isnan(a) || ml_isnan(b)) return ml_make_nan();
     if (!(p > 0.0) || !(p < 1.0)) { if (p == 0.0) return 0.0; if (p == 1.0) return ml_make_inf(0); return ml_make_nan(); }
     if (!(a > 0.0) || !(b > 0.0) || !ml_isfinite(a) || !ml_isfinite(b)) return ml_make_nan();
@@ -15,11 +20,15 @@ ML_API double ml_gamma_inv(double p, double a, double b) {
         double c = ml_gamma_cdf(mid, a, b);
         if (!ml_isfinite(c)) return ml_make_nan();
         if (c < p) lo = mid; else hi = mid;
-        if (hi - lo <= 1e-14 * (1.0 + hi)) break;
+        /* Relative stop: absolute 1e-14 loses relative precision near 0. */
+        if (hi - lo <= 1e-13 * (1.0 + ml_fabs(lo) + ml_fabs(hi))) break;
     }
     return lo * 0.5 + hi * 0.5;
 }
 ML_API double ml_beta_inv(double p, double a, double b) {
+    /* Same contract as gamma_inv. Bracket is fixed [0,1]; stop is relative
+     * in the quantile (absolute 1e-15 over-resolves central, under-resolves
+     * 1e-300 tails). */
     if (ml_isnan(p) || ml_isnan(a) || ml_isnan(b)) return ml_make_nan();
     if (!(p > 0.0) || !(p < 1.0)) { if (p == 0.0) return 0.0; if (p == 1.0) return 1.0; return ml_make_nan(); }
     if (!(a > 0.0) || !(b > 0.0) || !ml_isfinite(a) || !ml_isfinite(b)) return ml_make_nan();
@@ -30,7 +39,7 @@ ML_API double ml_beta_inv(double p, double a, double b) {
         double c = ml_beta_cdf(mid, a, b);
         if (!ml_isfinite(c)) return ml_make_nan();
         if (c < p) lo = mid; else hi = mid;
-        if (hi - lo < 1e-15) break;
+        if (hi - lo <= 1e-13 * (1.0 + ml_fabs(lo) + ml_fabs(hi))) break;
     }
     return lo * 0.5 + hi * 0.5;
 }
