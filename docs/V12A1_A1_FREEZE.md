@@ -1,6 +1,10 @@
-# v12A1 A1 Feature Freeze
+# v12A1 A1 Feature Freeze — SUPERSEDED by v12R2 / V1.2-RC2
 
 <!-- MATHLIB_V12A1_A1_FREEZE -->
+<!-- DESPOT-SUPERSEDE 2026-09-30: A1 freeze lifted. v12R2 shipped 12 Batch-1
+     modules + kelvin (34 TUs) plus despot audit fixes. This document is
+     historical. Canonical scope is now CMake/Makefile/run_all_tests.py/
+     run_edge_tests.sh (34 TUs) + docs/DESPOT_AUDIT.md. -->
 
 Subsection: 1.1
 Effective: 2026-08-05

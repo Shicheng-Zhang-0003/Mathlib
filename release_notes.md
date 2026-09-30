@@ -1,16 +1,17 @@
-# MathLib v12R2 — R2 Refinement Release
+# MathLib v12R2 — R2 Refinement Release (Public: V1.2-RC2)
 
-**Tag:** v12R2-refinement
-**Date:** 2026-09-27
-**Oracle:** 212 passed, 0 failed (all functions ≤ 5 ULP vs mpmath 80-digit ground truth)
-**Gate:** Full closure gate passed (build, modular, edge, fuzz, boundary, oracle)
+**Internal tag:** v12R2
+**Public tag:** V1.2-RC2 (`V1.2-RC2 == v12R2`, same commit)
+**Date:** 2026-09-30
+**Oracle:** 212 passed, 0 failed (7 core families sin, cos, exp, log, gamma, lgamma, pow ≤ 5 ULP vs mpmath 50-dps ground truth; see `docs/PRECISION_CONTRACT.md`)
+**Gate:** Full closure gate passed (build, modular, edge 23 suites, fuzz, boundary, oracle, sanitizers)
 
 ---
 
 ## What v12R2 Is
 
 v12R2 is the refinement cycle following the v12A1 architectural evolution release.
-v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs, improves numerical accuracy, achieves full thread-safety, and adds 12 new Batch-1 modules.
+v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs, improves numerical accuracy, achieves full thread-safety, and adds 12 Batch-1 modules + kelvin (34 TUs total).
 
 ## Key Fixes in v12R2
 
@@ -84,17 +85,26 @@ v12A1 replaced approximations with the real thing. v12R2 fixes critical bugs, im
 | **info** | `ml_info.h` | `ml_entropy`, `ml_kl_div`, `ml_cross_entropy`, `ml_mi_discrete`, `ml_logistic`, `ml_softplus` |
 | **analytic_nt** | `ml_analytic_nt.h` | `ml_hurwitz_zeta` (stub for s≤1,a≠1), `ml_dirichlet_eta_cplx`, `ml_theta3`, `ml_partition_p`, `ml_zeta_cplx` |
 | **control** | `ml_control.h` | `ml_lqr_gain_2x2`, `ml_kalman_1d`, `ml_lyapunov_2x2_trace` |
+| **kelvin** | `ml_kelvin.h` | `ml_kelvin_ber/bei/ker/kei` (series + asym XMAX=20; ber/bei(Inf)=NaN) |
+
+Despot audit 2026-09-30 (see `docs/DESPOT_AUDIT.md`): exp2 subnormal, remainder
+long-double quotient, crt2 `%q`, kronecker INT64_MIN, mobius sentinel,
+mult_order exact, cross_entropy +Inf, MH rejection, SDE `_ctx` + forward-only,
+BE2 fail-loud, CG/GMRES relative tol, SVD/Jacobi scale-invariant stops,
+kelvin Inf, fixed-point rounding, DST-I alias, Haar/manifold contracts,
+EMBEDDED rsqrt, new status codes, `extern "C"`, 34-TU coherence.
 
 ---
 
 ## Test Results
 
-- **Oracle:** 212 passed, 0 failed (sin, cos, exp, log, gamma, lgamma, pow — all ≤ 5 ULP)
-- **Edge tests:** 22 suites, all passed (441 assertions)
-- **Fuzzers:** fuzz_god_mode, fuzz_boundary — all passed
+- **Oracle:** 212 passed, 0 failed (sin, cos, exp, log, gamma, lgamma, pow — 7 families ≤ 5 ULP vs mpmath 50-dps)
+- **Edge tests:** 23 suites, all passed (700+ assertions)
+- **Fuzzers:** fuzz_god_mode (61393/0), fuzz_boundary — all passed
 - **Boundary gauntlet:** 25 passed, 0 failed
 - **Soak:** 10,000 iterations available via `--soak`
-- **Sanitizers:** ASan + UBSan clean
+- **Sanitizers:** ASan + UBSan clean (see gate log)
+- **Profiles:** SCIENTIFIC / GRAPHICS / EMBEDDED all build `-Werror` clean
 - **Thread-safety:** verified — no per-call mutable static state in any TU
 
 ## Deferred to v12A2
@@ -116,5 +126,5 @@ These are design choices, not hidden defects.
 
 ---
 
-*v11S shipped 2026-08-02. v12A1 A1 closure completed 2026-08-11. v12R2 refinement completed 2026-09-27.*
-*The gamma nightmare is over. The critical bugs are fixed. The thread-safety audit is complete. 12 new modules ship.*
+*v11S shipped 2026-08-02. v12A1 A1 closure completed 2026-08-11. v12R2 refinement completed 2026-09-30 (public V1.2-RC2, same commit).*
+*The gamma nightmare is over. The critical bugs are fixed. The thread-safety audit is complete. 12 Batch-1 modules + kelvin ship (34 TUs).*
