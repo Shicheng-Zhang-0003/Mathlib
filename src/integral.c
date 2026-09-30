@@ -291,6 +291,50 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
         return ml_stirling_lgamma_dd(x);
     if (ml_is_half_integer(x))
         return ml_lgamma_half_positive_dd(x);
+    /* ULP-push: local Taylor around the zeros x=1,2 where Lanczos cancels
+     * (~1e-15 absolute on a near-zero value). logGamma(1+u) =
+     * -γu + Σ_{k≥2} (-1)^k ζ(k) u^k/k, |u|≤0.02 handled here with k≤12 in
+     * long double (truncation <1e-28). Fixes lgamma(1.001) feeding
+     * gamma(0.001) via the 1-step recurrence. */
+    {
+        double u1 = x - 1.0, u2 = x - 2.0;
+        int is_one = (u1 > -0.02 && u1 < 0.02 && u1 != 0.0);
+        int is_two = !is_one && (u2 > -0.02 && u2 < 0.02 && u2 != 0.0);
+        if (is_one || is_two) {
+            /* ζ(2)..ζ(12) long-double constants (DLMF 25.2). */
+            static const long double zeta[] = {
+                0.0L,
+                0.0L,
+                1.644934066848226436472415166646025189218949901206798437735558229370007470403200873833629997L,
+                1.202056903159594285399738161511449990764986292340498881792271555341838205786313090186599581L,
+                1.082323233711138191516003696541167902774750951917201357867384446532742157654761181821857586L,
+                1.036927755143369926331365486457034168057080919501912070530709058584445582187171633198353093L,
+                1.017343061984449139714517404849431071399384884877009546917135011160048027911796596001894753L,
+                1.008349277381922826839797549849796759599863560565238535841168102209270315294521871389971670L,
+                1.004077356197944339378685238508652465168960926393759480310398907476012652784722027086274132L,
+                1.002008392826082214537676845809995857449591063561411884280761537757284699345669554724483939L,
+                1.000994575127818085337145958900319017006019531564477517257217424437249739253869247063179620L,
+                1.000494188604119464558702282526469936468606723704155206074992307170324905117053137131988541L
+            };
+            static const long double eul = 0.577215664901532860606512090082402431042159335939923598805767234884867726777664670936947063L;
+            long double uu = (long double)(is_one ? u1 : u2);
+            long double s = -eul * uu;
+            long double pw = uu * uu;
+            for (int kk = 2; kk <= 12; kk++) {
+                long double term = zeta[kk] * pw / (long double)kk;
+                if (kk & 1) s -= term;
+                else s += term;
+                pw *= uu;
+                if (pw == 0.0L) break;
+            }
+            /* logGamma(2+u2) = logGamma(1+u2) + log(1+u2); our series gives
+             * logGamma(1+u) with u=u2, so add log1p for the x≈2 case. */
+            if (is_two) s += __builtin_logl(1.0L + uu);
+            if (ml_isfinite((double)s) || s == 0.0L)
+                return ml_dd_from_d((double)s);
+            /* fall through on non-finite (should not happen) */
+        }
+    }
     if (x >= 2.0) {
         int k = (int)(8.0 - x) + 1;
         if (k < 1) k = 1;
