@@ -5,6 +5,9 @@
 #include "ml_core.h"
 #include "ml_types.h"
 #include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
  * Undergraduate number theory: divisibility, congruences, reciprocity.
@@ -15,6 +18,14 @@
  *
  * Accuracy: exact integer arithmetic (0 ULP); returns UINT64_MAX / 2
  * sentinels only when input exceeds 64-bit exact range.
+ * Mobius contract: -1/0/1 for decided inputs, 2 = UNRESOLVED when the
+ * cofactor beyond the 1e6 trial bound is composite with unknown
+ * square-freeness. Treat 2 as unknown, never as a Mobius value.
+ * crt2 contract: generalized 2-congruence; returns SINGULAR when
+ * incompatible (d1 % gcd != 0), WORKSPACE on u64 overflow of the lcm.
+ * mult_order contract: exact order (divisor of phi); the factorizer
+ * strips small factors by trial then reduces any residual cofactor via
+ * gcd-guarded division, so a composite residual cannot over-divide.
  * ========================================================================== */
 
 ML_API int ml_legendre_symbol(int64_t a, uint64_t p);
@@ -28,4 +39,7 @@ ML_API ml_status_t ml_crt2(uint64_t a1, uint64_t m1, uint64_t a2, uint64_t m2,
 ML_API uint64_t ml_prime_pi(uint64_t n);
 ML_API int ml_quadratic_reciprocity_check(uint64_t p, uint64_t q);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_NUMBERTHEORY_H */

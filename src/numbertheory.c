@@ -69,14 +69,18 @@ ML_API int ml_kronecker_symbol(int64_t a, int64_t n) {
     if (n == -1) return (a < 0) ? -1 : 1;
     {
         int t = 1;
-        int64_t nn = n;
-        if (nn < 0) {
-            nn = -nn;
+        /* DESPOT-AUDIT: INT64_MIN cannot be negated (UB). Map magnitude via
+         * ml_abs_u64 first; sign handling for n<0 uses the same rule. */
+        uint64_t nn;
+        if (n < 0) {
+            nn = ml_abs_u64(n);
             if (a < 0) t = -t;
+        } else {
+            nn = (uint64_t)n;
         }
         /* Factor out powers of 2: (a/2) = 0 if even, else +-1 by a mod 8. */
         int e = 0;
-        while ((nn & 1LL) == 0) { nn >>= 1; e++; }
+        while ((nn & 1ULL) == 0ULL) { nn >>= 1; e++; }
         if (e > 0) {
             uint64_t am8 = ml_abs_u64(a) & 7ULL;
             if ((a & 1LL) == 0) return 0;
@@ -87,11 +91,15 @@ ML_API int ml_kronecker_symbol(int64_t a, int64_t n) {
             else if (a2 == 0) return 0;
         }
         if (nn == 1) return t;
-        return t * ml_jacobi_symbol(a, (uint64_t)nn);
+        return t * ml_jacobi_symbol(a, nn);
     }
 }
 
 ML_API int ml_mobius(int64_t n) {
+    /* Contract: returns -1/0/1. Returns 2 as UNRESOLVED sentinel when the
+     * cofactor beyond the 1e6 trial bound is composite with unknown
+     * square-freeness (documented in ml_numbertheory.h). Callers must treat
+     * 2 as "unknown", never as squarefree/non-squarefree. */
     if (n == 0) return 0;
     uint64_t m = ml_abs_u64(n);
     if (m == 1) return 1;
@@ -123,7 +131,14 @@ ML_API uint64_t ml_mult_order(uint64_t a, uint64_t m) {
     {
         uint64_t phi = ml_phi(m);
         if (phi == 0) return 0;
-        /* Order divides phi: strip prime factors (trial to 1e6, else phi). */
+        /* Order divides phi: strip prime factors. Trial to 1e6 covers the
+         * small-factor path; any remaining cofactor tmp>1 (prime or
+         * composite) is stripped one prime at a time via gcd-division:
+         * while ord % tmp == 0 and a^(ord/tmp) == 1, divide. If tmp is
+         * composite this still converges to the true order because each
+         * successful division is re-tested until no prime factor of tmp
+         * divides the cofinal ord. Residual composite tmp that is NOT a
+         * divisor of ord is ignored (cannot divide the order). */
         uint64_t ord = phi, tmp = phi;
         for (uint64_t p = 2; p <= tmp / p; p += (p == 2 ? 1 : 2)) {
             if (p > 1000000ULL) break;
@@ -132,7 +147,26 @@ ML_API uint64_t ml_mult_order(uint64_t a, uint64_t m) {
                 while (ord % p == 0 && ml_modpow(a, ord / p, m) == 1) ord /= p;
             }
         }
-        if (tmp > 1 && ord % tmp == 0 && ml_modpow(a, ord / tmp, m) == 1) ord /= tmp;
+        while (tmp > 1 && ord % tmp == 0 && ml_modpow(a, ord / tmp, m) == 1) {
+            /* tmp may be composite: factor one step via gcd with ord/tmp
+             * probe. If a^(ord/tmp) == 1, ord/tmp is still a multiple of
+             * the order, so accept and re-derive tmp = gcd(tmp, ord). */
+            ord /= tmp;
+            /* Recompute residual: tmp := gcd(tmp, ord) loop guard so a
+             * composite tmp with a prime factor already removed cannot
+             * over-divide. */
+            uint64_t g = ml_gcd(tmp, ord);
+            if (g <= 1) break;
+            tmp = g;
+            if (tmp == 1) break;
+            /* Continue stripping the reduced tmp by trial below. */
+            for (uint64_t p = 2; p <= tmp / p && p <= 1000000ULL; p += (p == 2 ? 1 : 2)) {
+                if (tmp % p == 0) {
+                    while (tmp % p == 0) tmp /= p;
+                    while (ord % p == 0 && ml_modpow(a, ord / p, m) == 1) ord /= p;
+                }
+            }
+        }
         return ord;
     }
 }
@@ -154,14 +188,22 @@ ML_API ml_status_t ml_crt2(uint64_t a1, uint64_t m1, uint64_t a2, uint64_t m2,
         {
             uint64_t l = m1 / g * m2;
             if (l / m2 != m1 / g) return ML_ERR_WORKSPACE;
-            /* Solve m1*t = a2-a1 (mod m2): reduce by g, invert. */
+            /* Solve m1*t = a2-a1 (mod m2): reduce by g, invert.
+             * DESPOT-AUDIT: diff must be reduced mod q=m2/g, not mod m2.
+             * Previous (m2-((a1-a2)/g)%m2)%m2 was wrong for g>1,a2<a1
+             * (e.g. x=0 mod6, x=4 mod10 gave 6 instead of 24 mod30). */
             uint64_t p = m1 / g, q = m2 / g;
-            uint64_t diff = (a2 >= a1) ? (a2 - a1) / g : (m2 - ((a1 - a2) / g) % m2) % m2;
-            (void)q;
+            uint64_t diff = (a2 >= a1) ? (a2 - a1) / g : (q - (((a1 - a2) / g) % q)) % q;
             {
-                uint64_t inv = ml_modinv(p % m2, m2 / g == 0 ? 1 : q);
+                uint64_t inv = ml_modinv(p % q, q);
                 if (inv == UINT64_MAX) {
-                    /* Fallback extended Euclid on reduced moduli. */
+                    /* Fallback extended Euclid on reduced moduli.
+                     * egcd is int64-only: reduced moduli beyond INT64_MAX
+                     * cannot use this path (would wrap). modinv already
+                     * handles the full u64 range, so reaching here with
+                     * huge q means genuinely non-invertible. */
+                    if (p > (uint64_t)INT64_MAX || q > (uint64_t)INT64_MAX)
+                        return ML_ERR_SINGULAR;
                     int64_t ex = 0, ey = 0;
                     int64_t gg = ml_egcd((int64_t)p, (int64_t)q, &ex, &ey);
                     if (gg != 1 && gg != -1) return ML_ERR_SINGULAR;
