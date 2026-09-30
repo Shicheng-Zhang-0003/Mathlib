@@ -4,6 +4,9 @@
 #include "ml_compiler.h"
 #include "ml_trig.h"
 #include "ml_core.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct { double w, x, y, z; } ml_quat;
 
@@ -14,4 +17,7 @@ ML_API ml_quat ml_quat_conjugate(ml_quat q);
 ML_API ml_quat ml_quat_inverse(ml_quat q);
 ML_API ml_quat ml_quat_from_axis_angle(double ax, double ay, double az, double angle);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_QUATERNION_H */

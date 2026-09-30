@@ -4,6 +4,9 @@
 #include "ml_compiler.h"
 #include "ml_complex.h"
 #include "ml_core.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * v11S FFT contract:
@@ -16,4 +19,7 @@ ML_API int ml_fft_is_supported(int n);
 ML_API void ml_fft_execute(cplx *x, int n);
 ML_API void ml_ifft_execute(cplx *x, int n);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* LIBMATHC_FFT_H */

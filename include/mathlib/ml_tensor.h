@@ -6,6 +6,9 @@
 #include <string.h>
 #include "ml_compiler.h"
 #include "ml_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
  * v11S TENSOR & WORKSPACE SYSTEM
@@ -98,4 +101,7 @@ ML_INLINE double *ml_tensor_at(ml_tensor_view_t t, int r, int c) {
 
 #define ML_TENSOR_AT(t, r, c) ((t).data[(size_t)(r) * (size_t)(t).cols + (size_t)(c)])
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_TENSOR_H */

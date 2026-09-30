@@ -11,6 +11,9 @@
 
 #if defined(__AVX2__)
 #include <immintrin.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef double ml_vec4d __attribute__((aligned(32), vector_size(32)));
 
@@ -95,4 +98,7 @@ static inline void ml_simd_batch_rsqrt(const double* in, double* out) {
 
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_SIMD_BATCH_H */

@@ -4,6 +4,9 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
  * v11S STRICT TYPE SYSTEM
@@ -36,6 +39,10 @@ typedef ptrdiff_t ml_ptrdiff;
 
 /* ============================================================================
  * v11S UNIFIED STATUS CODES
+ * DESPOT-AUDIT: SINGULAR was overloaded for singular/overflow/
+ * non-convergence/indefinite/exhaustion. New codes OVERFLOW, CONVERGENCE,
+ * UNSUPPORTED let callers distinguish. Old SINGULAR values preserved for
+ * ABI stability; new code should prefer the precise code.
  * ========================================================================== */
 typedef enum {
     ML_SUCCESS          =  0,
@@ -43,7 +50,13 @@ typedef enum {
     ML_ERR_WORKSPACE    = -2,
     ML_ERR_INVALID_ARG  = -3,
     ML_ERR_NAN_INPUT    = -4,
+    ML_ERR_OVERFLOW     = -5,
+    ML_ERR_CONVERGENCE  = -6,
+    ML_ERR_UNSUPPORTED  = -7,
     ML_ERR_INTERNAL     = -99
 } ml_status_t;
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_TYPES_H */

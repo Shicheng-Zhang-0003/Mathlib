@@ -3,6 +3,9 @@
 #include "ml_compiler.h"
 #include "ml_core.h"
 #include "ml_complex.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* ml_hurwitz_zeta: s>1 direct Euler-Maclaurin; a==1 delegates to zeta.
  * STUB: s<=1 with a!=1 returns NaN (analytic continuation not yet
  * implemented). */
@@ -11,4 +14,7 @@ ML_API cplx ml_dirichlet_eta_cplx(cplx s);
 ML_API double ml_theta3(double q);
 ML_API double ml_partition_p(int n);
 ML_API cplx ml_zeta_cplx(cplx s);
+#ifdef __cplusplus
+}
+#endif
 #endif

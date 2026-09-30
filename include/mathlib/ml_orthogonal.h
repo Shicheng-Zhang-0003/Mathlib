@@ -3,6 +3,9 @@
 
 #include "ml_compiler.h"
 #include "ml_core.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
  * Undergraduate orthogonal polynomials (Sturm-Liouville / special functions).
@@ -31,4 +34,7 @@ ML_API double ml_hermite_h(int n, double x);
 ML_API double ml_laguerre_l(int n, double x);
 ML_API double ml_laguerre_l_gen(int n, double alpha, double x);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_ORTHOGONAL_H */

@@ -3,6 +3,9 @@
 
 #if defined(__AVX2__)
 #include <immintrin.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // True Bare-Metal AVX2 Fast RSqrt
 // Uses integer bit-hacks on the 256-bit vector register to generate the
@@ -29,4 +32,7 @@ static inline __m256d ml_avx2_fast_rsqrt(__m256d v) {
 
 #endif // __AVX2__
 
+#ifdef __cplusplus
+}
+#endif
 #endif // MATHLIB_V10_SIMD_BARE_METAL_H

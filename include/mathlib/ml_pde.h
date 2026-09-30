@@ -3,6 +3,9 @@
 #include "ml_compiler.h"
 #include "ml_core.h"
 #include "ml_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* One-step 1D PDE kernels: each call advances a SINGLE step (explicit heat,
  * implicit heat, wave) or solves one stationary problem (Poisson); the caller
  * loops for time integration. All boundary handling is Dirichlet-only:
@@ -23,4 +26,7 @@ ML_API ml_status_t ml_wave_leapfrog(const double *u_prev, const double *u_cur, d
  * Element-local only: global assembly, Dirichlet BC application, and the
  * linear solve are the caller's responsibility. */
 ML_API ml_status_t ml_fem1d_assemble(double h, double *ke00, double *ke01, double *ke11, double *me00, double *me01, double *me11);
+#ifdef __cplusplus
+}
+#endif
 #endif

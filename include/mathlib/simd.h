@@ -26,6 +26,9 @@ static inline double ml_vec4_mag(ml_vec4 a) {
 
 // --- Raw AVX Intrinsics (Path 3) ---
 #include <immintrin.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 static inline double ml_vec4_dot_avx(ml_vec4 a, ml_vec4 b) {
     __m256d va = _mm256_loadu_pd((double*)&a);
     __m256d vb = _mm256_loadu_pd((double*)&b);
@@ -63,4 +66,7 @@ static inline double ml_vec4_mag(ml_vec4 a) {
 }
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif

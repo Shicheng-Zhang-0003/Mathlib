@@ -3,6 +3,9 @@
 
 #include "ml_compiler.h"
 #include "ml_core.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef double (*ml_func_t)(double);
 
@@ -29,4 +32,7 @@ ML_API double ml_sum_k3(long long n);
 ML_API int ml_nim_win(const uint64_t *piles, int n);
 ML_API int ml_majorizes(const double *a, const double *b, int n, double tol);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_NUMERICAL_H */

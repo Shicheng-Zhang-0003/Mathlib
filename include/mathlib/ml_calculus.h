@@ -5,6 +5,9 @@
 #include "ml_core.h"
 #include "ml_types.h"
 #include "ml_numerical.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
  * Undergraduate calculus: quadrature theorems, interpolation, vector calc.
@@ -40,4 +43,7 @@ ML_API double ml_div3(ml_vec3_func_t f3[3], double x, double y, double z, double
 ML_API void ml_curl3(ml_vec3_func_t f3[3], double x, double y, double z, double h,
                      double *cx, double *cy, double *cz);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_CALCULUS_H */

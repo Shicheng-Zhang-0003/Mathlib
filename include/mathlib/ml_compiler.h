@@ -4,6 +4,9 @@
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
  * MATHLIB v11S COMPILER ABSTRACTION LAYER
@@ -163,4 +166,7 @@ static inline double ml_fma_soft_impl(double a, double b, double c) {
 #  define ML_FMA(a, b, c) ml_fma_soft_impl((double)(a), (double)(b), (double)(c))
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_COMPILER_H */

@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 #include "ml_compiler.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 ML_API uint64_t ml_factorial(int x);
 ML_API uint64_t ml_npr(int n, int r);
@@ -18,4 +21,7 @@ ML_API uint64_t ml_catalan(int n);
 ML_API uint64_t ml_fib_pair(long long n, uint64_t *fn, uint64_t *fn1);
 ML_API uint64_t ml_derange(int n);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_COMBINATORICS_H */

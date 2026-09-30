@@ -5,6 +5,9 @@
 #include <string.h>
 #include "ml_core.h"
 #include "bitwise_fp.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
  * FAST MATH APPROXIMATIONS (v11S CLOSURE HARDENING)
@@ -151,4 +154,7 @@ ML_INLINE double ml_fast_exp2(double x) {
     return res * mant_approx;
 }
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* LIBMATHC_FAST_MATH_H */

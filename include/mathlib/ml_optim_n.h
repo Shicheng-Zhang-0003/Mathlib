@@ -3,6 +3,9 @@
 #include "ml_compiler.h"
 #include "ml_core.h"
 #include "ml_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef double (*ml_vec_func_t)(const double *x, int n);
 /* Dimension caps (fixed stack workspaces, no heap): Nelder-Mead n<=16,
  * L-BFGS / Adam n<=32. Larger n returns ML_ERR_INVALID_ARG. */
@@ -20,4 +23,7 @@ ML_API ml_status_t ml_lbfgs_min(ml_vec_func_t f, const double *x0, int n,
 ML_API ml_status_t ml_adam_min(ml_vec_func_t f, const double *x0, int n,
                                double lr, double tol, int max_iter,
                                double *x_out, double *f_out);
+#ifdef __cplusplus
+}
+#endif
 #endif

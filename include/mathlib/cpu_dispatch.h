@@ -2,6 +2,9 @@
 #define MATHLIB_CPU_DISPATCH_H
 
 #include "ml_compiler.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================================
  * v11S CPU DISPATCH & CAPABILITIES
@@ -20,4 +23,7 @@ ML_API int ml_cpu_has_fma(void);
 ML_API int ml_cpu_has_sse41(void);
 ML_API int ml_cpu_has_neon(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_CPU_DISPATCH_H */

@@ -3,6 +3,9 @@
 
 #include "ml_compiler.h"
 #include "ml_core.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 ML_API double ml_sin(double x);
@@ -29,4 +32,7 @@ ML_API double ml_acos(double x);
 ML_API double ml_acot(double x);
 ML_API double ml_atan2(double y, double x);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MATHLIB_ML_TRIG_H */

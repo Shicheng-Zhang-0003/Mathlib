@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <string.h>
 #include "ml_core.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -25,4 +28,7 @@ static inline int ml_fp_classify(double x) {
 static inline int ml_is_subnormal(double x) { return ml_fp_classify(x) == 1; }
 static inline int ml_is_nan(double x) { return ml_fp_classify(x) == 4; }
 static inline int ml_is_inf(double x) { return ml_fp_classify(x) == 3; }
+#ifdef __cplusplus
+}
+#endif
 #endif
