@@ -273,12 +273,31 @@ static ml_dd_t ml_stirling_lgamma_dd(double x) {
     return L;
 }
 
-/* ---- Positive-domain lgamma dispatch ---- */
+/* ---- Positive-domain lgamma dispatch ----
+ * ULP-push: for x in [2,8) non-half-integer, shift upward to >=8 then
+ * Stirling + subtract sum log(x+j). Lanczos g=7/n=9 has ~1e-15 intrinsic
+ * error (4 ULP at 6.7); Stirling at 8+ with LD-accurate logs holds <1 ULP.
+ * Half-integers keep the exact product path (0 ULP). Integers <=23 keep
+ * factorial/log-factorial upstream. */
 static ml_dd_t ml_lgamma_positive_dd(double x) {
     if (x >= 8.0)
         return ml_stirling_lgamma_dd(x);
     if (ml_is_half_integer(x))
         return ml_lgamma_half_positive_dd(x);
+    if (x >= 2.0) {
+        int k = (int)(8.0 - x) + 1;
+        if (k < 1) k = 1;
+        if (k > 8) k = 8;
+        {
+            double xs = x + (double)k;
+            ml_dd_t L = ml_stirling_lgamma_dd(xs);
+            for (int j = 0; j < k; j++) {
+                ml_dd_t lj = ml_log_dd(x + (double)j);
+                L = ml_dd_sub(L, lj);
+            }
+            return L;
+        }
+    }
     return ml_lgamma_lanczos_dd(x);
 }
 
