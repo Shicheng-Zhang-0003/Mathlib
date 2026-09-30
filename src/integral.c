@@ -293,15 +293,16 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
         return ml_lgamma_half_positive_dd(x);
     /* ULP-push: local Taylor around the zeros x=1,2 where Lanczos cancels
      * (~1e-15 absolute on a near-zero value). logGamma(1+u) =
-     * -γu + Σ_{k≥2} (-1)^k ζ(k) u^k/k, |u|≤0.02 handled here with k≤12 in
-     * long double (truncation <1e-28). Fixes lgamma(1.001) feeding
-     * gamma(0.001) via the 1-step recurrence. */
+     * -γu + Σ_{k≥2} (-1)^k ζ(k) u^k/k in long double.
+     * Radius |u|≤0.15 with k≤25 (truncation <1e-22); |u|≤0.02 fast path
+     * k≤12. Fixes lgamma(1.001)/lgamma(1.1) feeding gamma(0.001)/gamma(0.1)
+     * via the 1-step recurrence. */
     {
         double u1 = x - 1.0, u2 = x - 2.0;
-        int is_one = (u1 > -0.02 && u1 < 0.02 && u1 != 0.0);
-        int is_two = !is_one && (u2 > -0.02 && u2 < 0.02 && u2 != 0.0);
+        int is_one = (u1 > -0.15 && u1 < 0.15 && u1 != 0.0);
+        int is_two = !is_one && (u2 > -0.15 && u2 < 0.15 && u2 != 0.0);
         if (is_one || is_two) {
-            /* ζ(2)..ζ(12) long-double constants (DLMF 25.2). */
+            /* ζ(2)..ζ(25) long-double constants (DLMF 25.2). */
             static const long double zeta[] = {
                 0.0L,
                 0.0L,
@@ -314,13 +315,28 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
                 1.004077356197944339378685238508652465168960926393759480310398907476012652784722027086274132L,
                 1.002008392826082214537676845809995857449591063561411884280761537757284699345669554724483939L,
                 1.000994575127818085337145958900319017006019531564477517257217424437249739253869247063179620L,
-                1.000494188604119464558702282526469936468606723704155206074992307170324905117053137131988541L
+                1.000494188604119464558702282526469936468606723704155206074992307170324905117053137131988541L,
+                1.000122713347578489146751836526357395714L,
+                1.000061248135058704829258545105135333747L,
+                1.000030588236307020493551728510645062588L,
+                1.000015282259408651871732571487636722023L,
+                1.000007637197637899762273600293563029213L,
+                1.00000381729326499983985646164462193973L,
+                1.000001908212716553938925656957795101353L,
+                1.000000953962033872796113152038683449346L,
+                1.000000476932986787806463116719604373046L,
+                1.000000238450502727732990003648186752995L,
+                1.000000119219925965311073067788718882326L,
+                1.000000059608189051259479612440207935801L,
+                1.000000029803503514652280186063705069366L
             };
             static const long double eul = 0.577215664901532860606512090082402431042159335939923598805767234884867726777664670936947063L;
             long double uu = (long double)(is_one ? u1 : u2);
+            long double auu = uu >= 0 ? uu : -uu;
+            int kmax = (auu <= 0.02L) ? 12 : 25;
             long double s = -eul * uu;
             long double pw = uu * uu;
-            for (int kk = 2; kk <= 12; kk++) {
+            for (int kk = 2; kk <= kmax; kk++) {
                 long double term = zeta[kk] * pw / (long double)kk;
                 if (kk & 1) s -= term;
                 else s += term;
