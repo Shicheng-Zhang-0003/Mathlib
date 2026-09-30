@@ -3,7 +3,7 @@
 **Internal tag:** v12R2
 **Public tag:** V1.2-RC2 (`V1.2-RC2 == v12R2`, same commit)
 **Date:** 2026-09-30
-**Oracle:** 212 passed, 0 failed (7 core families sin, cos, exp, log, gamma, lgamma, pow ≤ 5 ULP vs mpmath 50-dps ground truth; see `docs/PRECISION_CONTRACT.md`)
+**Oracle:** 212 passed, 0 failed, worst 0 ULP (7 core families sin, cos, exp, log, gamma, lgamma, pow correctly rounded on the 212-vector grid vs mpmath 50-dps; gate stays ≤5 ULP, see `docs/PRECISION_CONTRACT.md`)
 **Gate:** Full closure gate passed (build, modular, edge 23 suites, fuzz, boundary, oracle, sanitizers)
 
 ---
@@ -94,12 +94,21 @@ BE2 fail-loud, CG/GMRES relative tol, SVD/Jacobi scale-invariant stops,
 kelvin Inf, fixed-point rounding, DST-I alias, Haar/manifold contracts,
 EMBEDDED rsqrt, new status codes, `extern "C"`, 34-TU coherence.
 
+ULP push 2026-09-30 (see `docs/ULP_PUSH.md`): pow 41→0 (LD log/exp + LD
+integer accumulation), log 1→0 (LD split single source), sin benign 1→0 (LD
+reduction + sinl/cosl), lgamma 6.7 4→0 (shift-to-8 exact LD xs), gamma 6.7
+21→0 (LD direct), gamma 0.1 3→0 (Taylor radius ζ to 25), gamma 0.001 5→0 (LD
+recurrence), gamma -0.5 1→0 (-2√π closed form), gamma -0.1/-0.9 1→0 (LD
+reflection/recurrence). Oracle worst 5→0 ULP on the grid (measured, not a
+proof for all inputs — Table Maker's Dilemma, x86-64 only).
+
 ---
 
 ## Test Results
 
-- **Oracle:** 212 passed, 0 failed (sin, cos, exp, log, gamma, lgamma, pow — 7 families ≤ 5 ULP vs mpmath 50-dps)
-- **Edge tests:** 23 suites, all passed (700+ assertions)
+- **Oracle:** 212 passed, 0 failed, worst 0 ULP (sin, cos, exp, log, gamma, lgamma, pow — correctly rounded on the grid vs mpmath 50-dps; gate ≤5 ULP)
+- **Wide grids (exact-binary truth):** pow 100 cases 0 ULP (was 41); sin/cos benign 25 cases 0 ULP (was 1); gamma 11-point grid 0 ULP (6.7 was 21, 0.1 was 3, 0.001 was 5, -0.5 was 1); vs-sys sin/cos/exp/log/pow 0, gamma/lgamma 1 (sys itself differs)
+- **Edge tests:** 23 suites, all passed (700+ assertions; full sweep 23/23 in gate-v12R2)
 - **Fuzzers:** fuzz_god_mode (61393/0), fuzz_boundary — all passed
 - **Boundary gauntlet:** 25 passed, 0 failed
 - **Soak:** 10,000 iterations available via `--soak`

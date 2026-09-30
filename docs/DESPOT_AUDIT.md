@@ -62,12 +62,12 @@ implemented in code and pinned by `despot_check` or the existing gauntlet.
 
 ## Validation
 
-- Oracle: 212 passed, 0 failed (worst 5 ULP gamma 1e-3). Unchanged.
+- Oracle: 212 passed, 0 failed, worst 0 ULP on the grid (was 5 at push
+  start; gate stays ≤5 ULP — measurement, not proof, see `docs/ULP_PUSH.md`).
 - Smoke/modular/linalg/dsp: all passed. Fuzz god 61393/0, boundary 25/0.
 - `despot_check` (17 assertions in `/tmp/opencode/mathlib-work/`): ALL PASS.
-- Full per-TU `-Werror` compile: 35/35 clean. C++ header check clean.
-- Edge full sweep not completed in-session (23 suites x 34 TUs > 3 min);
-  targeted edge + oracle + fuzz cover the changed paths.
+- Full per-TU `-Werror` compile: 35/35 clean × 3 profiles. C++ header check clean.
+- Edge full sweep: 23/23 PASS (gate-v12R2 logs).
 
 ## Remaining (honest, not hidden)
 

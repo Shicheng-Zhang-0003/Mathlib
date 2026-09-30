@@ -70,7 +70,7 @@ Any future contributions must adhere to these policies.
 
 ## 5. Precision Policy
 
-* Validated core transcendentals target **≤ 5 ULP** deviation from ground-truth `mpmath` (80-digit) under the documented domain.
+* Validated core transcendentals target **≤ 5 ULP** deviation from ground-truth `mpmath` (50-dps exact-binary) under the documented domain. Measured 2026-09-30: **0 ULP on the 212 grid** (x86-64 LD paths) — measurement, not proof; guarantees stay ≤5 ULP.
 * Exact bitwise operations (`ml_isnan`, `ml_fabs`, etc.) are 100% IEEE-754 exact.
 * Fast math functions are approximate and must not be treated as correctly-rounded libm replacements.
 * **Oracle tier only** certifies precision (see `docs/PRECISION_CONTRACT.md`). Smoke/edge/modular tolerances are loose and not ULP claims.

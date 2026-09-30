@@ -23,15 +23,16 @@ Meaning:
 - next `S` = promoted stable release
 
 Current state:
-> v12A1 A1 closure freeze.
-> v11S shipped. A1 feature development is frozen.
+> A1 freeze SUPERSEDED by v12R2 / V1.2-RC2 (2026-09-30, see `V12A1_A1_FREEZE.md`).
+> 34 TUs shipped (12 Batch-1 + kelvin) plus despot + ULP-push fixes.
+> v11S shipped. Scope is now the 34-TU canonical list + gate evidence.
 
 Therefore:
-- no new modules, math families, or public APIs,
-- only A1 closure fixes, tests, validation, docs, and process hygiene,
-- correctness contracts still apply,
+- canonical TU list must match across all builders,
+- correctness contracts still apply (fail-loud NaN/SINGULAR, no silent success),
 - script-only change policy still applies,
-- zero allocation and thread safety still apply.
+- zero heap-per-call in hot paths (prime sieve excepted, documented) and thread safety still apply,
+- accuracy claims cite tiers only (`PRECISION_CONTRACT.md`), never smoke tolerances.
 
 <!-- MATHLIB_V12A1_A1_FREEZE_DOCTRINE_FIX -->
 

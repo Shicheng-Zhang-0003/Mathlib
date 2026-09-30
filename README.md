@@ -64,8 +64,8 @@ python3 run_all_tests.py
 <!-- MATHLIB_V12A1_A1_FREEZE -->
 A1 closure is **complete** with R2 refinements.
 
-- Oracle validation: **212 passed, 0 failed** (7 core families ≤ 5 ULP vs mpmath 50-dps ground truth; see `docs/PRECISION_CONTRACT.md`)
-- Full test gauntlet: modular, smoke, edge (23 suites), fuzz, oracle, boundary — all passing in despot re-verification (oracle 212/0, god-mode 61393/0, boundary 25/0)
+- Oracle validation: **212 passed, 0 failed, worst 0 ULP** (7 core families correctly rounded on the grid vs mpmath 50-dps exact-binary truth; gate stays ≤5 ULP, see `docs/PRECISION_CONTRACT.md` and `docs/ULP_PUSH.md`)
+- Full test gauntlet: modular, smoke, edge (23/23 suites), fuzz, oracle, boundary — all passing (oracle 212/0 worst 0, god-mode 61393/0, boundary 25/0, despot_check 17/17)
 - Closure gate: **PASSED**
 - Thread-safety: **verified** — no per-call mutable static state in any TU (grep + build; no TSan/helgrind evidence claimed)
 

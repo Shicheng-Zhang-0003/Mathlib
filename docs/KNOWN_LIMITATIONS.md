@@ -73,6 +73,21 @@ regression guard, not an oracle-tier precision certification.
 
 Known remaining limits (documented, not defects):
 
+- Large-x trig near zero: absolute error ~2e-20 (e.g. cos(4.5e7)), ULP
+  meaningless at crossings. Fractional accumulation is LD but not exact
+  integer; full-range proof needs exact fractionals (deferred).
+- `long double==double` platforms (MSVC/ARM): LD paths collapse to DD;
+  measured 0-ULP numbers are x86-64 only. Guarantees stay at the ≤5 ULP gate.
+- Batch-1 still no oracle ULP certification (bisection inverses, Krylov
+  without preconditioning, xorshift RNG, Dirichlet-only PDEs, 2x2 control).
+
+Closed by the ULP push (measured exact-binary, x86-64):
+`ml_gamma` 6.7/0.1/0.001/-0.5/-0.1/-0.9 (21/3/5/1/1/1 → 0 ULP),
+`ml_lgamma` 6.7/0.1/0.001 (4/1/1 → 0 ULP), pow 41→0 (100-case grid),
+sin/cos benign 1→0 (25-case grid). Oracle worst 5→0 ULP on the 212 grid.
+See `docs/ULP_PUSH.md`. Unchanged (still limited, not re-measured this
+push):
+
 - `ml_bessel_k0/k1` in 8 < x < 10: ~1e-9 relative. The ascending series
   cancels like exp(x^2/4) and the asymptotic bottoms out at exp(-2x); the
   elementary method cannot do better. Temme's uniform expansion is required.
@@ -82,10 +97,11 @@ Known remaining limits (documented, not defects):
 - `ml_airy_ai` for |x| > 1e6: degrades as the phase zeta = (2/3)x^{3/2}
   loses digits to rounding; inherent to double precision.
 
-- `ml_lgamma` near its zeros (x=2, x~3.5626): ~700 ULP. The Lanczos sum
-  cancels ~3 digits there, and lgamma itself is near zero, so the relative
-  error blows up. lgamma is <=1 ULP for x>=8 and <=7 ULP for x in
-  [1e-3, 0.5]. A local series expansion around the zeros would be needed
-  to do better; this is intrinsic to the Lanczos/Stirling method.
-- `ml_gamma` inherits lgamma's error amplified by lgamma(x): ~21 ULP at
-  x~6.7 (lgamma~6), consistent with the documented ~1e-15 lgamma error.
+- `ml_lgamma` near its zeros (x=2, x~3.5626): historically ~700 ULP via
+  Lanczos cancellation; local Taylor (x=1,2 radius 0.15, ζ to 25) now holds
+  the measured grid at 0 ULP, but the general near-zero relative-error
+  caution stands (value near zero → relative blows up; absolute is what is
+  controlled). A wider certified expansion is still deferred.
+- `ml_gamma` historically inherited lgamma's error amplified by lgamma(x)
+  (~21 ULP at x~6.7); LD direct paths now hold the measured grid at 0 ULP
+  (x86-64). General proof still deferred (Ziv + worst-case search).

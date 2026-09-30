@@ -1,6 +1,7 @@
 # v12R2 Development Roadmap (Refinement of v12A1)
 <!-- MATHLIB_V12A1_A1_FREEZE -->
-## A1 Closure Freeze (Subsection 1.1) — **COMPLETE**
+<!-- DESPOT-SUPERSEDE 2026-09-30: freeze lifted; 34 TUs + despot + ULP-push shipped. -->
+## A1 Closure Freeze (Subsection 1.1) — **COMPLETE then SUPERSEDED**
 
 - Effective: 2026-08-05
 - No new modules.
@@ -15,7 +16,7 @@
 
 v12A1 is the architectural evolution cycle.
 v11S proved the foundations. v12A1 replaces approximations with the real thing.
-**v12R2 fixes critical bugs, improves accuracy, achieves full thread-safety, and adds 12 Batch-1 modules.**
+**v12R2 fixes critical bugs, improves accuracy, achieves full thread-safety, adds 12 Batch-1 modules + kelvin (34 TUs), then pushes the core to 0 ULP measured (pow/log/sin/gamma grids + oracle 212/212 at 0 ULP, gate stays ≤5 ULP).**
 
 ## Bootstrap
 
@@ -132,3 +133,4 @@ v12A1 is not stable until:
 6. strict closure gate passes.
 
 **v12R2: All closure rules PASSED.** Thread-safety verified. Batch-1 modules integrated.
+**ULP-push: oracle 212/212 at 0 ULP measured (gate stays ≤5 ULP); see `docs/ULP_PUSH.md` and `docs/GATE_V12R2.md`. Proof for all inputs still deferred (Table Maker's Dilemma).**

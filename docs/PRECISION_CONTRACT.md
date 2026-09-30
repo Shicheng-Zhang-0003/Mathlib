@@ -4,6 +4,13 @@ v12R2 uses three validation tiers with **different, non-interchangeable**
 tolerances. A passing test in one tier says nothing about the guarantees of
 another. This table resolves the split.
 
+Gate stays **≤5 ULP** on the oracle (pass/fail). Measured accuracy on
+2026-09-30 is **worst 0 ULP (212/212 correctly rounded)** on the grid vs
+mpmath 50-dps exact-binary truth — a measurement, not a proof for all
+binary64 inputs (Table Maker's Dilemma; x86-64 LD paths only, see
+`docs/ULP_PUSH.md`). Do not ship `<0.5 ULP` as a guarantee until per-function
+Ziv + worst-case search land.
+
 | Tier | Ground truth | Gate | What it proves |
 | :--- | :--- | :--- | :--- |
 | **Oracle** (`tests/test_oracle.c` + `tests/oracle_data.h`) | mpmath at 50 decimal places (`scripts/oracles/generate_oracles.py: mp.dps=50`; sufficient for double ULP work) | **<= 5 ULP** per call, all 7 families (sin, cos, exp, log, gamma, lgamma, pow), 212 vectors | Numerical accuracy of the validated core. This is the only tier that certifies precision. |

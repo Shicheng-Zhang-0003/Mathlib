@@ -12,8 +12,8 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 | Module / Header | Status | Notes |
 | :--- | :--- | :--- |
 | `ml_core.h` | **STABLE** | Bitwise IEEE-754 helpers, `ml_sqrt`, `ml_fmod`, `ml_round` |
-| `ml_trig.h` | **STABLE** | Maclaurin kernels, bounded Cody-Waite reduction, NaN/Inf guards |
-| `ml_exp_log.h` | **STABLE** | Cody-Waite reduction, Horner evaluation, hyperbolic edge hardening |
+| `ml_trig.h` | **STABLE** | LD reduction + sinl/cosl single round; benign grid 0 ULP measured (gate ≤5 ULP); NaN/Inf guards |
+| `ml_exp_log.h` | **STABLE** | LD split single source (log 0 ULP), LD pow (100-case 0 ULP), hyperbolic edge hardening |
 | `ml_complex.h` | **STABLE** | Overflow-safe abs, atan2-based arg, NaN guards |
 | `fft.h` | **STABLE** | Power-of-two radix-2 Cooley-Tukey only |
 | `ml_linalg.h` | **STABLE** | Zero-alloc LU solve, relative singularity threshold |
@@ -25,7 +25,7 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 | `ml_ode.h` | **STABLE** | Euler / RK4 guards |
 | `ml_polynomial.h` | **STABLE** | Horner evaluation and Newton guards |
 | `ml_quadratics.h` | **STABLE** | Citardauq-style stable quadratic roots |
-| `ml_integral.h` | **STABLE** | <!-- MATHLIB_V12A1_DOCS_ALIGNMENT --> Full gamma/lgamma: Lanczos DD, Stirling DD, exact half-integers, 1-step recurrence (x<0.5), reflection formula, <=5 ULP oracle-validated; traditional integrator remains experimental |
+| `ml_integral.h` | **STABLE** | <!-- MATHLIB_V12A1_DOCS_ALIGNMENT --> Full gamma/lgamma: Lanczos DD + LD shift-to-8 (exact LD xs) + zeros Taylor (ζ to 25) + LD direct gamma + -2√π/reflection LD; measured 0 ULP on gamma grid + oracle 212/212 at 0 ULP (gate ≤5 ULP); traditional integrator remains experimental |
 | `ml_fixed_point.h` | **STABLE** | Q16.16 CORDIC approximate trig with defined shifts |
 | `ml_quaternion.h` | **STABLE** | Quaternion algebra and hardened slerp |
 | `fast_math.h` | **STABLE** | Approximate fast paths with explicit domain guards |

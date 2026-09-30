@@ -1,7 +1,7 @@
-# Gate v12R2 / V1.2-RC2 — Evidence (2026-09-30)
+# Gate v12R2 / V1.2-RC2 — Evidence (2026-09-30, ULP-push tip)
 
-Commit: `e649976` + release fixes (this tag).
-Logs: `/tmp/opencode/mathlib-work/gate-v12R2/` (local); summary below.
+Commit: ULP-push tip (this tag).
+Logs: `/tmp/opencode/mathlib-work/gate-v12R2/` (local) + `/tmp/opencode/mathlib-work/oracle_ulp1` (0-ULP scan); summary below.
 
 ## Builds (`-Werror` clean, `/tmp` objects only, repo tree untouched)
 
@@ -13,7 +13,12 @@ Logs: `/tmp/opencode/mathlib-work/gate-v12R2/` (local); summary below.
 
 - modular: `test_core / test_trig / test_linalg / test_dsp` — all passed.
 - smoke `test`: 30 passed, 0 failed.
-- oracle: **212 passed, 0 failed**, worst 5 ULP `gamma(1e-3)`.
+- oracle: **212 passed, 0 failed, worst 0 ULP** (was 5 at push start; n1=0 —
+  all 212 correctly rounded on the grid vs mpmath 50-dps exact-binary truth;
+  gate stays ≤5 ULP).
+- Wide grids: pow 100 cases 0 ULP (was 41); sin/cos benign 25 cases 0 ULP
+  (was 1); gamma 11-point grid 0 ULP (6.7 was 21, 0.1 was 3, 0.001 was 5,
+  -0.5 was 1).
 - ASan oracle: 212/0. ASan core: pass.
 - god-mode fuzz `--seed 123456789`: **61393 passed, 0 failed**.
 - boundary gauntlet: **25 passed, 0 failed**.

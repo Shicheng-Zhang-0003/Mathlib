@@ -61,3 +61,14 @@ arguments or extended precision, not with higher-degree Horner.
 ## Acceptance Criteria
 
 All functions must achieve <= 5 ULP on their reduced domain.
+
+## Addendum 2026-09-30 (ULP push, x86-64 LD)
+
+Active kernels now bypass the Horner floor via extended precision rather
+than higher-degree fits (consistent with the report's conclusion that
+"real libms escape with extended precision"):
+- sin/cos: LD reduction + `sinl`/`cosl` single round (benign 1→0 ULP).
+- log/pow: LD split / LD accumulation (pow 41→0, log 1→0).
+- gamma/lgamma: LD shift/Taylor/direct/reflection (grid 0 ULP).
+Oracle 212/212 at 0 ULP measured (gate stays ≤5 ULP). Minimax swap stays
+deferred; the dormancy rationale (evaluation noise, not truncation) stands.
