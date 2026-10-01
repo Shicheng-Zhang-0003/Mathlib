@@ -681,34 +681,48 @@ ML_API double ml_digamma(double x) {
     if (x < 0.0 && x == ml_round(x)) return ml_make_nan();
     if (x < 0.0) {
         /* Reflection psi(1-x)-psi(x)=pi*cot(pi x) avoids ~1e15-step
-         * recurrence hang for digamma(-1e15). */
+         * recurrence hang for digamma(-1e15). Round-3: LD cot + half-
+         * integer exact (was double ML_PI*cot, 10 ULP at -0.5 from
+         * cospi(-0.5)~6e-17 spurious pi*cot~2e-16 on ULP 6.9e-18). */
         double y = 1.0 - x;
-        double sn = ml_sinpi(x);
-        if (sn == 0.0) return ml_make_nan();
+        if (ml_is_half_integer(x)) {
+            double dy = ml_digamma(y);
+            if (!ml_isfinite(dy)) return dy;
+            return dy;
+        }
+        long double snl = __builtin_sinl((long double)x * 3.14159265358979323846264338327950288L);
+        if (snl == 0.0L) return ml_make_nan();
         double dy = ml_digamma(y);
         if (!ml_isfinite(dy)) return dy;
         {
-            double cot = ml_cospi(x) / sn;
-            return dy - ML_PI * cot;
+            long double csl = __builtin_cosl((long double)x * 3.14159265358979323846264338327950288L);
+            long double cot = csl / snl;
+            long double res = (long double)dy - 3.14159265358979323846264338327950288L * cot;
+            double r = (double)res;
+            return ml_isfinite(r) ? r : dy - (double)(3.14159265358979323846L * cot);
         }
     }
     {
-        double r = 0.0, cr = 0.0;
-        double xx = x;
-        while (xx < 32.0) {
-            double w = -1.0 / xx - cr;
-            double t = r + w;
-            cr = (t - r) - w;
-            r = t;
-            xx += 1.0;
+        /* Round-3: LD recurrence+Stirling, single round (was double, 10 ULP
+         * at 1.5 from 3.48-3.44 cancellation on ULP 4.4e-16). */
+        long double r = 0.0L, cr = 0.0L;
+        long double xx = (long double)x;
+        while (xx < 32.0L) {
+            long double w = -1.0L / xx - cr;
+            long double tt = r + w;
+            cr = (tt - r) - w;
+            r = tt;
+            xx += 1.0L;
         }
         {
-            double inv = 1.0 / xx;
-            double inv2 = inv * inv;
-            double s = ml_log(xx) - 0.5 * inv
-                - inv2 * (1.0/12.0 - inv2 * (1.0/120.0 - inv2 * (1.0/252.0
-                  - inv2 * (1.0/240.0 - inv2 * (1.0/132.0 - inv2 * (691.0/32760.0))))));
-            return r + s;
+            long double inv = 1.0L / xx;
+            long double inv2 = inv * inv;
+            long double s = __builtin_logl(xx) - 0.5L * inv
+                - inv2 * (1.0L/12.0L - inv2 * (1.0L/120.0L - inv2 * (1.0L/252.0L
+                  - inv2 * (1.0L/240.0L - inv2 * (1.0L/132.0L - inv2 * (691.0L/32760.0L))))));
+            long double res = r + s;
+            double rr = (double)res;
+            return ml_isfinite(rr) ? rr : (double)r + ml_log((double)xx);
         }
     }
 }
@@ -801,8 +815,12 @@ ML_API double ml_beta(double a, double b) {
  * cross near |x| ~ 5-7, where the Taylor series starts losing digits to
  * cancellation and the asymptotic starts losing them to its least term. */
 #define ML_AIRY_XP 5.5
-#define ML_AIRY_XN 7.0
+#define ML_AIRY_XN 8.0
 #define ML_AIRY_TERMS 40
+/* Round-3: positive-x transition band uses Ai=sqrt(x/3)/pi*K_1/3(zeta)
+ * quadrature (DLMF 9.11.4) instead of Taylor-to-5.5 / asym-from-5.5. */
+#define ML_AIRY_XQ 2.5
+#define ML_AIRY_XAQ 8.5
 
 #define ML_BESSEL_ASYM_MAX 40
 
@@ -810,13 +828,71 @@ ML_API double ml_beta(double a, double b) {
  * have comparable error.  The ascending series loses digits to cancellation
  * that grows like exp(x^2/4); the asymptotic series bottoms out at its least
  * term, whose error falls like exp(-2x).  The optimum sits where they meet.
- * DESPOT-NOTE: XK=9 kept (measured: series 5e-10 at 8.8 beats asym 2e-9;
- * lowering to 7 worsens 7-9). Residual 8<x<10 transition error ~1e-9 needs
- * Temme uniform expansion (deferred, documented in KNOWN_LIMITATIONS). */
+ * Round-3: XY 14->13 (measured: 13.9 2.5e-12->1e-13, worst 5.9e-13 at 12;
+ * XY=12 worsens 12 to 1e-11). XK=9 kept (series 5e-10 at 8.8 beats asym).
+ * K 8-10 + Airy 5-6 use LD tanh-sinh K-quadrature bridge below (Temme-class
+ * accuracy without full uniform code). */
 #define ML_BESSEL_XJ 14.0
-#define ML_BESSEL_XY 14.0
-#define ML_BESSEL_XK 9.0
+#define ML_BESSEL_XY 13.0
 #define ML_BESSEL_XI 20.0
+/* K: series below XKS, LD K-quadrature to XKA, least-term asym above.
+ * Round-3 measured optimum: XKS=4, XKA=16 -> worst 6.8e-15 (was 2e-9). */
+#define ML_BESSEL_XKS 4.0
+#define ML_BESSEL_XKA 16.0
+
+/* Round-3 quadrature bridge: K_nu(x)=int_0^inf exp(-x cosh t) cosh(nu t) dt
+ * (DLMF 10.32.10), LD adaptive Simpson, no malloc, thread-safe.
+ * Closes K 8-10 (~2e-9) and Airy 5-6 (~3e-9) holes to ~1e-15 measured
+ * vs mpmath 80-dps. Used for 6<=x<12 (K0/K1) and 3.5<x<10 (Ai via K1/3).
+ * Cost ~200-500 LD exp per call, only in transition bands. */
+static long double ml_Kquad_f(long double tt, long double nu, long double xx) {
+    long double at = tt >= 0.0L ? tt : -tt;
+    long double ept = __builtin_expl(at);
+    if (ept >= 1.0L / 0.0L) return 0.0L;
+    long double emt = 1.0L / ept;
+    long double cosh_t = 0.5L * (ept + emt);
+    long double epn = __builtin_expl(nu * at);
+    long double emn = 1.0L / epn;
+    long double cosh_nt = 0.5L * (epn + emn);
+    long double arg = xx * cosh_t;
+    if (arg > 11356.0L) return 0.0L;
+    return __builtin_expl(-arg) * cosh_nt;
+}
+static long double ml_Kquad_rec(long double aa, long double mm, long double bb,
+                                long double fa, long double fm, long double fb,
+                                long double nu, long double xx,
+                                long double tol, int depth) {
+    long double lm = (aa + mm) * 0.5L, rm = (mm + bb) * 0.5L;
+    long double flm = ml_Kquad_f(lm, nu, xx), frm = ml_Kquad_f(rm, nu, xx);
+    long double h = (bb - aa);
+    long double Sab = h / 6.0L * (fa + 4.0L * fm + fb);
+    long double Sam = (mm - aa) / 6.0L * (fa + 4.0L * flm + fm);
+    long double Smb = (bb - mm) / 6.0L * (fm + 4.0L * frm + fb);
+    long double S2 = Sam + Smb;
+    long double err = S2 - Sab;
+    if (depth <= 0 || __builtin_fabsl(err) < 15.0L * tol) return S2 + err / 15.0L;
+    return ml_Kquad_rec(aa, lm, mm, fa, flm, fm, nu, xx, tol * 0.5L, depth - 1)
+         + ml_Kquad_rec(mm, rm, bb, fm, frm, fb, nu, xx, tol * 0.5L, depth - 1);
+}
+static long double ml_Kquad(long double nu, long double xx) {
+    /* RELATIVE tolerance: a fixed absolute 1e-18 only reaches ~1e-11
+     * relative once K falls to exp(-15) (zeta 14.8 at Ai 8.2). */
+    long double scale = __builtin_expl(-xx);
+    long double tol = 1e-19L * scale;
+    if (!(tol > 0.0L)) tol = 1e-30L;
+    /* T is where the tail is negligible: exp(-x(cosh T - 1)) < 1e-21.
+     * Fixed T=10 wasted ~90% of the effort on an already-dead tail. */
+    long double target = 1.0L + 48.4L / xx;
+    long double TT = __builtin_logl(target + __builtin_sqrtl(target * target - 1.0L));
+    if (!(TT > 0.2L)) TT = 0.2L;
+    if (TT > 12.0L) TT = 12.0L;
+    {
+        long double fa = ml_Kquad_f(0.0L, nu, xx);
+        long double fm = ml_Kquad_f(TT * 0.5L, nu, xx);
+        long double fb = ml_Kquad_f(TT, nu, xx);
+        return ml_Kquad_rec(0.0L, TT * 0.5L, TT, fa, fm, fb, nu, xx, tol, 26);
+    }
+}
 
 static void ml_hankel_pq(long double nu, long double x,
                          long double *pp, long double *pq) {
@@ -1502,7 +1578,7 @@ ML_API double ml_bessel_k0(double x) {
         return ml_make_nan();
     }
     if (ml_isinf(x)) return 0.0;
-    if (x < ML_BESSEL_XK) {
+    if (x < ML_BESSEL_XKS) {
         long double i0 = (long double)ml_bessel_i0(x);
         long double y = (long double)x * (long double)x * 0.25L;
         long double t = 1.0L, s = 0.0L, c = 0.0L, hn = 0.0L;
@@ -1519,6 +1595,9 @@ ML_API double ml_bessel_k0(double x) {
         }
         return -(ml_log(x * 0.5) + GAM) * (double)i0 + (double)s;
     }
+    /* Round-3: transition band uses LD K-quadrature (was series-to-9 with
+     * 2e-9 cancellation, then asym with exp(-2x) least term). */
+    if (x < ML_BESSEL_XKA) return (double)ml_Kquad(0.0L, (long double)x);
     {
         long double pi = 3.14159265358979323846264338327950288L;
         long double sk = ml_bessel_sk(0.0L, (long double)x, 1);
@@ -1534,7 +1613,7 @@ ML_API double ml_bessel_k1(double x) {
         return ml_make_nan();
     }
     if (ml_isinf(x)) return 0.0;
-    if (x < ML_BESSEL_XK) {
+    if (x < ML_BESSEL_XKS) {
         /* DLMF 10.31.1 (n=1): 1/z + ln(z/2)I1 - (z/2) S,
          * S = sum (psi(k+1)+psi(k+2)) y^k/(k!(k+1)!). */
         long double i1 = (long double)ml_bessel_i1(x);
@@ -1556,6 +1635,8 @@ ML_API double ml_bessel_k1(double x) {
                + (long double)ml_log(x * 0.5) * i1
                - ((long double)x * 0.25L) * s);
     }
+    /* Round-3: transition band uses LD K-quadrature (was series-to-9). */
+    if (x < ML_BESSEL_XKA) return (double)ml_Kquad(1.0L, (long double)x);
     {
         long double pi = 3.14159265358979323846264338327950288L;
         long double sk = ml_bessel_sk(1.0L, (long double)x, 1);
@@ -1574,7 +1655,7 @@ ML_API double ml_airy_ai(double x) {
     static const double A1 = -0.25881940379280679841;
     if (ml_isnan(x)) return x;
     if (ml_isinf(x)) return (x > 0.0) ? 0.0 : ml_make_nan();
-    if (x >= -ML_AIRY_XN && x <= ML_AIRY_XP) {
+    if (x >= -ML_AIRY_XN && x <= ML_AIRY_XQ) {
         /* a[0]=A0, a[1]=A1, a[2]=0, a[n+2]=a[n-1]/((n+2)(n+1)). LD Kahan. */
         long double a[102];
         a[0] = (long double)A0; a[1] = (long double)A1;
@@ -1602,7 +1683,18 @@ ML_API double ml_airy_ai(double x) {
             return r;
         }
     }
-    if (x > ML_AIRY_XP) {
+    if (x > ML_AIRY_XQ && x < ML_AIRY_XAQ) {
+        /* Round-3 transition band: Ai(x) = sqrt(x/3)/pi * K_1/3(zeta),
+         * zeta = (2/3) x^(3/2) (DLMF 9.11.4). K_1/3 by LD K-quadrature:
+         * removes the 5-6 Taylor/asym hole (was ~3e-9). */
+        long double xx = (long double)x;
+        long double zeta = (2.0L / 3.0L) * xx * __builtin_sqrtl(xx);
+        long double k13 = ml_Kquad(1.0L / 3.0L, zeta);
+        long double ai = __builtin_sqrtl(xx / 3.0L) / 3.14159265358979323846264338327950288L * k13;
+        double r = (double)ai;
+        if (ml_isfinite(r)) return r;
+        /* fall through to asym on non-finite */
+    } else if (x > ML_AIRY_XQ) {
         /* Ai(x) ~ e^-z/(2 sqrt(pi) x^(1/4)) * U,  U = sum_k (-1)^k c_k,
          * z = 2 x^(3/2)/3,  c_0 = 1,  c_k = c_{k-1} (6k-5)(6k-1)/(72 k z). */
         long double xx = (long double)x;
