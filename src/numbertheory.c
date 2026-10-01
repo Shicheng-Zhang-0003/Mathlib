@@ -227,8 +227,10 @@ ML_API uint64_t ml_prime_pi(uint64_t n) {
     {
         uint64_t nn = n;
         /* Heap-backed odd-only sieve sized by the limit: avoids a 50MB
-         * static BSS image and is thread-safe (no shared mutable state). */
-        uint64_t size = nn / 2;
+         * static BSS image and is thread-safe (no shared mutable state).
+         * DESPOT-FIX: size=(nn+1)/2 so odd nn itself is sieved/counted.
+         * Old nn/2 missed nn when nn was an odd prime (pi(3)=1, pi(5)=2). */
+        uint64_t size = (nn + 1) / 2;
         uint8_t *bits = (uint8_t *)malloc((size_t)size * sizeof(uint8_t));
         if (!bits) return UINT64_MAX;
         for (uint64_t i = 0; i < size; i++) bits[i] = 1;

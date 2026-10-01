@@ -11,8 +11,13 @@ ML_API cplx ml_hurwitz_zeta(double s, double a) {
         const int N = 50;
         long double sum = 0;
         for (int n = 0; n < N; n++) sum += __builtin_powl((long double)(n + a), -(long double)s);
-        long double tail = __builtin_powl((long double)(N + a), 1.0L - (long double)s) / ((long double)s - 1.0L)
-            + 0.5L * __builtin_powl((long double)(N + a), -(long double)s);
+        /* Euler-Maclaurin tail through B2 (was integral+1/2 only, ~10k ULP
+         * at s=1.1: missing s/(12 N^{s+1}) ~= 2.3e-5). B4 term is <1e-9
+         * for N=50, s>1 and is omitted deliberately. */
+        long double Na = (long double)(N + a);
+        long double tail = __builtin_powl(Na, 1.0L - (long double)s) / ((long double)s - 1.0L)
+            + 0.5L * __builtin_powl(Na, -(long double)s)
+            + 0.5L * (long double)s * __builtin_powl(Na, -(long double)s - 1.0L) / 6.0L;
         double r = (double)(sum + tail);
         if (!ml_isfinite(r)) return nn;
         return (cplx){r, 0.0};

@@ -307,13 +307,34 @@ ML_API uint64_t ml_phi(uint64_t n) {
 ML_API uint64_t ml_catalan(int n) {
     if (n < 0) return 0;
     if (n == 0) return 1;
-    if (n > 34) return UINT64_MAX;
+    /* C37 first overflows 64-bit; C35/C36 fit but C(70,35)/C(72,36) do not,
+     * so ml_ncr(2n,n)/(n+1) falsely overflows. DESPOT-FIX: recurrence
+     * C_{k+1}=C_k*2(2k+1)/(k+2) with GCD cancellation keeps every
+     * intermediate <= 1.2e19 (C99, no __int128). */
+    if (n > 36) return UINT64_MAX;
     {
-        uint64_t c = ml_ncr(2 * n, n);
-        if (c == UINT64_MAX) return UINT64_MAX;
-        return c / (uint64_t)(n + 1);
+        uint64_t c = 1;
+        for (int k = 0; k < n; k++) {
+            uint64_t num = 2u * ((uint64_t)k * 2u + 1u);
+            /* num = 2*(2k+1); den = k+2 */
+            uint64_t den = (uint64_t)k + 2u;
+            uint64_t g = ml_gcd_u64(c, den);
+            c /= g;
+            den /= g;
+            g = ml_gcd_u64(num, den);
+            num /= g;
+            den /= g;
+            if (den != 1) {
+                if (num % den != 0) return UINT64_MAX;
+                num /= den;
+            }
+            if (num != 1 && c > UINT64_MAX / num) return UINT64_MAX;
+            c *= num;
+        }
+        return c;
     }
 }
+
 
 ML_API uint64_t ml_fib_pair(long long n, uint64_t *fn, uint64_t *fn1) {
     if (n < 0) return 0;
