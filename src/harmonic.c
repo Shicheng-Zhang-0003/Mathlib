@@ -80,18 +80,35 @@ ML_API ml_status_t ml_fft_real(const double *x, double *re, double *im, int n) {
 }
 ML_API ml_status_t ml_fft2d_pow2(const double *re_in, const double *im_in, double *re_out, double *im_out, int n) {
     if (!re_in || !im_in || !re_out || !im_out || n <= 0 || (n & (n - 1)) != 0 || n > 128) return ML_ERR_INVALID_ARG;
-    /* Stack-local scratch (thread-safe; no static storage). */
-    cplx rows[128][128], cols[128];
-    for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) {
-        if (!ml_isfinite(re_in[i*n+j]) || !ml_isfinite(im_in[i*n+j])) return ML_ERR_NAN_INPUT;
-        rows[i][j].real = re_in[i*n+j]; rows[i][j].imag = im_in[i*n+j];
+    /* Round-3 stack diet: the matrix lives in the caller's re_out/im_out
+     * (n*n each), so only one column scratch is needed. Previous
+     * `cplx rows[128][128]` burned 256 KB of stack per call - the single
+     * largest stack footprint in the tree and hostile to embedded.
+     * Stack-local scratch only (thread-safe; no static storage). */
+    {
+        cplx cols[128];
+        for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) {
+            if (!ml_isfinite(re_in[i*n+j]) || !ml_isfinite(im_in[i*n+j])) return ML_ERR_NAN_INPUT;
+            re_out[i*n+j] = re_in[i*n+j]; im_out[i*n+j] = im_in[i*n+j];
+        }
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                cols[j].real = re_out[i*n+j]; cols[j].imag = im_out[i*n+j];
+            }
+            ml_fft_execute(cols, n);
+            for (int j = 0; j < n; j++) {
+                re_out[i*n+j] = cols[j].real; im_out[i*n+j] = cols[j].imag;
+            }
+        }
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) {
+                cols[i].real = re_out[i*n+j]; cols[i].imag = im_out[i*n+j];
+            }
+            ml_fft_execute(cols, n);
+            for (int i = 0; i < n; i++) {
+                re_out[i*n+j] = cols[i].real; im_out[i*n+j] = cols[i].imag;
+            }
+        }
     }
-    for (int i = 0; i < n; i++) ml_fft_execute(rows[i], n);
-    for (int j = 0; j < n; j++) {
-        for (int i = 0; i < n; i++) cols[i] = rows[i][j];
-        ml_fft_execute(cols, n);
-        for (int i = 0; i < n; i++) rows[i][j] = cols[i];
-    }
-    for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) { re_out[i*n+j] = rows[i][j].real; im_out[i*n+j] = rows[i][j].imag; }
     return ML_SUCCESS;
 }
