@@ -21,3 +21,5 @@ crossings are absolute-error regime). Passing the oracle grid does not prove
 <0.5 ULP for all inputs (Table Maker's Dilemma; see `ULP_PUSH.md`).
 
 Evidence: `docs/GATE_V12R2.md`. Logs live in `/tmp` by policy (never in repo).
+
+Round-2 (2026-10-01): oracle 212/0 ASan clean (zeta OOB fixed), god 61473/0, boundary 25/0, edge 23/23 sanitizer-clean sample, 3-profile -Werror 34/34. Probes in /tmp/opencode/mathlib-work (acosh/pi/ninv/sp/kelvin/hk) pin each fix.

@@ -7,7 +7,7 @@ cmake --build build
 
 Profiles: `SCIENTIFIC` (accurate `1/sqrt`), `GRAPHICS` (`ml_fast_rsqrt`),
 `EMBEDDED` (accurate fallback; fixed-point CORDIC path for trig).
-All three compile `-Werror` clean (35 TUs incl. kelvin).
+All three compile `-Werror` clean (34 TUs incl. kelvin).
 
 Strict flags (CMake + Makefile aligned):
 

@@ -137,3 +137,7 @@ These are design choices, not hidden defects.
 
 *v11S shipped 2026-08-02. v12A1 A1 closure completed 2026-08-11. v12R2 refinement completed 2026-09-30 (public V1.2-RC2, same commit).*
 *The gamma nightmare is over. The critical bugs are fixed. The thread-safety audit is complete. 12 Batch-1 modules + kelvin ship (34 TUs).*
+
+## Round-2 despot (2026-10-01)
+
+Re-audit in `/tmp/opencode/mathlib-work/` found and fixed 11 issues: zeta OOB (ASan abort → 212/0 clean), kelvin sign flip (ber -pi/8 split), prime_pi odd miss, acosh 458k ULP → 0, softplus 57k ULP → exact, normal_inv sigma stall → exact, hurwitz B2 10k ULP → 9e-10, catalan C35/C36 exact, log1p coeff, Airy LD Taylor, QR NaN-poison + hurwitz alias, 35→34 TU docs. Oracle stays 212/0 worst 0 ULP (gate ≤5 ULP); god 61473/0; edge 23/23; 3-profile clean. Remaining holes (kelvin 0.5%, Airy/K Temme) documented in KNOWN_LIMITATIONS/DESPOT_AUDIT.

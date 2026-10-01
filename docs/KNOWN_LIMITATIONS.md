@@ -105,3 +105,18 @@ push):
 - `ml_gamma` historically inherited lgamma's error amplified by lgamma(x)
   (~21 ULP at x~6.7); LD direct paths now hold the measured grid at 0 ULP
   (x86-64). General proof still deferred (Ziv + worst-case search).
+
+## Round-2 despot (2026-10-01) — what was fixed vs what remains
+
+Fixed and pinned: zeta OOB (ASan abort), kelvin sign flip (ber -pi/8 split),
+prime_pi odd undercount, acosh 458k ULP, softplus 57k ULP, normal_inv sigma
+stall, hurwitz B2 10k ULP, catalan C35/C36 exact via recurrence, log1p coeff,
+Airy LD Taylor, QR NaN-poison, hurwitz-margin alias, 35->34 TU docs.
+
+Remains (documented limits, not defects):
+- Kelvin 2-term P/Q ~0.5% at 20 (bei 20.1 125562 vs 126161 true). Needs
+  DLMF 10.67.5 R/S to 1/x^5 or I0/K0 uniform continuation.
+- Airy 5<x<6 Taylor/asym hole ~3e-10..3e-9 (LD halves it); K 8<x<10 ~2e-9.
+  Both need Temme uniform expansion (deferred to v12A2).
+- Y1 near 14: 25k ULP (crossover cause, same family).
+- Batch-1 no oracle; long double==double collapse; heavy stacks — unchanged.

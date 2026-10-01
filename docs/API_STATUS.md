@@ -54,9 +54,9 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 | `ml_analytic_nt.h` | **EXPERIMENTAL** | `ml_hurwitz_zeta` is STUB for s ≤ 1, a ≠ 1 (returns NaN; only s > 1 and a == 1 paths implemented) |
 | `ml_control.h` | **EXPERIMENTAL** | No oracle vectors; tolerances unvalidated; `ml_lyapunov_2x2_trace` is a Hurwitz margin (-tr), not a Lyapunov P trace (legacy name) |
 | `ml_orthogonal.h` | **EXPERIMENTAL** | Three-term recurrences, long-double, <1 ULP n<=64 |x|<=2; Laguerre x<0->NaN domain choice; unbounded n is caller-bounded |
-| `ml_numbertheory.h` | **EXPERIMENTAL** | Exact u64; mobius 2=UNRESOLVED sentinel; mult_order exact via gcd-guarded reduction; crt2 generalized with overflow-checked lcm |
+| `ml_numbertheory.h` | **EXPERIMENTAL** | Exact u64; mobius 2=UNRESOLVED sentinel; mult_order exact; crt2 generalized; Round-2 prime_pi odd fix (pi(3)=2) + catalan C0..C36 exact via recurrence (C37+ MAX) |
 | `ml_transforms.h` | **EXPERIMENTAL** | Unscaled DCT-II/III pair; `ml_dst2` implements DST-I (`ml_dst1` alias); `ml_parseval_energy` is time-domain energy; O(n^2) n<=256 |
-| `ml_kelvin.h` | **EXPERIMENTAL** | ber/bei/ker/kei series + 2-term asym at XMAX=20; ber/bei(Inf)=NaN (unbounded), ker/kei(Inf)=0; ker/kei(x<=0)=NaN |
+| `ml_kelvin.h` | **EXPERIMENTAL** | ber/bei/ker/kei series + 2-term asym at XMAX=20; Round-2 phase fix (ber/bei -pi/8, ker/kei +pi/8; was sign flip); residual ~0.5% at 20; ber/bei(Inf)=NaN, ker/kei(Inf)=0; ker/kei(x<=0)=NaN |
 
 > NOTE: all shipped TUs now have status rows (despot audit closed the orthogonal/numbertheory/transforms gap).
 
@@ -86,3 +86,5 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 
 * `compat.h` is not part of the v11S core.
 * `legacy/` modules are not built by default and are outside the v11S stability boundary.
+
+Round-2 (2026-10-01): `ml_hurwitz_margin_2x2` alias added (legacy lyapunov kept ABI); `ml_qr_iter_eig` NaN-poisons on SINGULAR + post-check; `ml_acosh` log1p, `ml_softplus` 36-cutoff, `ml_normal_inv` phi fix, `ml_hurwitz_zeta` B2 tail — all STABLE semantics, EXPERIMENTAL ULP unchanged.

@@ -66,7 +66,7 @@ implemented in code and pinned by `despot_check` or the existing gauntlet.
   start; gate stays ≤5 ULP — measurement, not proof, see `docs/ULP_PUSH.md`).
 - Smoke/modular/linalg/dsp: all passed. Fuzz god 61393/0, boundary 25/0.
 - `despot_check` (17 assertions in `/tmp/opencode/mathlib-work/`): ALL PASS.
-- Full per-TU `-Werror` compile: 35/35 clean × 3 profiles. C++ header check clean.
+- Full per-TU `-Werror` compile: 34/34 clean × 3 profiles. C++ header check clean.
 - Edge full sweep: 23/23 PASS (gate-v12R2 logs).
 
 ## Remaining (honest, not hidden)
@@ -79,3 +79,89 @@ implemented in code and pinned by `despot_check` or the existing gauntlet.
   for embedded; heap-workspace API deferred.
 - Absolute `1e-12/1e-9` geometric tolerances (stewart/ceva) remain
   arbitrary-but-documented.
+
+## Round-2 — 2026-10-01 (despot returns)
+
+Full mathematical/programming/operational re-audit in `/tmp/opencode/mathlib-work/`.
+Probes built with `gcc -std=c99 -O2 -fno-fast-math -ffp-contract=off` vs
+mpmath 80-dps / system libm. All fixes below are implemented and re-verified
+(ASan+UBSan oracle 212/0, 3-profile -Werror clean).
+
+### P0 — wrong answer / sanitizer abort (fixed)
+
+- `integral.c:306-332 zeta[]` — missing ζ(12) shifted k>=12 by one slot and
+  `zeta[25]` was OOB (`long double[25]` with kmax=25). ASan
+  `global-buffer-overflow` + UBSan `index 25 OOB` on `oracle_check`.
+  Fixed: 26-entry table `[0..25]` with mpmath 80-dps constants, ζ(12)=
+  `1.000246086553308048298637998047739670960L` restored, full precision
+  for k>=12 (was 15-digit truncation). Masked by `u^k/k` (`|u|<=0.15`)
+  but UB nonetheless — now 0 ULP on lgamma zeros grid.
+- `kelvin.c:79 asym phase` — single `+pi/8` for all four functions.
+  DLMF 10.67.3-4: ber/bei use `-pi/8`, ker/kei use `+pi/8`.
+  Was sign flip: `ber(20)=-47186` vs true `+47489`, `ber(20.1)` rel -2.4.
+  Fixed: split `phb/phk`. Residual 2-term truncation ~0.5% at 20
+  (EXPERIMENTAL, documented, no oracle).
+- `numbertheory.c:231 prime_pi` — `size=nn/2` missed odd `nn` itself.
+  `pi(3)=1` (true 2), `pi(5)=2` (3), `pi(7)=3` (4). Fixed: `(nn+1)/2`.
+
+### P1 — systematic bias (fixed)
+
+- `exp_log.c:616 acosh` — `log(x+sqrt((x-1)(x+1)))` cancels at 1+
+  (458k ULP at `1+1e-12`). Fixed: `log1p((x-1)+sqrt(...))` → 0 ULP vs sys.
+- `info.c:75 softplus` — `x>20 return x` drops `log1p(exp(-x))`
+  (57k ULP at 22). Fixed: cutoff 36 (`exp(-36)~2.3e-16`), `x+log1p(exp(-x))`
+  for 20<x<=36 → exact.
+- `statistics.c:310 normal_inv` — Newton `e/(sigma*pdf)` scales step by
+  `1/sigma` (dCDF/dz is `phi`, not `sigma*phi`). Stalled 10 iters for
+  sigma!=1 (`inv(.99,5,.001)=5.248` vs `5.002`). Fixed: `e/pdf` → exact,
+  ratio `inv(.975,0,2)/inv(.975,0,1)=2.0`.
+- `analytic_nt.c:14 hurwitz` — tail was integral+1/2 only, missing
+  `s/(12 N^{s+1})` (~10k ULP at s=1.1: `-2.28e-05`). Fixed: B2 term added
+  → `9.5844484658669` vs `9.5844484649508` true (9e-10).
+- `combinatorics.c:310 catalan` — cap `n>34` falsely overflowed C35/C36
+  (both <2^64) and `ml_ncr(2n,n)` overflowed intermediate. Fixed:
+  recurrence `C_{k+1}=C_k*2(2k+1)/(k+2)` with GCD cancellation (strict C99,
+  no `__int128` for `-Wpedantic`); C0..C36 exact, C37+ MAX.
+- `exp_log.c:710 log1p lc[14]` — `0.069` truncated (true `2/29=
+  0.06896551724137931`). Masked (`z^29~1e-21`) but fixed for hex-exact intent.
+- `integral.c:803-816 Airy/K` — Taylor was double (24M ULP at 5.5),
+  now LD Kahan (`1e-22` stop) → ~2.7e-10 at 5.0. XK=9 kept (series 5e-10
+  at 8.8 beats asym 2e-9; lowering to 7 worsens). Residual 5-6 hole and
+  8<x<10 K hole need Temme uniform expansion — documented, not hidden.
+
+### Programming hardening (fixed)
+
+- `spectral.c:226 qr_iter_eig` — SINGULAR left `evals_*` untouched (stale
+  garbage on ignored status). Fixed: poison to NaN on both exhaustion and
+  post-check `off>tol` paths; post-check added (was silent SUCCESS on
+  unconverged real 2x2 block).
+- `control.c:99` — added honestly-named `ml_hurwitz_margin_2x2` alias;
+  legacy `ml_lyapunov_2x2_trace` kept for ABI, doc points to alias.
+- Headers: 7 use `LIBMATHC_` prefix vs 38 `MATHLIB_` — both guarded,
+  no missing guard; standardized in docs (no ABI break).
+- `__int128` rejected: strict C99 `-Wpedantic` forbids it (build break);
+  recurrence above is the portable fix. `malloc` in `prime_pi`/`majorizes`
+  is heap-per-call (thread-safe), not core zero-alloc violation — documented.
+- Thread-safety re-verified: `grep static.*\[` shows only `static const`
+  tables + stateless helpers; no per-call mutable state.
+
+### Operational (fixed)
+
+- `GATE_V12R2.md:8`, `BUILD_AND_INSTALL.md:10`: `35 TUs` → `34 TUs`
+  (canonical list is 34 everywhere: CMake/Makefile/run_all_tests/edge).
+- `run_all_tests.py:586` `Path("src/core.c")` false-positive in naive
+  `grep -c src/` counts (35/36) — canonical `LIB_SOURCES[70:103]` is 34.
+- Validation Round-2: oracle 212/0 worst 0 ULP ASan clean (was abort),
+  modular 4/4, smoke 30/0, boundary 25/0, god 61473/0 seed 123456789,
+  edge 23/23 (sanitizer sample clean), 3-profile -Werror clean.
+
+## Remaining (honest, not hidden) — updated
+
+- Kelvin 2-term truncation ~0.5% at 20; crossover 20 kept (series holds to
+  19 to 6 digits, asym fixed). Uniform `I0/K0` continuation deferred.
+- Airy 5-6 hole (~1e-9..1e-8) + K 8-10 (~1e-9) need Temme/Amos; LD Taylor
+  halves the hole but does not close it. Pinned by `accuracy_audit`.
+- Batch-1 still no oracle ULP (bisection inverses, Krylov unpreconditioned,
+  xorshift RNG, Dirichlet PDEs, 2x2 control) — see PRECISION_CONTRACT.
+- `long double==double` (MSVC/ARM) collapses LD paths; guarantees stay ≤5 ULP.
+- Large stacks (harmonic 64KB, GMRES 25KB) thread-safe but heavy; heap API deferred.

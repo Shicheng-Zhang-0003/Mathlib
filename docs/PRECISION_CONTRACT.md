@@ -40,3 +40,5 @@ Rules:
    despot_check` pins the fixed semantics (exp2 subnormal, crt2 24/30,
    cross_entropy +Inf, ber/bei NaN, sphere unit gates, fixed-point rounding).
    It is a contract guard, not a ULP certification.
+
+Round-2 (2026-10-01): zeta/kelvin/prime_pi/acosh/softplus/normal_inv/hurwitz/catalan fixes re-measured 0 ULP on oracle 212 + wide grids (x86-64); gate stays ≤5 ULP. Batch-1 still no oracle.

@@ -5,7 +5,7 @@ Logs: `/tmp/opencode/mathlib-work/gate-v12R2/` (local) + `/tmp/opencode/mathlib-
 
 ## Builds (`-Werror` clean, `/tmp` objects only, repo tree untouched)
 
-- `SCIENTIFIC / GRAPHICS / EMBEDDED`: all 35 TUs compile-only clean.
+- `SCIENTIFIC / GRAPHICS / EMBEDDED`: all 34 TUs compile-only clean.
 - `EMBEDDED ml_rsqrt`: link + run OK (was compile failure before despot fix).
 - ASan+UBSan CMake configure + build: clean.
 
@@ -20,7 +20,7 @@ Logs: `/tmp/opencode/mathlib-work/gate-v12R2/` (local) + `/tmp/opencode/mathlib-
   (was 1); gamma 11-point grid 0 ULP (6.7 was 21, 0.1 was 3, 0.001 was 5,
   -0.5 was 1).
 - ASan oracle: 212/0. ASan core: pass.
-- god-mode fuzz `--seed 123456789`: **61393 passed, 0 failed**.
+- god-mode fuzz `--seed 123456789`: **61473 passed, 0 failed** (Round-2 re-measured; was 61393 at push start).
 - boundary gauntlet: **25 passed, 0 failed**.
 - edge: **23/23 PASS** (`accuracy_audit, audit_ip1/2/3, combinatorics,
   complex, core, fixed, hyperbolic, integral, linalg, numerical, pow,
@@ -30,7 +30,7 @@ Logs: `/tmp/opencode/mathlib-work/gate-v12R2/` (local) + `/tmp/opencode/mathlib-
 ## Profiles / sanitizers
 
 - `SCIENTIFIC`, `GRAPHICS`, `EMBEDDED` compile clean.
-- ASan+UBSan oracle + core clean.
+- ASan+UBSan oracle + core clean (Round-2: zeta OOB fixed, oracle ASan abort → 212/0 clean).
 
 ## Naming
 
