@@ -307,7 +307,10 @@ ML_API double ml_normal_inv(double p, double mu, double sigma) {
             double pdf = ml_exp(-0.5 * z * z) / 2.50662827463100050242;
             if (pdf == 0.0 || !ml_isfinite(pdf)) break;
             {
-                double d = e / (sigma * pdf);
+                /* DESPOT-FIX: dCDF/dz is phi(z), not sigma*phi. Old
+                 * e/(sigma*pdf) scaled the Newton step by 1/sigma,
+                 * stalling 10 iters for sigma!=1 (0.246 abs at sigma=1e-3). */
+                double d = e / pdf;
                 z -= d;
                 if (ml_fabs(d) < 1e-15) break;
             }

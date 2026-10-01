@@ -72,7 +72,11 @@ ML_API double ml_logistic(double x) {
 ML_API double ml_softplus(double x) {
     if (ml_isnan(x)) return x;
     if (ml_isinf(x)) return (x > 0.0) ? x : 0.0;
-    if (x > 20.0) return x;
+    /* DESPOT-FIX: cutoff 20->36. exp(-20)~2e-9 is 2e-9 absolute (57k ULP at
+     * x=22); exp(-36)~2.3e-16 is 1 ULP. Below -36 exp(x) underflows to 0. */
+    if (x > 36.0) return x;
+    if (x < -36.0) return ml_exp(x);
+    if (x > 20.0) return x + ml_log1p(ml_exp(-x));
     if (x < -20.0) return ml_exp(x);
     return ml_log1p(ml_exp(x));
 }

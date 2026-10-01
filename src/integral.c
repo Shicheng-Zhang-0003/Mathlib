@@ -302,26 +302,31 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
         int is_one = (u1 > -0.15 && u1 < 0.15 && u1 != 0.0);
         int is_two = !is_one && (u2 > -0.15 && u2 < 0.15 && u2 != 0.0);
         if (is_one || is_two) {
-            /* ζ(2)..ζ(25) long-double constants (DLMF 25.2). */
+            /* ζ(2)..ζ(25) long-double constants (DLMF 25.2, mpmath 80-dps).
+             * DESPOT-FIX: table is [0..25] (26 entries); zeta[12] is ζ(12),
+             * not ζ(13); kmax=25 is in-bounds. Missing ζ(12) previously
+             * shifted k>=12 by one slot and zeta[25] was OOB (ASan
+             * global-buffer-overflow). All constants full precision. */
             static const long double zeta[] = {
                 0.0L,
                 0.0L,
-                1.644934066848226436472415166646025189218949901206798437735558229370007470403200873833629997L,
-                1.202056903159594285399738161511449990764986292340498881792271555341838205786313090186599581L,
-                1.082323233711138191516003696541167902774750951917201357867384446532742157654761181821857586L,
-                1.036927755143369926331365486457034168057080919501912070530709058584445582187171633198353093L,
-                1.017343061984449139714517404849431071399384884877009546917135011160048027911796596001894753L,
-                1.008349277381922826839797549849796759599863560565238535841168102209270315294521871389971670L,
-                1.004077356197944339378685238508652465168960926393759480310398907476012652784722027086274132L,
-                1.002008392826082214537676845809995857449591063561411884280761537757284699345669554724483939L,
-                1.000994575127818085337145958900319017006019531564477517257217424437249739253869247063179620L,
-                1.000494188604119464558702282526469936468606723704155206074992307170324905117053137131988541L,
+                1.644934066848226436472415166646025189219L,
+                1.202056903159594285399738161511449990765L,
+                1.082323233711138191516003696541167902775L,
+                1.036927755143369926331365486457034168057L,
+                1.017343061984449139714517929790920527902L,
+                1.008349277381922826839797549849796759600L,
+                1.004077356197944339378685238508652465259L,
+                1.002008392826082214417852769232412060486L,
+                1.000994575127818085337145958900319017006L,
+                1.000494188604119464558702282526469936469L,
+                1.000246086553308048298637998047739670960L,
                 1.000122713347578489146751836526357395714L,
                 1.000061248135058704829258545105135333747L,
                 1.000030588236307020493551728510645062588L,
                 1.000015282259408651871732571487636722023L,
                 1.000007637197637899762273600293563029213L,
-                1.00000381729326499983985646164462193973L,
+                1.000003817293264999839856461644621939730L,
                 1.000001908212716553938925656957795101353L,
                 1.000000953962033872796113152038683449346L,
                 1.000000476932986787806463116719604373046L,
@@ -804,7 +809,10 @@ ML_API double ml_beta(double a, double b) {
 /* Ascending-series / asymptotic crossovers, chosen where the two branches
  * have comparable error.  The ascending series loses digits to cancellation
  * that grows like exp(x^2/4); the asymptotic series bottoms out at its least
- * term, whose error falls like exp(-2x).  The optimum sits where they meet. */
+ * term, whose error falls like exp(-2x).  The optimum sits where they meet.
+ * DESPOT-NOTE: XK=9 kept (measured: series 5e-10 at 8.8 beats asym 2e-9;
+ * lowering to 7 worsens 7-9). Residual 8<x<10 transition error ~1e-9 needs
+ * Temme uniform expansion (deferred, documented in KNOWN_LIMITATIONS). */
 #define ML_BESSEL_XJ 14.0
 #define ML_BESSEL_XY 14.0
 #define ML_BESSEL_XK 9.0
@@ -1558,37 +1566,40 @@ ML_API double ml_bessel_k1(double x) {
 
 ML_API double ml_airy_ai(double x) {
     /* Ai''=x Ai with Ai(0)=0.355028053887817, Ai'(0)=-0.258819403792807.
-     * Taylor a[0],a[1] given, (n+2)(n+1)a_{n+2}=a_{n-1}. Kahan to n=60:
-     * ~1 ULP for |x|<=5. Outside: exponential/oscillatory asymptotics. */
+     * Taylor a[0],a[1] given, (n+2)(n+1)a_{n+2}=a_{n-1}. LD Kahan to n=100:
+     * DESPOT-FIX: was double (24M ULP at 5.5 from x^3n cancellation);
+     * long double gains 2^-64 vs 2^-53 (~2000x). Residual hole 5-6 is
+     * documented (needs uniform Temme expansion, deferred). */
     static const double A0 = 0.35502805388781723943;
     static const double A1 = -0.25881940379280679841;
     if (ml_isnan(x)) return x;
     if (ml_isinf(x)) return (x > 0.0) ? 0.0 : ml_make_nan();
     if (x >= -ML_AIRY_XN && x <= ML_AIRY_XP) {
-        /* a[0]=A0, a[1]=A1, a[2]=0, a[n+2]=a[n-1]/((n+2)(n+1)). Kahan. */
-        double a[102];
-        a[0] = A0; a[1] = A1;
+        /* a[0]=A0, a[1]=A1, a[2]=0, a[n+2]=a[n-1]/((n+2)(n+1)). LD Kahan. */
+        long double a[102];
+        a[0] = (long double)A0; a[1] = (long double)A1;
         {
-            double s = A0 + A1 * x, cc = 0.0;
-            double xpow = x;
+            long double s = (long double)A0 + (long double)A1 * (long double)x, cc = 0.0L;
+            long double xpow = (long double)x;
             for (int n = 0; n < 100; n++) {
-                double anp2;
-                if (n == 0) anp2 = 0.0;
-                else anp2 = a[n - 1] / ((double)(n + 2) * (double)(n + 1));
+                long double anp2;
+                if (n == 0) anp2 = 0.0L;
+                else anp2 = a[n - 1] / ((long double)(n + 2) * (long double)(n + 1));
                 a[n + 2] = anp2;
-                xpow *= x;
+                xpow *= (long double)x;
                 if (n + 2 >= 2) {
-                    double term = anp2 * xpow;
-                    double w = term - cc;
-                    double tt = s + w;
+                    long double term = anp2 * xpow;
+                    long double w = term - cc;
+                    long double tt = s + w;
                     cc = (tt - s) - w;
                     s = tt;
                     /* Every 3rd coefficient is exactly 0 (a2=0 cascade);
                      * never break on an exact zero — it is not convergence. */
-                    if (term != 0.0 && (n + 2) > 3 && ml_fabs(term) < 1e-18 * ml_fabs(s)) break;
+                    if (term != 0.0L && (n + 2) > 3 && __builtin_fabsl(term) < 1e-22L * __builtin_fabsl(s)) break;
                 }
             }
-            return s;
+            double r = (double)s;
+            return r;
         }
     }
     if (x > ML_AIRY_XP) {

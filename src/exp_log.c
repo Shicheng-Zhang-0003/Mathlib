@@ -613,7 +613,10 @@ ML_API double ml_acosh(double x) {
         return ml_log(2.0) + ml_log(x);
     }
 
-    return ml_log(x + ml_sqrt((x - 1.0) * (x + 1.0)));
+    /* DESPOT-FIX: log1p form avoids cancellation at 1+. Old
+     * log(x+sqrt((x-1)(x+1))) rounds x+sqrt~=1+1.4e-6 at ulp(1),
+     * costing 458k ULP at 1+1e-12. log1p keeps full relative accuracy. */
+    return ml_log1p((x - 1.0) + ml_sqrt((x - 1.0) * (x + 1.0)));
 }
 
 ML_API double ml_atanh(double x) {
@@ -707,7 +710,7 @@ ML_API double ml_log1p(double x) {
             0.2222222222222222, 0.18181818181818182, 0.15384615384615385,
             0.13333333333333333, 0.11764705882352941, 0.10526315789473684,
             0.09523809523809523, 0.08695652173913043, 0.08,
-            0.07407407407407407, 0.069, 0.06451612903225806,
+            0.07407407407407407, 0.06896551724137931, 0.06451612903225806,
             0.06060606060606061
         };
         ml_ddx_t acc = ml_ddx_from_d(lc[16]);
