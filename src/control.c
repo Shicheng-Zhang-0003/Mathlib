@@ -92,8 +92,11 @@ ML_API double ml_lyapunov_2x2_trace(double a00, double a01, double a10, double a
     if (!ml_isfinite(a00)||!ml_isfinite(a01)||!ml_isfinite(a10)||!ml_isfinite(a11)) return ml_make_nan();
     /* DESPOT-AUDIT: misnamed legacy — returns Hurwitz stability margin
      * -tr(A) when tr<0 && det>0, else NaN. NOT the Lyapunov P trace.
-     * Kept for ABI; use ml_lqr_gain_2x2 for true Lyapunov solves. */
+     * Kept for ABI; use ml_hurwitz_margin_2x2 for new code. */
     double tr = a00 + a11, det = a00*a11 - a01*a10;
     if (tr < 0.0 && det > 0.0) return -tr;
     return ml_make_nan();
+}
+ML_API double ml_hurwitz_margin_2x2(double a00, double a01, double a10, double a11) {
+    return ml_lyapunov_2x2_trace(a00, a01, a10, a11);
 }

@@ -223,7 +223,23 @@ ML_API ml_status_t ml_qr_iter_eig(ml_tensor_view_t A, double *evals_re, double *
             for (int k = 0; k < n; k++) { double a1 = H[k][i], a2 = H[k][i+1]; H[k][i] = c*a1 - s*a2; H[k][i+1] = s*a1 + c*a2; }
         }
         for (int i = 0; i < n; i++) H[i][i] += mu;
-        if (it == max_iter - 1) return ML_ERR_SINGULAR;
+        if (it == max_iter - 1) {
+            /* DESPOT-FIX: poison outputs fail-loud (was untouched, risking
+             * use of stale stack garbage on ignored status). */
+            for (int k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
+            return ML_ERR_SINGULAR;
+        }
+    }
+    /* Post-check: extraction below assumes off<=tol. If a 2x2 block remains
+     * with real eigenvalues but large subdiagonal, the diagonal is not
+     * converged — fail-loud rather than silent SUCCESS. */
+    {
+        long double off = 0;
+        for (int i = 1; i < n; i++) { long double v = H[i][i-1]; off += v*v; }
+        if (__builtin_sqrtl(off) > (long double)tol) {
+            for (int k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
+            return ML_ERR_SINGULAR;
+        }
     }
     for (int i = 0; i < n; i++) {
         if (i + 1 < n && ml_fabs(H[i+1][i]) > tol) {

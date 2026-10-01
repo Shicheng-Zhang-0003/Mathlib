@@ -19,6 +19,9 @@ ML_API ml_status_t ml_kalman_1d(double x0, double p0, const double *zs, int n,
                                 double F, double H, double Q, double R,
                                 double *x_out, double *p_out);
 ML_API double ml_lyapunov_2x2_trace(double a00, double a01, double a10, double a11);
+/* DESPOT-FIX: honestly-named alias. Legacy ml_lyapunov_2x2_trace returns the
+ * Hurwitz margin -tr(A) (NaN if unstable), not a Lyapunov P trace. */
+ML_API double ml_hurwitz_margin_2x2(double a00, double a01, double a10, double a11);
 #ifdef __cplusplus
 }
 #endif

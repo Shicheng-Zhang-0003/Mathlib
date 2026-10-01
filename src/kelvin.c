@@ -76,16 +76,22 @@ static void ml_kelvin_asym(double x, double *ber, double *bei, double *ker, doub
     long double f = __builtin_expl(-ax * 0.70710678118654752440L);
     long double sqb = 0.39894228040143267794L / __builtin_sqrtl(ax);
     long double sqk = 1.25331413731550025121L / __builtin_sqrtl(ax);
-    long double ph = ax * 0.70710678118654752440L + 0.39269908169872415481L;
-    long double c = __builtin_cosl(ph), sn = __builtin_sinl(ph);
+    /* DESPOT-FIX: DLMF 10.67.3-4 phases differ. ber/bei use -pi/8,
+     * ker/kei use +pi/8. Old single +pi/8 flipped ber sign at 20
+     * (ber(20)=-47186 vs +47489 true) and cost 6% at 20.1. 2-term
+     * P/Q residual is ~0.5% at 20 (EXPERIMENTAL, no oracle). */
+    long double phb = ax * 0.70710678118654752440L - 0.39269908169872415481L;
+    long double phk = ax * 0.70710678118654752440L + 0.39269908169872415481L;
+    long double cb = __builtin_cosl(phb), snb = __builtin_sinl(phb);
+    long double ck = __builtin_cosl(phk), snk = __builtin_sinl(phk);
     long double invx = 1.0L / ax;
     long double invx2 = invx * invx;
     long double P = 1.0L + (9.0L / 128.0L) * invx2;
     long double Q = (1.0L / 8.0L) * invx + (225.0L / 3072.0L) * invx2 * invx;
-    *ber = (double)(sqb * e * (c * P + sn * Q));
-    *bei = (double)(sqb * e * (sn * P - c * Q));
-    *ker = (double)(sqk * f * (c * P + sn * Q));
-    *kei = (double)(sqk * f * (c * Q - sn * P));
+    *ber = (double)(sqb * e * (cb * P + snb * Q));
+    *bei = (double)(sqb * e * (snb * P - cb * Q));
+    *ker = (double)(sqk * f * (ck * P + snk * Q));
+    *kei = (double)(sqk * f * (ck * Q - snk * P));
 }
 
 ML_API double ml_kelvin_ber(double x) {
