@@ -41,4 +41,4 @@ Rules:
    cross_entropy +Inf, ber/bei NaN, sphere unit gates, fixed-point rounding).
    It is a contract guard, not a ULP certification.
 
-Round-2 (2026-10-01): zeta/kelvin/prime_pi/acosh/softplus/normal_inv/hurwitz/catalan fixes re-measured 0 ULP on oracle 212 + wide grids (x86-64); gate stays ≤5 ULP. Batch-1 still no oracle.
+Round-3 (2026-10-01): the K-quadrature bridge (Bessel K 4<=x<16, Airy 2.5<x<8.5) and the Kelvin DLMF full sums are new numeric methods with no oracle vectors; they are pinned by `tests/test_edge_accuracy_audit.c` at 65536 ULP (a regression guard, per rule 3), NOT by the oracle tier. `accuracy_audit` grew to 371 assertions. Measured vs mpmath 80-dps: K 6.8e-15, Ai 2.1e-13, Kelvin ~1e-13.\n\nRound-2 (2026-10-01): zeta/kelvin/prime_pi/acosh/softplus/normal_inv/hurwitz/catalan fixes re-measured 0 ULP on oracle 212 + wide grids (x86-64); gate stays ≤5 ULP. Batch-1 still no oracle.

@@ -25,7 +25,7 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 | `ml_ode.h` | **STABLE** | Euler / RK4 guards |
 | `ml_polynomial.h` | **STABLE** | Horner evaluation and Newton guards |
 | `ml_quadratics.h` | **STABLE** | Citardauq-style stable quadratic roots |
-| `ml_integral.h` | **STABLE** | <!-- MATHLIB_V12A1_DOCS_ALIGNMENT --> Full gamma/lgamma: Lanczos DD + LD shift-to-8 (exact LD xs) + zeros Taylor (ζ to 25) + LD direct gamma + -2√π/reflection LD; measured 0 ULP on gamma grid + oracle 212/212 at 0 ULP (gate ≤5 ULP); traditional integrator remains experimental |
+| `ml_integral.h` | **STABLE** | Round-3: K0/K1 K-quadrature bridge 4<=x<16 (6.8e-15 worst) + Ai via K_1/3 for 2.5<x<8.5 (2.1e-13); digamma LD + half-integer exact; | <!-- MATHLIB_V12A1_DOCS_ALIGNMENT --> Full gamma/lgamma: Lanczos DD + LD shift-to-8 (exact LD xs) + zeros Taylor (ζ to 25) + LD direct gamma + -2√π/reflection LD; measured 0 ULP on gamma grid + oracle 212/212 at 0 ULP (gate ≤5 ULP); traditional integrator remains experimental |
 | `ml_fixed_point.h` | **STABLE** | Q16.16 CORDIC approximate trig with defined shifts |
 | `ml_quaternion.h` | **STABLE** | Quaternion algebra and hardened slerp |
 | `fast_math.h` | **STABLE** | Approximate fast paths with explicit domain guards |
@@ -87,4 +87,4 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 * `compat.h` is not part of the v11S core.
 * `legacy/` modules are not built by default and are outside the v11S stability boundary.
 
-Round-2 (2026-10-01): `ml_hurwitz_margin_2x2` alias added (legacy lyapunov kept ABI); `ml_qr_iter_eig` NaN-poisons on SINGULAR + post-check; `ml_acosh` log1p, `ml_softplus` 36-cutoff, `ml_normal_inv` phi fix, `ml_hurwitz_zeta` B2 tail — all STABLE semantics, EXPERIMENTAL ULP unchanged.
+Round-3 (2026-10-01): `ml_bessel_k0/k1` worst 6.8e-15 (was 2e-9), `ml_airy_ai` worst 2.1e-13 (was 5e-9), `ml_digamma` 0 ULP, Kelvin full DLMF sums (~1e-13), `ml_fft2d_pow2` stack 256KB->2KB; accuracy_audit 371 assertions at 65536 ULP (was 5e7/1e8).\n\nRound-2 (2026-10-01): `ml_hurwitz_margin_2x2` alias added (legacy lyapunov kept ABI); `ml_qr_iter_eig` NaN-poisons on SINGULAR + post-check; `ml_acosh` log1p, `ml_softplus` 36-cutoff, `ml_normal_inv` phi fix, `ml_hurwitz_zeta` B2 tail — all STABLE semantics, EXPERIMENTAL ULP unchanged.

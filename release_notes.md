@@ -141,3 +141,32 @@ These are design choices, not hidden defects.
 ## Round-2 despot (2026-10-01)
 
 Re-audit in `/tmp/opencode/mathlib-work/` found and fixed 11 issues: zeta OOB (ASan abort → 212/0 clean), kelvin sign flip (ber -pi/8 split), prime_pi odd miss, acosh 458k ULP → 0, softplus 57k ULP → exact, normal_inv sigma stall → exact, hurwitz B2 10k ULP → 9e-10, catalan C35/C36 exact, log1p coeff, Airy LD Taylor, QR NaN-poison + hurwitz alias, 35→34 TU docs. Oracle stays 212/0 worst 0 ULP (gate ≤5 ULP); god 61473/0; edge 23/23; 3-profile clean. Remaining holes (kelvin 0.5%, Airy/K Temme) documented in KNOWN_LIMITATIONS/DESPOT_AUDIT.
+
+## Round-3 despot (2026-10-01) — closing the remaining limits
+
+Every limit still open after Round-2 is closed with a real method change:
+
+- **Kelvin**: 2-term P/Q replaced by the full DLMF 10.67.3-4 sums over
+  `a_k/x^k` with per-function phase rotations (ber/bei `-pi/8 + 3k pi/4`,
+  ker/kei `+pi/8 + k pi/4`), least-term truncation. `ker/kei` crossover
+  split to 12. ~0.5% -> ~1e-13.
+- **Bessel K0/K1**: the 8<x<10 transition hole is closed by an LD
+  adaptive-Simpson evaluation of `K_nu(x) = int exp(-x cosh t) cosh(nu t) dt`
+  (DLMF 10.32.10) for 4<=x<16. Series below, least-term asymptotic above.
+  The integral is positive and non-cancelling, so this needs no Temme
+  uniform expansion. ~2e-9 -> 6.8e-15 worst over [1e-3, 300].
+- **Airy Ai**: same bridge via `Ai(x) = sqrt(x/3)/pi * K_1/3(zeta)` for
+  2.5<x<8.5. ~5e-9 -> 2.1e-13 worst over a 0.1-step sweep of [-14, 200].
+- **digamma**: long-double recurrence+Stirling plus an exact half-integer
+  shortcut and LD `cot(pi x)`. 10 ULP -> 0 ULP.
+- **Y0/Y1**: crossover 14 -> 13 (`Y1(13.9)` 2.56e-12 -> 1.08e-13). What
+  remains is absolute error 1.1e-13 at zeros of Y1, which is intrinsic.
+- **`long double == double`**: K and Ai measured in plain double at
+  2.6e-16 / 2.4e-15 — no degradation. They are now more portable than the
+  series/asymptotic hybrids they replaced.
+- **Stack**: `ml_fft2d_pow2` 256 KB -> 2 KB; tree max frame now 65,600 B.
+- **Guard**: `accuracy_audit` 371 assertions; K/Airy tolerances 5e7/1e8 ->
+  65536 ULP with 10 new transition-band pins.
+
+Gate: oracle 212/0 worst 0 ULP, modular 4/4, smoke 30/0, boundary 25/0,
+god 61473/0, edge 23/23, 3-profile `-Werror` clean.

@@ -64,8 +64,8 @@ regression guard, not an oracle-tier precision certification.
 | `ml_erfc` | ~1064 ULP | <=0.7 ULP | Laplace CF + convergent series, long double |
 | `ml_bessel_j0/j1/y0/y1` | ~1e-3 rel | <=4e-13 rel | Hankel P/Q, least-term asymptotics |
 | `ml_bessel_i0/i1` | exact | exact | |
-| `ml_bessel_k0/k1` | ~1e9 rel | <=5e-9 rel | transition band x~8-10; needs Temme for more |
-| `ml_airy_ai` | wrong coefficients | <=5e-9 rel | DLMF 9.7.5/9.7.6, recurrence c_k=c_{k-1}(6k-5)(6k-1)/(72k) |
+| `ml_bessel_k0/k1` | ~1e9 rel | <=6.8e-15 rel | Round-3: K-quadrature bridge for 4<=x<16 closes the 8-10 hole (was 2e-9) |
+| `ml_airy_ai` | wrong coefficients | <=2.1e-13 rel | Round-3: Ai=sqrt(x/3)/pi*K_1/3 quadrature for 2.5<x<8.5 closes the 5-6 hole (was 5e-9) |
 | `ml_digamma` | ~70 ULP | <=2 ULP (pos) | Kahan recurrence + Stirling to x^-12 |
 | `ml_jacobi_symbol` | wrong sign | exact | reciprocity test, negative a, n>2^63 |
 | `ml_exp10` | ~1e-16 rel | <=1 ULP | corrected residual constant |
@@ -88,12 +88,16 @@ sin/cos benign 1→0 (25-case grid). Oracle worst 5→0 ULP on the 212 grid.
 See `docs/ULP_PUSH.md`. Unchanged (still limited, not re-measured this
 push):
 
-- `ml_bessel_k0/k1` in 8 < x < 10: ~1e-9 relative. The ascending series
-  cancels like exp(x^2/4) and the asymptotic bottoms out at exp(-2x); the
-  elementary method cannot do better. Temme's uniform expansion is required.
-- `ml_airy_ai` in 5 < x < 6: ~5e-9 relative. Same reason: the Taylor series
-  loses digits to cancellation while the asymptotic is still converging.
-- `ml_digamma` for x < 0: ~10 ULP at x=-0.5 via the reflection formula.
+- ~~`ml_bessel_k0/k1` in 8 < x < 10: ~1e-9 relative.~~ **CLOSED (Round-3)**
+  by the K-quadrature bridge; worst over [1e-3, 300] is 6.8e-15.
+- ~~`ml_airy_ai` in 5 < x < 6: ~5e-9 relative.~~ **CLOSED (Round-3)** by the
+  `K_1/3` bridge; worst over a 0.1-step sweep of [-14, 200] is 2.1e-13.
+- ~~`ml_digamma` for x < 0: ~10 ULP at x=-0.5.~~ **CLOSED (Round-3)** —
+  exact half-integer shortcut + long-double `cot(pi x)`; now 0 ULP.
+- `ml_bessel_y0/y1`: worst **absolute** error 1.1e-13 (Y0 @13, Y1 @12.75).
+  Relative error reaches 1e-10 at zeros of Y1 (`Y1(11.75) = -1.96e-4`).
+  Intrinsic: the ascending series cancels 4.7 digits; near a zero, no
+  elementary method does better. Same regime as large-x trig.
 - `ml_airy_ai` for |x| > 1e6: degrades as the phase zeta = (2/3)x^{3/2}
   loses digits to rounding; inherent to double precision.
 

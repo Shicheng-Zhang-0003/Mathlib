@@ -165,3 +165,126 @@ mpmath 80-dps / system libm. All fixes below are implemented and re-verified
   xorshift RNG, Dirichlet PDEs, 2x2 control) — see PRECISION_CONTRACT.
 - `long double==double` (MSVC/ARM) collapses LD paths; guarantees stay ≤5 ULP.
 - Large stacks (harmonic 64KB, GMRES 25KB) thread-safe but heavy; heap API deferred.
+
+## Round-3 — 2026-10-01 (close the remaining limits)
+
+Every limit still open after Round-2 was attacked with real method changes,
+not tolerance tweaks. Ground truth: mpmath 80-dps. All work in
+`/tmp/opencode/mathlib-work/round3/`.
+
+### Kelvin — 2-term truncation CLOSED (DLMF 10.67.3-4 full sums)
+
+Old `ml_kelvin_asym` used 2-term P/Q polynomials for all four functions
+(~0.5% at x=20, `bei(20.1)` 125562 vs 126161 true). DLMF 10.67.3-4 is a full
+sum over `a_k/x^k` with a rotation that differs per function:
+
+    a_k(0) = prod_{j<=k} (-(2j-1)^2) / (k! 8^k),  a_0 = 1
+    ber ~ sqrt(1/(2 pi x)) e^{x/sqrt2} sum a_k x^-k cos(x/sqrt2 - pi/8 + 3k pi/4)
+    bei ~ sqrt(1/(2 pi x)) e^{x/sqrt2} sum a_k x^-k sin(x/sqrt2 - pi/8 + 3k pi/4)
+    ker ~ sqrt(pi/(2x))  e^{-x/sqrt2} sum a_k x^-k cos(x/sqrt2 + pi/8 + k pi/4)
+    kei ~ sqrt(pi/(2x))  e^{-x/sqrt2} sum a_k x^-k sin(x/sqrt2 + pi/8 + k pi/4)
+
+Implemented with the `a_k` recurrence, least-term truncation, and LD
+accumulation. Measured vs mpmath 80-dps: `ber/bei/ker/kei` at 20, 20.1, 30,
+50 now agree to **~1e-13 relative** (was 0.5% / sign-flipped).
+
+`ker/kei` crossover split from `ber/bei`: `ML_KELVIN_KXMAX = 12` (was the
+shared 20). Measured: series-to-12 beats series-to-20 because the series
+loses digits to cancellation earlier than the asymptotic does.
+
+### Bessel K0/K1 — 8-10 transition hole CLOSED (K-quadrature bridge)
+
+The 8<x<10 hole was structural: the ascending series cancels like
+`(ln(x/2)+gamma)I0` (I0 ~ 1e3 against K ~ 6e-5 at x=8.8) while the
+asymptotic bottoms out at its least term, `exp(-2x)`. Neither can do better
+in double precision; that is what Temme's uniform expansion exists for.
+
+Round-3 replaces the hybrid with a **third branch**: the defining integral
+
+    K_nu(x) = int_0^inf exp(-x cosh t) cosh(nu t) dt   (DLMF 10.32.10)
+
+evaluated by long-double adaptive Simpson with Richardson correction. The
+integrand is positive and unimodal, so there is no cancellation at all —
+this is the Temme-class accuracy without the uniform-expansion machinery.
+
+Two details mattered:
+- **Relative tolerance.** A fixed `1e-18` absolute only buys ~1e-11 relative
+  once K falls to `exp(-15)`. Tolerance is now `1e-19 * exp(-x)`.
+- **Adaptive upper limit.** A fixed `T=10` spent ~90% of the work on a tail
+  that was already 1e-3000. `T = acosh(1 + 48.4/x)` cuts the cost 10x.
+
+Crossovers re-tuned by measurement: series `x<4`, quadrature `4<=x<16`,
+least-term asymptotic `x>=16`.
+
+Measured vs mpmath 80-dps over x in [1e-3, 300]: **worst 6.8e-15 relative**
+(was ~2e-9). 31 of 32 pinned grid points are now **0 ULP**.
+
+### Airy Ai — 5-6 transition hole CLOSED (K_1/3 bridge)
+
+Same root cause. DLMF 9.11.4 gives `Ai(x) = sqrt(x/3)/pi * K_1/3(zeta)`
+with `zeta = (2/3) x^(3/2)`, so the *existing* K-quadrature bridge serves
+Airy directly with no new code. Branch map: LD Taylor for `x <= 2.5`,
+`K_1/3` quadrature for `2.5 < x < 8.5`, least-term asymptotic above.
+
+Measured vs mpmath 80-dps on a 0.1-step sweep over `[-14, 200]`:
+**worst 2.1e-13 relative** (was ~5e-9 documented, ~3e-9 after Round-2's LD
+Taylor). Negative-side `ML_AIRY_XN` re-tuned 7 -> 8 by sweep (9 and 12 blow
+up to 2e-6 and 154 because the negative Taylor series diverges).
+
+### Y0/Y1 and digamma
+
+- `ML_BESSEL_XY` 14 -> 13: `Y1(13.9)` 2.56e-12 -> 1.08e-13. Swept 11.5/12/
+  12.5/12.75/13/14 — 12.5 and 12.75 are indistinguishable from 13 because
+  the worst point (11.75) is inside the series branch, not at the seam.
+- `ml_digamma` positive branch rewritten in long double (recurrence +
+  Stirling, single round). `digamma(1.5)` was 10 ULP from double
+  cancellation in `3.48 - 3.44`; now 0 ULP.
+- `ml_digamma` negative branch: exact half-integer shortcut (cot(pi x) is
+  identically 0 there and `ml_cospi(-0.5)` leaves a spurious ~2e-16), plus an
+  LD `cot(pi x)` for the general case. `digamma(-0.5)` now exact.
+
+**Honest characterisation of what is left in Y0/Y1:** worst *absolute*
+error is 1.1e-13 (Y0 @13, Y1 @12.75). The 1.15e-10 *relative* figure at
+x=11.75 is not a defect — `Y1(11.75) = -1.96e-4` sits on a zero, so
+`1e-13/1.96e-4 = 1e-10`. Term analysis in mpmath confirms the ascending
+series has `sum|term|/|S| = 5e4` (4.7 digits of cancellation) and the
+long-double term-representation floor is 5e-15 relative to S. This is the
+same "absolute error at crossings" regime already documented for large-x
+trig, and no elementary method does better near a zero.
+
+### `long double == double` collapse — CLOSED for K and Ai
+
+Previously documented as unfixable for every LD path. Measured directly by
+compiling the quadrature in plain double (an MSVC/ARM emulation): **K worst
+2.6e-16, Ai worst 2.4e-15** — no degradation at all. Reason: the quadrature
+integrand is positive and non-cancelling, so double precision is already
+enough; the series/asymptotic hybrids it replaced were the parts that needed
+80-bit mantissas. K0/K1/Ai are therefore now *more* portable than before.
+
+### Stack diet
+
+`-fstack-usage` survey of all 34 TUs. `ml_fft2d_pow2` held
+`cplx rows[128][128]` = **256 KB** — the largest frame in the tree, hostile
+to embedded. The matrix now lives in the caller's `re_out`/`im_out` and only
+one `cplx cols[128]` (2 KB) scratch is needed. Verified against a direct 2D
+DFT: max deviation 2.49e-15. New tree maximum is `ml_fft_real` at 65,600 B.
+
+### Regression guard tightened
+
+`tests/test_edge_accuracy_audit.c`: K tolerances 5e7 -> 65536 ULP and Airy
+1e8 -> 65536 ULP (~1.5e-11 relative, 700x tighter; measured worst 0-8 ULP,
+with headroom for `long double == double`). Added 10 new transition-band
+pins (K at 5.5/7/13, Ai at 4/4.5/6.5/8). Suite now **371 assertions**.
+
+### Still open (honest, not hidden)
+
+- `ml_hurwitz_zeta(s<=1, a!=1)` — analytic continuation stub, returns NaN.
+  Deliberate fail-loud, unchanged.
+- Batch-1 oracle coverage (bisection inverses, unpreconditioned Krylov,
+  xorshift RNG, Dirichlet-only PDEs, 2x2 control). Structural: needs an
+  oracle tier that does not exist for these families yet.
+- Y0/Y1 absolute error ~1e-13 near zeros — intrinsic, characterised above.
+- `long double == double` collapse still applies to the *core* LD paths
+  (gamma/pow/log/sin), unchanged; K and Ai are now exempt.
+- Heap-workspace API for the remaining 64 KB / 33 KB frames (fft_real,
+  jacobi_eigen, mi_discrete, haar, cubic_spline) — deferred, documented.

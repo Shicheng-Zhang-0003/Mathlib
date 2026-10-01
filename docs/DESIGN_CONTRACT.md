@@ -30,6 +30,7 @@ Any future contributions must adhere to these policies.
 * **Client-Provided Scratchpads:** Any operation requiring temporary memory must accept a `ml_workspace_t` bump allocator from the caller.
 * **Legacy Isolation:** Heap-heavy legacy modules are quarantined and not part of the core static library.
 * **Batch-1 Modules:** Use stack-local fixed-size workspaces (e.g., `double S[17][16]` in `ml_nelder_mead`, `double V[32][32]` in `ml_proj_stiefel`) — no heap allocation in hot paths.
+* **Stack budget:** Round-3 `-fstack-usage` survey of all 34 TUs. Largest frame is now `ml_fft_real` at 65,600 B; `ml_fft2d_pow2` was reduced from 256 KB to 2 KB by using the caller's `re_out`/`im_out` as the working matrix. Next largest: `ml_jacobi_eigen_symmetric` 33 KB, `ml_mi_discrete` 33 KB, `ml_haar_iwt` 33 KB. Audited with `gcc -fstack-usage`; keep new Batch-1 workspaces under 32 KB.
 
 ---
 
@@ -64,7 +65,7 @@ Any future contributions must adhere to these policies.
   - `ML_ERR_INVALID_ARG`
   - `ML_ERR_NAN_INPUT`
   - `ML_ERR_INTERNAL`
-* **Convergence failure** (optim, ODE, spectral) returns `ML_ERR_SINGULAR` (no dedicated non-convergence code; never returns success un-converged).
+* **Convergence failure** (optim, ODE, spectral) returns `ML_ERR_SINGULAR`. Round-3 added `ML_ERR_CONVERGENCE = -6` for exactly this class; the codebase still returns `ML_ERR_SINGULAR` at the existing call sites for ABI stability, but new code should prefer the precise code. Never returns success un-converged.
 
 ---
 

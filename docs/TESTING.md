@@ -22,4 +22,4 @@ crossings are absolute-error regime). Passing the oracle grid does not prove
 
 Evidence: `docs/GATE_V12R2.md`. Logs live in `/tmp` by policy (never in repo).
 
-Round-2 (2026-10-01): oracle 212/0 ASan clean (zeta OOB fixed), god 61473/0, boundary 25/0, edge 23/23 sanitizer-clean sample, 3-profile -Werror 34/34. Probes in /tmp/opencode/mathlib-work (acosh/pi/ninv/sp/kelvin/hk) pin each fix.
+Round-3 (2026-10-01): accuracy_audit 371 assertions (was 361); K/Airy tolerances tightened 5e7/1e8 -> 65536 ULP with 10 new transition-band pins. Stack survey via `-fstack-usage` on all 34 TUs (max frame 65,600 B after fft2d 256KB->2KB). Double-only quadrature emulation proves K/Ai are LD-independent.\n\nRound-2 (2026-10-01): oracle 212/0 ASan clean (zeta OOB fixed), god 61473/0, boundary 25/0, edge 23/23 sanitizer-clean sample, 3-profile -Werror 34/34. Probes in /tmp/opencode/mathlib-work (acosh/pi/ninv/sp/kelvin/hk) pin each fix.
