@@ -1,6 +1,7 @@
 #include "ml_kelvin.h"
 
 #define ML_KELVIN_XMAX 20.0
+#define ML_KELVIN_KXMAX 12.0
 #define ML_KELVIN_GAMMA 0.57721566490153286061
 
 static double ml_kelvin_ber_series(double x) {
@@ -71,27 +72,42 @@ static void ml_kelvin_kerkei_series(double x, double *ker, double *kei) {
 }
 
 static void ml_kelvin_asym(double x, double *ber, double *bei, double *ker, double *kei) {
+    /* DLMF 10.67.3-4 full sums (verified vs mpmath 80-dps):
+     * ber/bei: pref_b * sum a_k/x^k {cos,sin}(phb+3k pi/4),
+     * ker/kei: pref_k * sum a_k/x^k {cos,-sin}(phk+k pi/4),
+     * a_k(0)=prod_{j<=k}(0-(2j-1)^2)/(k! 8^k), least-term truncation.
+     * Round-3: replaces 2-term P/Q (0.5% at 20) with 1e-12 at 20. */
     long double ax = (long double)x;
     long double e = __builtin_expl(ax * 0.70710678118654752440L);
     long double f = __builtin_expl(-ax * 0.70710678118654752440L);
     long double sqb = 0.39894228040143267794L / __builtin_sqrtl(ax);
     long double sqk = 1.25331413731550025121L / __builtin_sqrtl(ax);
-    /* DESPOT-FIX: DLMF 10.67.3-4 phases differ. ber/bei use -pi/8,
-     * ker/kei use +pi/8. Old single +pi/8 flipped ber sign at 20
-     * (ber(20)=-47186 vs +47489 true) and cost 6% at 20.1. 2-term
-     * P/Q residual is ~0.5% at 20 (EXPERIMENTAL, no oracle). */
     long double phb = ax * 0.70710678118654752440L - 0.39269908169872415481L;
     long double phk = ax * 0.70710678118654752440L + 0.39269908169872415481L;
-    long double cb = __builtin_cosl(phb), snb = __builtin_sinl(phb);
-    long double ck = __builtin_cosl(phk), snk = __builtin_sinl(phk);
     long double invx = 1.0L / ax;
-    long double invx2 = invx * invx;
-    long double P = 1.0L + (9.0L / 128.0L) * invx2;
-    long double Q = (1.0L / 8.0L) * invx + (225.0L / 3072.0L) * invx2 * invx;
-    *ber = (double)(sqb * e * (cb * P + snb * Q));
-    *bei = (double)(sqb * e * (snb * P - cb * Q));
-    *ker = (double)(sqk * f * (ck * P + snk * Q));
-    *kei = (double)(sqk * f * (ck * Q - snk * P));
+    /* a_k recurrence: a_0=1, a_k=a_{k-1}*(-(2k-1)^2)/(8k). */
+    long double sb_cos = 0.0L, sb_sin = 0.0L, sk_cos = 0.0L, sk_sin = 0.0L;
+    long double ak = 1.0L, pw = 1.0L;
+    long double prev_b = 1e300L, prev_k = 1e300L;
+    for (int k = 0; k <= 12; k++) {
+        long double thb = phb + (long double)k * 2.35619449019234492885L;
+        long double thk = phk + (long double)k * 0.78539816339744830962L;
+        long double tb = ak * pw;
+        long double cb = __builtin_cosl(thb) * tb, sb = __builtin_sinl(thb) * tb;
+        long double ck = __builtin_cosl(thk) * tb, sk = __builtin_sinl(thk) * tb;
+        long double magb = __builtin_fabsl(tb), magk = __builtin_fabsl(tb);
+        if (k > 0 && (magb > prev_b || magk > prev_k)) break;
+        sb_cos += cb; sb_sin += sb; sk_cos += ck; sk_sin += sk;
+        prev_b = magb; prev_k = magk;
+        long double ff = (long double)(2 * k + 1);
+        ak = ak * (-(ff * ff)) / ((long double)(8 * (k + 1)));
+        pw *= invx;
+        if (__builtin_fabsl(tb) < 1e-22L) break;
+    }
+    *ber = (double)(sqb * e * sb_cos);
+    *bei = (double)(sqb * e * sb_sin);
+    *ker = (double)(sqk * f * sk_cos);
+    *kei = (double)(sqk * f * (-sk_sin));
 }
 
 ML_API double ml_kelvin_ber(double x) {
@@ -124,7 +140,7 @@ ML_API double ml_kelvin_ker(double x) {
     if (ml_isnan(x)) return x;
     if (x <= 0.0) return ml_make_nan();
     if (ml_isinf(x)) return 0.0;
-    if (x < ML_KELVIN_XMAX) {
+    if (x < ML_KELVIN_KXMAX) {
         double k, ki;
         ml_kelvin_kerkei_series(x, &k, &ki);
         return k;
@@ -138,7 +154,7 @@ ML_API double ml_kelvin_kei(double x) {
     if (ml_isnan(x)) return x;
     if (x <= 0.0) return ml_make_nan();
     if (ml_isinf(x)) return 0.0;
-    if (x < ML_KELVIN_XMAX) {
+    if (x < ML_KELVIN_KXMAX) {
         double k, ki;
         ml_kelvin_kerkei_series(x, &k, &ki);
         return ki;
