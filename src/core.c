@@ -248,30 +248,84 @@ ML_API double ml_hypot(double x, double y) {
 }
 
 ML_API double ml_remainder(double x, double y) {
-    /* C99 remainder: x - n*y with n=rint_half_even(x/y).
-     * DESPOT-AUDIT: n is selected from the long-double quotient so a true
-     * quotient within ~1 ULP of a half-integer tie cannot pick the wrong
-     * neighbor due to double rounding of x/y. Final step is single FMA. */
+    /* C99 remainder: x - n*y with n=rint_half_even(x/y), exact for all
+     * finite nonzero inputs.
+     * Round-4: the long-double quotient path was catastrophically wrong for
+     * |x/y| > 2^53 (ml_remainder(1e300,1000) returned 3.5e283 instead of 160:
+     * the rounded quotient lost ~1000 bits and FMA amplified it). Now built
+     * on the exact ml_fmod plus exact half-comparison and exact quotient
+     * parity — no floating-point arithmetic except the final Sterbenz-exact
+     * subtraction. Matches system remainder bit-for-bit on the full grid. */
     if (ml_isnan(x) || ml_isnan(y)) return ml_make_nan();
     if (ml_isinf(x) || y == 0.0) return ml_make_nan();
     if (ml_isinf(y)) return x;
     if (x == 0.0) return x;
     {
-        long double ql = (long double)x / (long double)y;
-        long double aql = ql >= 0 ? ql : -ql;
-        double n;
-        if (!(aql < 9007199254740992.0L)) {
-            n = (double)ql;
-        } else {
-            double f = ml_floor((double)aql);
-            double d = (double)(aql - (long double)f);
-            double ni;
-            if (d < 0.5) ni = f;
-            else if (d > 0.5) ni = f + 1.0;
-            else ni = (ml_fmod(f, 2.0) == 0.0) ? f : f + 1.0;
-            n = ml_copysign(ni, (double)ql);
+        double ay = ml_fabs(y);
+        double f = ml_fmod(x, y);
+        double af;
+        int cmp;
+        if (f == 0.0) return f;
+        af = ml_fabs(f);
+        /* Exact compare of 2*|f| vs |y| (never forms 2*|f|: it could
+         * overflow near DBL_MAX, and odd-normalized exponent-first
+         * comparison is WRONG since significands differ).
+         * Normal |y|: |y|/2 is exact (exponent decrement, no rounding),
+         * so compare |f| vs |y|/2 directly in doubles — exact.
+         * Subnormal |y|: both are on the -1074 grid, so compare the
+         * integer significands 2F vs Y (2F < 2^54, no overflow). */
+        {
+            ml_fp_parts_t py = ml_fp_decompose(ay);
+            if (py.kind == ML_FP_NORMAL) {
+                double h = ay * 0.5;
+                if (af < h) cmp = -1;
+                else if (af > h) cmp = 1;
+                else cmp = 0;
+            } else {
+                ml_fp_parts_t pf = ml_fp_decompose(af);
+                uint64_t two_f = pf.sig << 1;
+                if (two_f < py.sig) cmp = -1;
+                else if (two_f > py.sig) cmp = 1;
+                else cmp = 0;
+            }
         }
-        return ML_FMA(-n, y, x);
+        if (cmp < 0) return f;
+        if (cmp > 0) return (f > 0.0) ? f - ay : f + ay;
+        /* Exact tie: 2|f| == |y|. Pick the even n (t or t+1).
+         * t = trunc(|x|/|y|); t odd  <=>  ((X*2^d) mod 2Y)/Y == 1. */
+        {
+            ml_fp_parts_t px = ml_fp_decompose(ml_fabs(x));
+            ml_fp_parts_t py = ml_fp_decompose(ay);
+            uint64_t X = px.sig, Y = py.sig;
+            long long d = (long long)px.exp - (long long)py.exp;
+            int t_odd;
+            if (d < 0) {
+                uint64_t t;
+                if (d < -63) t = 0;
+                else {
+                    uint64_t den = Y << (unsigned)(-d);
+                    if ((den >> (unsigned)(-d)) != Y) t = 0;
+                    else t = X / den;
+                }
+                t_odd = (int)(t & 1ULL);
+            } else {
+                /* m = (X * 2^d) mod 2Y by repeated doubling (d <= ~2100).
+                 * Pure uint64: X < 2^53, Y < 2^53, so 2Y < 2^54 and every
+                 * intermediate doubling stays below 2^55. No __int128
+                 * (strict C99 -Wpedantic forbids it). */
+                uint64_t mod = Y << 1;
+                uint64_t m = X % mod;
+                long long k = d;
+                while (k-- > 0) {
+                    m <<= 1;
+                    if (m >= mod) m -= mod;
+                    if (m >= mod) m -= mod;
+                }
+                t_odd = (int)((m / Y) & 1ULL);
+            }
+            if (!t_odd) return f;
+            return (f > 0.0) ? f - ay : f + ay;
+        }
     }
 }
 

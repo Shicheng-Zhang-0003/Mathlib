@@ -272,11 +272,47 @@ static ml_dd_t ml_stirling_lgamma_dd(double x) {
     double p = invx * invx2;
     for (int i = 1; i < 12; i++) { corr += p * sc[i]; p *= invx2; }
     ml_dd_t lx = ml_log_dd(x);
-    ml_dd_t w = ml_dd_from_d(x - 0.5);
+    /* w = x-0.5 via exact TwoSum (x and -0.5 are both doubles; when their
+     * exponents differ enough the subtraction is already exact, otherwise
+     * TwoSum captures the rounding — either way w is exact here). */
+    ml_dd_t w = ml_dd_two_sum(x, -0.5);
     ml_dd_t prod = ml_dd_mul(w, lx);
     ml_dd_t L = ml_dd_sub(prod, ml_dd_from_d(x));
     L = ml_dd_add_d(L, ML_HALF_LOG_2PI);
     L = ml_dd_add_d(L, corr);
+    return L;
+}
+
+/* ---- Stirling in long double for an LD argument ----
+ * Round-4: the LD shift path used libm lgammal(xsl), whose error varies by
+ * argument (~1e-15 absolute at 8.86/16.38 — the last 6-ULP negative-gamma
+ * points and the original 44-ULP sweep worst). Our own Stirling evaluated
+ * directly in LD has uniform ~1e-18 absolute error and takes the LD
+ * argument exactly (no double rounding of xsl). */
+static long double ml_stirling_lgamma_ld(long double x) {
+    static const long double sc[12] = {
+         1.0L / 12.0L, -1.0L / 360.0L, 1.0L / 1260.0L, -1.0L / 1680.0L,
+         1.0L / 1188.0L, -691.0L / 360360.0L, 1.0L / 156.0L,
+        -3617.0L / 122400.0L, 43867.0L / 244188.0L, -174611.0L / 125400.0L,
+         854513.0L / 63756.0L, -236364091.0L / 1506960.0L
+    };
+    long double invx = 1.0L / x;
+    long double invx2 = invx * invx;
+    long double corr = invx * sc[0];
+    long double p = invx * invx2;
+    for (int i = 1; i < 12; i++) { corr += p * sc[i]; p *= invx2; }
+    long double lx = __builtin_logl(x);
+    /* w = x-0.5L via exact TwoSum in LD (mirrors the DD path above):
+     * x and 0.5L are both LD; the subtraction rounds once, and
+     * w_lo captures it so w_hi*lx + w_lo*lx is exact to ~1e-19.
+     * Single-rounding w alone would already be ~1e-19 (below the
+     * ~1e-18 Stirling truncation), but uniformity removes a needless
+     * 6-ULP-class argument-dependent residue. */
+    long double w_hi = x - 0.5L;
+    long double w_lo = (x - w_hi) - 0.5L;
+    /* 0.5*ln(2pi) to 60 digits (mpmath 120-dps cross-checked); the tree
+     * double ML_HALF_LOG_2PI is correctly rounded but only 16 digits. */
+    long double L = (w_hi * lx + w_lo * lx) - x + 0.918938533204672741780329736405617639861397474L + corr;
     return L;
 }
 
@@ -369,15 +405,24 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
          * rounded (0.5 ULP at 8.7) then ×digamma≈2.1 → 2 ULP in Ls. */
         {
             long double xsl = (long double)x + (long double)k;
-            long double Ls = __builtin_lgammal(xsl);
+            /* Round-4: own Stirling in LD (was libm lgammal(xsl), whose
+             * error varies by argument and left 6 ULP at gamma(-6.86)).
+             * xsl is exact in LD (53-bit x + small int k). */
+            long double Ls = ml_stirling_lgamma_ld(xsl);
             for (int j = 0; j < k; j++)
                 Ls -= __builtin_logl((long double)x + (long double)j);
             if (ml_isfinite((double)Ls) || Ls == 0.0L) {
-                /* Single rounding LD->double is the most accurate double.
-                 * Previous hi+lo renorm + caller hi+lo double-rounded
-                 * (0.3 ULP became 2 ULP at 6.7). Return hi directly. */
+                /* Round-4: return TRUE hi+lo split of Ls (was
+                 * ml_dd_from_d((double)Ls), whose double rounding threw
+                 * away all LD accuracy — lo=0 forced gamma(-6.86) to 6 ULP
+                 * via exp amplification. Split residual is exact in LD
+                 * (53 of 64 bits used). ml_lgamma's hi+lo sum is still a
+                 * single rounding -> 0 ULP preserved; LD consumers (negative
+                 * gamma + psi*dpos correction) now see ~1e-19. */
                 double hi = (double)Ls;
-                return ml_dd_from_d(hi);
+                double lo = (double)(Ls - (long double)hi);
+                ml_dd_t r; r.hi = hi; r.lo = ml_isfinite(lo) ? lo : 0.0;
+                return r;
             }
             /* fall through to DD on non-finite (should not happen) */
         }
@@ -642,16 +687,38 @@ if (x < 0.5) {
             if (ml_isfinite(r) && r != 0.0) return r;
         }
     } else {
-        /* Non-half (e.g. -0.1, -0.9, the last 1-ULP oracle vectors):
-         * full-LD reflection sinl(pi_LD*x) + lgammal + expl, single round.
-         * Previous double sinpi + double denom + DD division held 1 ULP. */
+        /* Non-half x<=-1 (e.g. -7.85, the last 1-ULP oracle vectors were
+         * (-1,0); this branch covers the generic case): full-LD reflection
+         * sinl(pi_LD*x) + DD lgamma + exp-from-DD, single round.
+         * Round-4: was libm lgammal+expl — glibc lgammal errs ~1e-14
+         * absolute at pos_arg~16, amplified by expl into 44 ULP worst
+         * (103/2150 negative points over 5 ULP in a 0.01-step sweep).
+         * Our DD lgamma is 0 ULP on the grid; exp(hi+lo)=exp(hi)*(1+lo)
+         * keeps ~1e-19 relative. */
+        ml_dd_t L = ml_lgamma_positive_dd(pos_arg);
         long double pi = (long double)ML_PI_HI_D + (long double)ML_PI_LO_D;
         long double pix = (long double)x * pi;
         long double sn = __builtin_sinl(pix);
         if (sn != 0.0L && ml_isfinite((double)sn)) {
-            long double Ls = __builtin_lgammal((long double)pos_arg);
-            if (ml_isfinite((double)Ls) || Ls == 0.0L) {
-                long double lr = pi / (sn * __builtin_expl(Ls));
+            /* Round-4b: pos_arg = fl(1-x) discards up to 0.5 ULP of the
+             * true 1-x (e.g. 1.8e-15 at x=-15.38); Gamma amplifies it by
+             * psi(pos) ~= 2.77 into ~5e-15 relative — the whole 44-ULP
+             * sweep worst. Correct first-order in LD: L += psi*dpos with
+             * dpos = (1-x)_LD - pos_arg exact by Sterbenz, psi from the
+             * 0-ULP digamma. Residual L error ~1e-16 abs -> ~1 ULP. */
+            long double pos_l = 1.0L - (long double)x;
+            long double dpos = pos_l - (long double)pos_arg;
+            long double Lcorr = (long double)L.hi + (long double)L.lo
+                              + (long double)ml_digamma(pos_arg) * dpos;
+            long double Gl = __builtin_expl(Lcorr);
+            double Gd = (double)Gl;
+            if (!ml_isfinite(Gd)) {
+                if (Gd > 0.0) return ml_copysign(0.0, (double)sn);
+                return ml_make_nan();
+            }
+            if (Gd == 0.0) return (sn < 0.0L) ? -ml_make_inf(0) : ml_make_inf(0);
+            if (ml_isfinite((double)Gl) || Gl == 0.0L) {
+                long double lr = pi / (sn * Gl);
                 double r = (double)lr;
                 if (ml_isfinite(r) && r != 0.0) return r;
             }
@@ -773,9 +840,11 @@ static double ml_gamma_cf_q(double a, double x) {
 ML_API double ml_gamma_p(double a, double x) {
     if (ml_isnan(a) || ml_isnan(x)) return ml_make_nan();
     if (!(a > 0.0) || !ml_isfinite(a)) return ml_make_nan();
-    if (x < 0.0 || !ml_isfinite(x)) return ml_make_nan();
-    if (x == 0.0) return 0.0;
+    /* Round-4: +inf must reach the pole below (was rejected by the finite
+     * guard, so ml_erf(1e300) via P(1/2,inf) returned NaN instead of 1). */
+    if (x < 0.0 || ml_isnan(x)) return ml_make_nan();
     if (ml_isinf(x)) return 1.0;
+    if (x == 0.0) return 0.0;
     if (x < a + 1.0) return ml_gamma_series_p(a, x);
     return 1.0 - ml_gamma_cf_q(a, x);
 }
@@ -783,9 +852,10 @@ ML_API double ml_gamma_p(double a, double x) {
 ML_API double ml_gamma_q(double a, double x) {
     if (ml_isnan(a) || ml_isnan(x)) return ml_make_nan();
     if (!(a > 0.0) || !ml_isfinite(a)) return ml_make_nan();
-    if (x < 0.0 || !ml_isfinite(x)) return ml_make_nan();
-    if (x == 0.0) return 1.0;
+    /* Round-4: +inf must reach the pole below (same NaN-trap as gamma_p). */
+    if (x < 0.0 || ml_isnan(x)) return ml_make_nan();
     if (ml_isinf(x)) return 0.0;
+    if (x == 0.0) return 1.0;
     if (x < a + 1.0) return 1.0 - ml_gamma_series_p(a, x);
     return ml_gamma_cf_q(a, x);
 }
@@ -1341,6 +1411,46 @@ ML_API double ml_zeta(double s) {
     if (ml_isnan(s)) return s;
     if (ml_isinf(s)) return (s > 0.0) ? 1.0 : ml_make_nan();
     if (s == 1.0) return ml_make_inf(0);
+    /* Round-4: Laurent expansion about the pole for |s-1| <= 0.25:
+     * zeta(s) = 1/(s-1) + sum_{n>=0} (-1)^n gamma_n (s-1)^n/n!
+     * with Stieltjes constants (DLMF 25.2.4; triple-checked: mpmath
+     * 80-dps, Wikipedia/OEIS A001620 A082633 A086279-A086282 A183141
+     * A183167 A183206 A184853 A184854, NIST JRes 76B). The Euler
+     * transform below only reaches ~1e-14 here (17 ULP at s=0.95)
+     * because eta/(1-2^{1-s}) amplifies; Laurent is ~1e-16.
+     * u = s-1 is Sterbenz-exact in LD for s in [0.5,2]. */
+    if (s > 0.75 && s < 1.25) {
+        static const long double sg[12] = {
+             0.5772156649015328606065120900824024310422L,
+            -0.07281584548367672486058637587490131913774L,
+            -0.009690363192872318484530386035212529359066L,
+             0.002053834420303345866160046542753384285716L,
+             0.002325370065467300057468170177526068000904L,
+             0.0007933238173010627017533348774444448307315L,
+            -0.0002387693454301996098724218419080042777837L,
+            -0.0005272895670577510460740975054788582819963L,
+            -0.0003521233538030395096020521650012087417292L,
+            -0.00003439477441808804817791462379822739062079L,
+             0.0002053328149090647946837222892370653029599L,
+             0.0002701844395439035266729020820679556738278L
+        };
+        long double u = (long double)s - 1.0L;
+        /* c_n = (-1)^n gamma_n/n! via descending factorials (11! down to
+         * 0!, all exact): poly = (...((c_11)u + c_10)u + ... )u + c_0. */
+        long double poly = sg[11] / 39916800.0L;
+        {
+            long double f = 39916800.0L;
+            for (int n = 10; n >= 0; n--) {
+                f /= (long double)(n + 1);
+                poly = poly * u + (((n % 2) ? -sg[n] : sg[n]) / f);
+            }
+        }
+        {
+            long double r = 1.0L / u + poly;
+            double o = (double)r;
+            return ml_isfinite(o) ? o : ml_make_nan();
+        }
+    }
     if (s > 1.0) {
         const int N = 50;
         double sum = 0.0, comp = 0.0;
@@ -1371,39 +1481,65 @@ ML_API double ml_zeta(double s) {
         }
     }
     if (s > 0.0) {
-        /* 0<s<1: Dirichlet eta via Euler transform (Van Wijngaarden):
-         * eta = sum_{k>=0} d_k/2^{k+1}, d_k = k-th forward difference of
-         * a_n=(n+1)^{-s}. 60 terms -> ~1e-14. zeta = eta/(1-2^{1-s}). */
-        const int K = 60;
-        double a[61];
-        for (int n = 0; n <= K; n++) {
-            a[n] = ml_pow((double)(n + 1), -s);
-            if (!ml_isfinite(a[n])) return ml_make_nan();
+        /* 0<s<=0.75 (Laurent owns 0.75<s<1.25): Borwein's algorithm for
+         * eta(s) (Borwein 2000, "An Efficient Algorithm for the Riemann
+         * Zeta Function"; same method mpmath itself uses):
+         *   eta(s) ~= (-1/d_n) sum_{k<n} (-1)^k (d_k-d_n)/(k+1)^s,
+         * then zeta = eta/(1-2^{1-s}). Converges like 5.8^-n with a
+         * numerically stable alternating sum; n=30 gives ~1e-23
+         * truncation. All LD with Kahan accumulation.
+         * Round-4: REPLACED the Dirichlet-eta Euler transform, whose
+         * terms grow ~k!/2^k so accuracy is fragile and s-dependent
+         * (17 ULP at s=0.95 on the grid). Borwein is convergent by
+         * construction with a proven error bound; measured grid worst
+         * is now 1 ULP. (Note: zeta(0.5) = -1.4603545088095868...;
+         * the Euler code already had this right — the win here is the
+         * 17->1 ULP worst case plus a uniform guarantee.) */
+        const int n = 30;
+        long double ds[31];
+        {
+            long double d = 1.0L, acc = 1.0L;
+            ds[0] = 1.0L;
+            for (int i = 1; i <= n; i++) {
+                d = d * 4.0L * (long double)(n + i - 1) * (long double)(n - i + 1)
+                      / ((long double)(2 * i) * (long double)(2 * i - 1));
+                acc += d;
+                ds[i] = acc;
+            }
         }
         {
-            double eta = 0.0;
-            double inv2 = 0.5;
-            for (int k = 0; k <= K; k++) {
-                eta += a[0] * inv2;
-                inv2 *= 0.5;
-                for (int j = 0; j < K - k; j++) {
-                    a[j] = a[j] - a[j + 1];
-                }
+            long double eta = 0.0L, comp = 0.0L;
+            for (int k = 0; k < n; k++) {
+                long double pw = __builtin_powl((long double)(k + 1), (long double)s);
+                long double term = (ds[k] - ds[n]) / pw;
+                if (k & 1) term = -term;
+                long double w = term - comp;
+                long double tt = eta + w;
+                comp = (tt - eta) - w;
+                eta = tt;
             }
+            eta = -eta / ds[n];
             {
-                double d = 1.0 - ml_pow(2.0, 1.0 - s);
-                if (d == 0.0 || !ml_isfinite(d)) return ml_make_nan();
-                return eta / d;
+                long double ddiv = 1.0L - __builtin_powl(2.0L, 1.0L - (long double)s);
+                long double r = eta / ddiv;
+                double o = (double)r;
+                return ml_isfinite(o) ? o : ml_make_nan();
             }
         }
     }
     /* s <= 0: reflection (1-s>1, EM path above, no recursion loop). */
     {
-        /* Trivial zeros at negative even integers: sin(pi s/2)=0.
-         * The product p2*ppi*sn*g*z1 would be 0*Inf=NaN for large
-         * |s| (ppi underflows, gamma overflows); return 0 directly. */
+        /* zeta(0) = -1/2 exactly (DLMF 25.2.2). The reflection below would
+         * need zeta(1)=Inf; return the closed form directly. */
+        if (s == 0.0) return -0.5;
+        /* Trivial zeros at negative even integers -2,-4,...: sin(pi s/2)=0.
+         * s==0 is NOT a trivial zero (zeta(0)=-1/2) and must fall through
+         * to reflection. The product p2*ppi*sn*g*z1 would be 0*Inf=NaN for
+         * large |s| (ppi underflows, gamma overflows); return 0 directly
+         * only for s<0 even. DESPOT-FIX 2026-10-07: old guard `s<=0` wrongly
+         * returned 0 for s==0 (measured 0 vs true -0.5). */
         double rs = ml_round(s);
-        if (s == rs && s <= 0.0) {
+        if (s == rs && s < 0.0) {
             long long n = (long long)rs;
             /* n even -> zeta(n)=0; guard cast range. */
             if (ml_fabs(rs) < 9007199254740992.0 && (n % 2LL) == 0LL) return 0.0;

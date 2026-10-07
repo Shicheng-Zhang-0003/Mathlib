@@ -1,31 +1,69 @@
 #include "ml_compiler.h"
 #include "ml_analytic_nt.h"
 #include "ml_integral.h"
+/* Euler-Maclaurin N=200 + Bernoulli tail through B12, all long double
+ * with Kahan summation.
+ * Round-4: was N=50 + B2 only (~1e-10: 515k ULP at s=1.1, 1.5M at
+ * s=1.5 — the B4 term alone is 9e-10 there). N=200 with B2..B12
+ * leaves truncation ~1e-20; LD rounding dominates (~1e-19).
+ * BB[1..6] = B2,B4,B6,B8,B10,B12. */
+static cplx ml_hurwitz_em_ld(double s, double a) {
+    cplx nn = {ml_make_nan(), ml_make_nan()};
+    const int N = 200;
+    static const long double BB[7] = {0.0L, 1.0L/6.0L, -1.0L/30.0L,
+        1.0L/42.0L, -1.0L/30.0L, 5.0L/66.0L, -691.0L/2730.0L};
+    long double sum = 0.0L, comp = 0.0L;
+    for (int n = 0; n < N; n++) {
+        /* (long double)n + (long double)a (was (long double)(n+a):
+         * double addition first rounds 203.7 (57 significant bits) by
+         * 0.5 ULP = 1.4e-14, amplified by the pole term into 1.1e-14
+         * absolute at (0.01,3.7). LD holds 64 bits: exact here. */
+        long double t = __builtin_powl((long double)n + (long double)a, -(long double)s);
+        long double w = t - comp;
+        long double tt = sum + w;
+        comp = (tt - sum) - w;
+        sum = tt;
+    }
+    /* B2..B12 tail: sum B_{2k}(s)_{2k-1}/(2k)! Na^{-s-2k+1}. */
+    {
+        long double Na = (long double)N + (long double)a;
+        long double tail = __builtin_powl(Na, 1.0L - (long double)s) / ((long double)s - 1.0L)
+            + 0.5L * __builtin_powl(Na, -(long double)s);
+        long double pw = __builtin_powl(Na, -(long double)s - 1.0L);
+        for (int k = 1; k <= 6; k++) {
+            long double rising = 1.0L;
+            for (int j = 0; j < 2 * k - 1; j++)
+                rising *= (long double)s + (long double)j;
+            long double fact = 1.0L;
+            for (int j = 1; j <= 2 * k; j++) fact *= (long double)j;
+            tail += BB[k] * rising / fact * pw;
+            pw /= Na * Na;
+        }
+        {
+            long double r = sum + tail;
+            double o = (double)r;
+            if (!ml_isfinite(o)) return nn;
+            return (cplx){o, 0.0};
+        }
+    }
+}
 ML_API cplx ml_hurwitz_zeta(double s, double a) {
     cplx nn = {ml_make_nan(), ml_make_nan()};
     if (ml_isnan(s) || ml_isnan(a) || !ml_isfinite(a) || a <= 0.0) return nn;
     if (s <= 1.0 && s == ml_round(s) && a == ml_round(a) && a <= 0.0) return nn;
-    /* Euler-Maclaurin N=50 + Bernoulli tail (real s>1 fast path);
-     * s<=1 via reflection through zeta for a=1 else direct EM. */
+    /* Real s>1 fast path: shared LD Euler-Maclaurin helper above. */
     if (s > 1.0) {
-        const int N = 50;
-        long double sum = 0;
-        for (int n = 0; n < N; n++) sum += __builtin_powl((long double)(n + a), -(long double)s);
-        /* Euler-Maclaurin tail through B2 (was integral+1/2 only, ~10k ULP
-         * at s=1.1: missing s/(12 N^{s+1}) ~= 2.3e-5). B4 term is <1e-9
-         * for N=50, s>1 and is omitted deliberately. */
-        long double Na = (long double)(N + a);
-        long double tail = __builtin_powl(Na, 1.0L - (long double)s) / ((long double)s - 1.0L)
-            + 0.5L * __builtin_powl(Na, -(long double)s)
-            + 0.5L * (long double)s * __builtin_powl(Na, -(long double)s - 1.0L) / 6.0L;
-        double r = (double)(sum + tail);
-        if (!ml_isfinite(r)) return nn;
-        return (cplx){r, 0.0};
+        return ml_hurwitz_em_ld(s, a);
     }
     if (a == 1.0) { double z = ml_zeta(s); if (!ml_isfinite(z)) return nn; return (cplx){z, 0.0}; }
-    /* STUB: s<=1 with a!=1 is unimplemented (needs analytic continuation
-     * of the general Hurwitz case); keep NaN until a reflection/EM path
-     * lands here. */
+    /* Round-4: 0<s<=1, a!=1 via the same LD Euler-Maclaurin as above
+     * (was a STUB returning NaN for valid inputs like hurwitz(0.9,2)).
+     * The pole term is the analytic continuation; pole subtraction
+     * cancels at most ~130x (s=0.01), harmless in LD. s<=0, a!=1 stays
+     * a fail-loud NaN stub (needs the functional equation; documented). */
+    if (s > 0.0) {
+        return ml_hurwitz_em_ld(s, a);
+    }
     return nn;
 }
 ML_API cplx ml_dirichlet_eta_cplx(cplx s) {

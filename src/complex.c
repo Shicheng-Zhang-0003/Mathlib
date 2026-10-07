@@ -82,12 +82,85 @@ ML_API cplx ml_cplx_exponential(cplx a) {
     return (cplx){mag * c, mag * s};
 }
 
+/* Long-double complex logarithm for internal consumers (power path).
+ * Round-4: the public double log is 0 ULP, but at |log|~691 that is still
+ * 5.7e-14 ABSOLUTE, and b*log amplifies it (3.7x here -> 885 ULP in pow).
+ * Keeping (re,im) in LD preserves ~1e-19 and fixes the whole chain.
+ * Same branch structure/edge behavior as ml_cplx_logarithm. */
+static void ml_cplx_logarithm_ld(cplx a, long double *re, long double *im) {
+    /* Zero base is handled by callers (a_zero early-return in pow paths);
+     * guard here so a future reorder cannot turn log(0) into Inf*0=NaN
+     * poisoning: re=-Inf, im=atan2(0,0)=0 by convention. */
+    if (a.real == 0.0 && a.imag == 0.0) {
+        *re = -__builtin_huge_vall();
+        *im = 0.0L;
+        return;
+    }
+    long double xx = (long double)a.real, yy = (long double)a.imag;
+    long double m = xx * xx + yy * yy;
+    if (m == 0.0L) {
+        *re = -__builtin_huge_vall();
+    } else if (m >= 0.5L && m <= 2.0L) {
+        *re = 0.5L * __builtin_log1pl(m - 1.0L);
+    } else {
+        *re = 0.5L * __builtin_logl(m);
+    }
+    *im = (long double)ml_cplx_arg(a);
+    /* arg in LD when it matters: ml_cplx_arg is 1 ULP double (~9e-17
+     * absolute at pi/4); b*arg amplifies the same way. Use atan2l. */
+    if (ml_isfinite(a.real) && ml_isfinite(a.imag)
+        && !(a.real == 0.0 && a.imag == 0.0)) {
+        *im = __builtin_atan2l(yy, xx);
+    }
+}
+
 ML_API cplx ml_cplx_logarithm(cplx a) {
-    return (cplx){ml_log(ml_cplx_abs(a)), ml_cplx_arg(a)};
+    /* Round-4: real part as 0.5*log(x^2+y^2) in long double (was
+     * log(hypot): hypot's 0.35-ULP error at |a|~=1 amplified 88x by log
+     * into log(1+0.1i).real (output 0.005 vs abs error 7.6e-17).
+     * Even correctly-rounded hypot leaves 126 ULP here — the |a| must
+     * carry extended precision. LD x^2+y^2 has 64-bit mantissa; m-1 is
+     * Sterbenz-exact on [0.5,2] and log1pl is 1 ULP LD: total ~0.6 ULP
+     * double. Outside [0.5,2] plain 0.5*logl (no amplification regime).
+     * Edge behavior preserved (|a|=0 -> -inf; inf -> inf; NaN -> NaN). */
+    if (ml_isnan(a.real) || ml_isnan(a.imag)) {
+        double n = ml_make_nan();
+        return (cplx){n, ml_cplx_arg(a)};
+    }
+#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+    {
+        long double xx = (long double)a.real, yy = (long double)a.imag;
+        long double m = xx * xx + yy * yy;
+        /* m == 0 (a == 0, since xx*xx+yy*yy underflows to 0 only for
+         * subnormal-square inputs whose log is still finite... except true
+         * a==0): route exact zero to -inf; any m>0 gives finite re here
+         * (m <= 2*DBL_MAX^2 -> re <= 710.5) so a plain cast suffices. */
+        if (m == 0.0L) {
+            if (a.real == 0.0 && a.imag == 0.0)
+                return (cplx){-ml_make_inf(0), ml_cplx_arg(a)};
+        }
+        {
+            long double re = (m >= 0.5L && m <= 2.0L)
+                           ? 0.5L * __builtin_log1pl(m - 1.0L)
+                           : 0.5L * __builtin_logl(m);
+            return (cplx){(double)re, ml_cplx_arg(a)};
+        }
+    }
+#else
+    return (cplx){ml_log1p(ml_cplx_abs(a) - 1.0), ml_cplx_arg(a)};
+#endif
 }
 
 ML_API cplx ml_cplx_sqrt(cplx a) {
-    /* Stable: r=|a|, re=sqrt((r+re)/2), im=sign*sqrt((r-re)/2). No overflow. */
+    /* Hull-Beebe stable form (no cancellation):
+     *   re(a)>=0: t=sqrt(2(r+x)); re=t/2; im=y/t
+     *   re(a)<0:  t=sqrt(2(r-x)); re=|y|/t; im=sign(y)*t/2.
+     * Round-4: the old im=sqrt((r-x)/2) cancels catastrophically when
+     * |y|<<|x| (sqrt(1e300+1e200i) gave im=0 instead of 5e49: hypot
+     * rounds 1+1e-200 to 1, so r-x underflows the true 1e100 gap to 0;
+     * cmath gets 5e49 via the division form). The division form is exact
+     * here: the *2 scaling is exact (power of two) and r+x is
+     * well-conditioned (same-sign sum, no cancellation), sqrt 1 ULP. */
     if (ml_isnan(a.real) || ml_isnan(a.imag)) {
         double n = ml_make_nan();
         return (cplx){n, n};
@@ -116,11 +189,18 @@ ML_API cplx ml_cplx_sqrt(cplx a) {
         double r = ml_cplx_abs(a);
         /* C99 Annex G: csqrt(-0,+0) = (+0,+0). Force +0 real for zero input. */
         if (r == 0.0) return (cplx){0.0, ml_copysign(0.0, a.imag)};
-        {
-            double re = ml_sqrt((r + a.real) * 0.5);
-            double im = ml_sqrt((r - a.real) * 0.5);
-            if (ml_signbit(a.imag)) im = -im;
-            return (cplx){re, im};
+        if (a.real >= 0.0) {
+            double t = ml_sqrt(2.0 * (r + a.real));
+            if (t == 0.0) return (cplx){0.0, ml_copysign(0.0, a.imag)};
+            return (cplx){t * 0.5, a.imag / t};
+        } else {
+            double t = ml_sqrt(2.0 * (r - a.real));
+            if (t == 0.0) return (cplx){ml_fabs(a.imag), ml_copysign(0.0, a.imag)};
+            {
+                double re = ml_fabs(a.imag) / t;
+                double im = ml_copysign(t * 0.5, a.imag);
+                return (cplx){re, im};
+            }
         }
     }
 }
@@ -128,6 +208,43 @@ ML_API cplx ml_cplx_sqrt(cplx a) {
 /* MATHLIB_CLOSURE_P0_COMPLEX_POWER_TREE */
 static int ml_cplx_is_nan(cplx z) {
     return ml_isnan(z.real) || ml_isnan(z.imag);
+}
+
+/* Long-double b*log(a) exponential for the power paths below.
+ * Round-4: the old ml_cplx_exponential({b.re*l.re-b.im*l.im, ...})
+ * rounded w in doubles, so direction/magnitude error scaled with |w|
+ * (3.5e-13 at |w|~=2500). Computing w in LD and exponentiating in LD
+ * (sinl/cosl resolve |wi|<=2000 to ~1 ULP) extends the clean range 100x.
+ * Outside the LD window the double/Payne-Hanek fallback preserves the
+ * existing (documented) behavior: garbage direction past ~1e19 needs
+ * 65+ bit arithmetic no double implementation has (glibc agrees). */
+static cplx ml_cplx_pow_exp_ld(long double wr, long double wi,
+                               double fbr, double fbi) {
+    /* LD direction error is ~|wi|/2200 ULP (vs |wi|/2 ULP double), so the
+     * LD window extends to |wi|<=1e15; magnitude window covers LD exp
+     * range with double-safe cast (overflow -> signed inf like the
+     * fallback: m>0 so (double)(m*c) carries sign(c), matching the
+     * copysign pattern, including c==0 -> signed zero). */
+    if (wi > -1.0e15L && wi < 1.0e15L && wr > -11356.0L && wr < 11350.0L) {
+        long double m = __builtin_expl(wr);
+        long double c = __builtin_cosl(wi), s = __builtin_sinl(wi);
+        double re = (double)(m * c), im = (double)(m * s);
+        if (ml_isfinite(re) && ml_isfinite(im)) return (cplx){re, im};
+    }
+    return ml_cplx_exponential((cplx){fbr, fbi});
+}
+
+/* Shared w = b*log(a) helper: LD pair for accuracy, double pair for the
+ * outside-window fallback. Single source so the three pow paths cannot
+ * drift (previously the LD product was replicated 3x). */
+static void ml_cplx_pow_w(cplx b, long double lre, long double lim,
+                          cplx log_a,
+                          long double *wr, long double *wi,
+                          double *fbr, double *fbi) {
+    *wr = (long double)b.real * lre - (long double)b.imag * lim;
+    *wi = (long double)b.real * lim + (long double)b.imag * lre;
+    *fbr = b.real * log_a.real - b.imag * log_a.imag;
+    *fbi = b.real * log_a.imag + b.imag * log_a.real;
 }
 
 static int ml_cplx_is_zero(cplx z) {
@@ -244,11 +361,12 @@ ML_API cplx ml_cplx_power(cplx a, cplx b) {
             /* Non-pure-real infinities: fall through to exp(b*log a)
              * rather than unconditionally returning NaN. */
             if (!ml_cplx_is_pure_real_inf(a) || b.imag != 0.0) {
+                long double lre, lim, wr, wi;
+                double fbr, fbi;
+                ml_cplx_logarithm_ld(a, &lre, &lim);
                 cplx log_a = ml_cplx_logarithm(a);
-                return ml_cplx_exponential((cplx){
-                    b.real * log_a.real - b.imag * log_a.imag,
-                    b.real * log_a.imag + b.imag * log_a.real
-                });
+                ml_cplx_pow_w(b, lre, lim, log_a, &wr, &wi, &fbr, &fbi);
+                return ml_cplx_pow_exp_ld(wr, wi, fbr, fbi);
             }
             return ml_cplx_make_nan();
         }
@@ -292,30 +410,51 @@ ML_API cplx ml_cplx_power(cplx a, cplx b) {
             return ml_cplx_make_nan();
         }
         {
+            /* Round-4: w in LD from the LD logarithm (double log_a caps
+             * absolute accuracy at 0.5 ULP of |log|, amplified by b).
+             * lre/lim are always finite here (finite nonzero a); the
+             * double re/im feed only the fallback path. Guard structure
+             * unchanged (avoids Inf*0=NaN poisoning). */
+            long double lre, lim;
             double re, im;
+            long double wrl = 0.0L, wil = 0.0L;
+            ml_cplx_logarithm_ld(a, &lre, &lim);
             if (b.imag == 0.0 && log_a.imag == 0.0) {
                 re = b.real * log_a.real;
                 im = 0.0;
+                wrl = (long double)b.real * lre;
+                wil = 0.0L;
             } else if (b.imag == 0.0) {
                 re = b.real * log_a.real;
                 im = b.real * log_a.imag;
+                wrl = (long double)b.real * lre;
+                wil = (long double)b.real * lim;
             } else if (log_a.imag == 0.0 && log_a.real != 0.0) {
                 re = b.real * log_a.real;
                 im = b.imag * log_a.real;
+                wrl = (long double)b.real * lre;
+                wil = (long double)b.imag * lre;
             } else {
                 re = b.real * log_a.real - b.imag * log_a.imag;
                 im = b.real * log_a.imag + b.imag * log_a.real;
+                wrl = (long double)b.real * lre
+                    - (long double)b.imag * lim;
+                wil = (long double)b.real * lim
+                    + (long double)b.imag * lre;
             }
-            return ml_cplx_exponential((cplx){re, im});
+            return ml_cplx_pow_exp_ld(wrl, wil, re, im);
         }
     }
 
-    cplx log_a = ml_cplx_logarithm(a);
-
-    return ml_cplx_exponential((cplx){
-        b.real * log_a.real - b.imag * log_a.imag,
-        b.real * log_a.imag + b.imag * log_a.real
-    });
+    /* General path: w = b*log(a) entirely in LD (see above). */
+    {
+        long double lre, lim, wr, wi;
+        double fbr, fbi;
+        ml_cplx_logarithm_ld(a, &lre, &lim);
+        cplx log_a = ml_cplx_logarithm(a);
+        ml_cplx_pow_w(b, lre, lim, log_a, &wr, &wi, &fbr, &fbi);
+        return ml_cplx_pow_exp_ld(wr, wi, fbr, fbi);
+    }
 }
 
 ML_API cplx ml_cplx_nth_root(cplx a, int n, int k) {
