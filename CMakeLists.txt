@@ -24,7 +24,7 @@ endif()
 # NOTE: -Wfloat-equal is intentionally omitted (The Float-Equal Paradox).
 # In numerical computing (libm), exact comparisons to 0.0, 1.0,
 # and NaN checks (x != x) are mathematically intentional and required.
-add_compile_options(-O3 -Wall -Wextra -Wconversion -Wshadow -Wpedantic -Werror -fno-fast-math -ffp-contract=off)
+add_compile_options(-O3 -Wall -Wextra -Wconversion -Wshadow -Wpedantic -Wundef -Werror -fno-fast-math -ffp-contract=off)
 
 option(MATHLIB_NATIVE "Enable -march=native (Warning: Breaks binary portability)" OFF)
 if(MATHLIB_NATIVE)

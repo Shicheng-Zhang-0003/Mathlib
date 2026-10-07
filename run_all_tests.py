@@ -59,7 +59,7 @@ CMAKE_CONFIGURE_CMD = [
 
 EDGE_TEST_CFLAGS = [
     "-std=c99", "-O3",
-    "-Wall", "-Wextra", "-Wconversion", "-Wshadow", "-Wpedantic", "-Werror",
+    "-Wall", "-Wextra", "-Wconversion", "-Wshadow", "-Wpedantic", "-Wundef", "-Werror",
     "-fno-fast-math", "-ffp-contract=off",
     "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
     "-Iinclude/mathlib", "-Isrc",
