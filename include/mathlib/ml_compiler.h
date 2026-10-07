@@ -4,6 +4,12 @@
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
+/* Round-4: float.h for LDBL_MANT_DIG. Several TUs gate long-double paths
+ * on (LDBL_MANT_DIG >= 64); without this include the macro is undefined,
+ * the #if silently evaluates to false, and the TU compiles the portable
+ * fallback with NO warning (this disabled the long-double complex-log
+ * path in complex.c until caught by external validation). */
+#include <float.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
