@@ -6,7 +6,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 CC=${CC:-gcc}
 
-CFLAGS="-std=c99 -O3 -Wall -Wextra -Wconversion -Wshadow -Wpedantic -Werror -fno-fast-math -ffp-contract=off -Iinclude/mathlib -Isrc"
+CFLAGS="-std=c99 -O3 -Wall -Wextra -Wconversion -Wshadow -Wpedantic -Wundef -Werror -fno-fast-math -ffp-contract=off -Iinclude/mathlib -Isrc"
 
 if [ "${MATHLIB_EDGE_SANITIZERS:-0}" = "1" ]; then
     CFLAGS="$CFLAGS -fsanitize=address,undefined -fno-omit-frame-pointer"
@@ -50,7 +50,7 @@ src/control.c
 src/kelvin.c
 "
 
-mkdir -p build
+mkdir -p "${MATHLIB_EDGE_BUILD_DIR:-build}"
 
 FAILED=0
 
@@ -58,13 +58,13 @@ for t in tests/test_edge_*.c; do
     name=$(basename "$t" .c)
     echo "--- $name ---"
 
-    if ! $CC $CFLAGS -o "build/$name" "$t" $SRC -lm; then
+    if ! $CC $CFLAGS -o "${MATHLIB_EDGE_BUILD_DIR:-build}/$name" "$t" $SRC -lm; then
         echo "❌ BUILD FAILED: $name"
         FAILED=1
         continue
     fi
 
-    if ! "./build/$name"; then
+    if ! "${MATHLIB_EDGE_BUILD_DIR:-build}/$name"; then
         echo "❌ TEST FAILED: $name"
         FAILED=1
     fi
