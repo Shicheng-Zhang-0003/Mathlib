@@ -152,7 +152,8 @@ mpmath 80-dps / system libm. All fixes below are implemented and re-verified
 - `run_all_tests.py:586` `Path("src/core.c")` false-positive in naive
   `grep -c src/` counts (35/36) — canonical `LIB_SOURCES[70:103]` is 34.
 - Validation Round-2: oracle 212/0 worst 0 ULP ASan clean (was abort),
-  modular 4/4, smoke 30/0, boundary 25/0, god 61473/0 seed 123456789,
+  modular 4/4, smoke 30/0, boundary 25/0, god 61393/0 measured seed 123456789
+  (drafts wrote 61473; not reproducible — fuzz source unchanged since 02/08/26),
   edge 23/23 (sanitizer sample clean), 3-profile -Werror clean.
 
 ## Remaining (honest, not hidden) — updated
@@ -278,8 +279,8 @@ pins (K at 5.5/7/13, Ai at 4/4.5/6.5/8). Suite now **371 assertions**.
 
 ### Still open (honest, not hidden)
 
-- `ml_hurwitz_zeta(s<=1, a!=1)` — analytic continuation stub, returns NaN.
-  Deliberate fail-loud, unchanged.
+- `ml_hurwitz_zeta(s<=0, a!=1)` — analytic continuation stub, returns NaN.
+  Deliberate fail-loud, unchanged. (Round-4 closed 0<s<=1; only s<=0 remains.)
 - Batch-1 oracle coverage (bisection inverses, unpreconditioned Krylov,
   xorshift RNG, Dirichlet-only PDEs, 2x2 control). Structural: needs an
   oracle tier that does not exist for these families yet.
@@ -288,3 +289,53 @@ pins (K at 5.5/7/13, Ai at 4/4.5/6.5/8). Suite now **371 assertions**.
   (gamma/pow/log/sin), unchanged; K and Ai are now exempt.
 - Heap-workspace API for the remaining 64 KB / 33 KB frames (fft_real,
   jacobi_eigen, mi_discrete, haar, cubic_spline) — deferred, documented.
+
+## Round-4 — 2026-10-07 (full system audit; the despot returns)
+
+Mathematical, programming, and operational audit of the entire 34-TU tree.
+Full report: `docs/DESPOT_R4_AUDIT.md`. All builds/tests executed with objects
+in `/tmp/opencode/despot-r4/` only; the repo tree holds sources alone.
+
+### P0 — wrong answer (fixed + pinned)
+
+- `integral.c zeta` — trivial-zero guard `s<=0` returned 0 for `s==0`
+  (true `zeta(0)=-1/2`, DLMF 25.2.2). Reflection needs `zeta(1)=Inf`, so the
+  closed form `-0.5` is returned directly. `-2/-4` still 0. Pinned by
+  `test_edge_despot_r4` (21 assertions).
+- `analytic_nt.c hurwitz` — `0<s<=1,a!=1` NaN stub (e.g. `hurwitz(0.9,2)`)
+  closed via the shared N=200 B2..B12 LD EM helper (0 ULP vs mpmath 80-dps).
+  Comment fix `B6→B12`; 2x30-line duplication → 1 helper. `s<=0` stays NaN.
+
+### P1 — accuracy/robustness (fixed + pinned)
+
+- `complex.c clog/clog_ld` — zero-guard so a future guard-reorder cannot turn
+  `log(0)` into `Inf*0=NaN`; public imag stays double `atan2` by contract
+  (internal LD `atan2l` feeds pow only). Comment corrected (Sterbenz + log1pl).
+- `complex.c csqrt` — comment fix: `*2` is the exact scaling, `r+x` is merely
+  well-conditioned (was "power-of-two scaling (exact)").
+- `complex.c cpow` — shared `ml_cplx_pow_w` helper (was 3x LD product);
+  `pow(0,0)=1` edge holds. Measured `(1+0.1i)^37` 0 ULP.
+- `integral.c Stirling-LD` — `x-0.5L` via exact TwoSum (`w_hi/w_lo`), mirroring
+  the DD path (was single rounding; ~1e-19 vs ~1e-18 truncation, now uniform).
+- `gamma_p/q(+Inf)` — `P=1/Q=0` guards (were NaN via `erf(1e300)`); pinned.
+- `remainder(1e300,1000)` — bit-exact vs system (was 3.5e283); pinned.
+
+### Programming/operational (fixed)
+
+- `-Wundef` + `float.h` (`LDBL_MANT_DIG` vs `__LDBL_MANT_DIG__`): `ml_compiler.h`
+  documents both spellings; all 3 profiles `-Werror` clean.
+- `run_edge_tests.sh` honors `MATHLIB_EDGE_BUILD_DIR` (was hardcoded `build/`);
+  `run_all_tests.py` already builds into `build/` (repo-local by design for CI;
+  audit builds used `/tmp` exclusively).
+- Root `*.o`/`*.d` clutter removed (gitignored, but violated `/tmp`-only policy).
+- TU coherence re-verified 34/34 (CMake/Makefile/run_all_tests/edge + `src/*.c`).
+- Fuzz figure corrected: god-mode measured **61393/0** (`--seed 123456789`);
+  the 61473 figure was never reproducible (fuzz source unchanged since 02/08/26).
+- `fanalyzer` clean on `core.c`/`integral.c`; 8-thread smoke deterministic;
+  `-fstack-usage` max still `ml_fft_real` 65,600 B (documented heavy frames).
+
+### Validation (this tree)
+
+- Oracle 212/0 worst 0 ULP; modular 4/4; smoke 30/0; boundary 25/0;
+  god 61393/0; `accuracy_audit` 371/0; `despot_r4` 21/21; edge 24/24;
+  3-profile `-Werror` clean; ASan+UBSan oracle + R4 clean.

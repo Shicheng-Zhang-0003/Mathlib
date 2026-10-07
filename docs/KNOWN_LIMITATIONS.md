@@ -78,8 +78,26 @@ Known remaining limits (documented, not defects):
   integer; full-range proof needs exact fractionals (deferred).
 - `long double==double` platforms (MSVC/ARM): LD paths collapse to DD;
   measured 0-ULP numbers are x86-64 only. Guarantees stay at the ≤5 ULP gate.
+- `ml_hurwitz_zeta` scope (Round-4 update): s>0 fully implemented via LD
+  Euler-Maclaurin N=200 B2..B12 (0 ULP vs mpmath 80-dps, including
+  0<s<=1,a!=1 continuation). Only s<=0,a!=1 stays a fail-loud NaN stub
+  (needs the Hurwitz functional equation). `ml_zeta(0)=-1/2` exact.
 - Batch-1 still no oracle ULP certification (bisection inverses, Krylov
   without preconditioning, xorshift RNG, Dirichlet-only PDEs, 2x2 control).
+- `long double==double` platforms (MSVC/ARM): core LD paths collapse to DD;
+  K0/K1 and Airy-Ai are exempt (quadrature is LD-independent, measured
+  2.6e-16/2.4e-15 in emulated double).
+
+## Round-4 despot (2026-10-07)
+
+Full mathematical/programming/operational re-audit; see
+`docs/DESPOT_R4_AUDIT.md`. Fixed and pinned by
+`tests/test_edge_despot_r4.c` (21 assertions): `ml_zeta(0)=-1/2` (was 0),
+Hurwitz 0<s<=1 continuation (was NaN stub) via shared EM helper, B2..B12
+comment fix, complex sqrt Hull-Beebe wording, complex pow shared w helper +
+zero-guard, Stirling-LD TwoSum, edge-runner `/tmp` override, root artifact
+cleanup. Measured: oracle 212/0 worst 0 ULP, god 61393/0, boundary 25/0,
+accuracy_audit 371/0, R4 21/21, 3-profile `-Werror` + ASan/UBSan clean.
 
 Closed by the ULP push (measured exact-binary, x86-64):
 `ml_gamma` 6.7/0.1/0.001/-0.5/-0.1/-0.9 (21/3/5/1/1/1 → 0 ULP),
@@ -117,10 +135,29 @@ prime_pi odd undercount, acosh 458k ULP, softplus 57k ULP, normal_inv sigma
 stall, hurwitz B2 10k ULP, catalan C35/C36 exact via recurrence, log1p coeff,
 Airy LD Taylor, QR NaN-poison, hurwitz-margin alias, 35->34 TU docs.
 
-Remains (documented limits, not defects):
-- Kelvin 2-term P/Q ~0.5% at 20 (bei 20.1 125562 vs 126161 true). Needs
-  DLMF 10.67.5 R/S to 1/x^5 or I0/K0 uniform continuation.
-- Airy 5<x<6 Taylor/asym hole ~3e-10..3e-9 (LD halves it); K 8<x<10 ~2e-9.
-  Both need Temme uniform expansion (deferred to v12A2).
-- Y1 near 14: 25k ULP (crossover cause, same family).
-- Batch-1 no oracle; long double==double collapse; heavy stacks — unchanged.
+Remains after Round-2 (all closed in Round-3 except Batch-1/LD-collapse/stacks):
+- ~~Kelvin 2-term P/Q ~0.5% at 20 (bei 20.1 125562 vs 126161 true). Needs
+  DLMF 10.67.5 R/S to 1/x^5 or I0/K0 uniform continuation.~~ **CLOSED
+  (Round-3)** by DLMF 10.67.3-4 full least-term sums (~1e-13 relative).
+- ~~Airy 5<x<6 Taylor/asym hole ~3e-10..3e-9 (LD halves it); K 8<x<10 ~2e-9.
+  Both need Temme uniform expansion (deferred to v12A2).~~ **CLOSED
+  (Round-3)** by K-quadrature bridge (K 6.8e-15, Ai 2.1e-13).
+- ~~Y1 near 14: 25k ULP (crossover cause, same family).~~ **CLOSED (Round-3)**
+  crossover 14->13 (1.08e-13); residual at zeros is intrinsic absolute error.
+- Batch-1 no oracle; long double==double collapse (core paths; K/Ai now
+  exempt); heavy stacks — unchanged (see Round-3/4 notes below).
+- `ml_hurwitz_zeta` scope (Round-4): s>0 fully implemented via LD
+  Euler-Maclaurin N=200 B2..B12 (0 ULP vs mpmath 80-dps, including
+  0<s<=1,a!=1 continuation). Only s<=0,a!=1 stays a fail-loud NaN stub
+  (needs the Hurwitz functional equation). `ml_zeta(0)=-1/2` exact.
+
+## Round-4 despot (2026-10-07)
+
+Full mathematical/programming/operational re-audit; see
+`docs/DESPOT_R4_AUDIT.md`. Fixed and pinned by
+`tests/test_edge_despot_r4.c` (21 assertions): `ml_zeta(0)=-1/2` (was 0),
+Hurwitz 0<s<=1 continuation (was NaN stub) via shared EM helper, B2..B12
+comment fix, complex sqrt Hull-Beebe wording, complex pow shared w helper +
+zero-guard, Stirling-LD TwoSum, edge-runner `/tmp` override, root artifact
+cleanup. Measured: oracle 212/0 worst 0 ULP, god 61393/0, boundary 25/0,
+accuracy_audit 371/0, R4 21/21, 3-profile `-Werror` + ASan/UBSan clean.

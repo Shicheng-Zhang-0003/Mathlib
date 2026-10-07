@@ -22,7 +22,8 @@ numerical
 - optimization/optim_n, ode/ode_sys (BE2 fail-loud), spectral (relative tol),
   stats_inv, sde (`_ctx` variants, forward-only), pde (Dirichlet-only),
   harmonic (Haar contract), mcmc (rejection accounting), manifold (unit gates),
-  info (cross-entropy +Inf), analytic_nt (hurwitz stub), control (Hurwitz margin),
+  info (cross-entropy +Inf), analytic_nt (hurwitz s<=0,a!=1 fail-loud stub;
+  s>0 closed via LD EM), control (Hurwitz margin),
   orthogonal/polynomial/quadratics, fixed-point (rounded constants),
   numbertheory (crt2 `%q`, mobius 2=UNRESOLVED, exact mult_order)
 

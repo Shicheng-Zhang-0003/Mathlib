@@ -108,8 +108,8 @@ proof for all inputs — Table Maker's Dilemma, x86-64 only).
 
 - **Oracle:** 212 passed, 0 failed, worst 0 ULP (sin, cos, exp, log, gamma, lgamma, pow — correctly rounded on the grid vs mpmath 50-dps; gate ≤5 ULP)
 - **Wide grids (exact-binary truth):** pow 100 cases 0 ULP (was 41); sin/cos benign 25 cases 0 ULP (was 1); gamma 11-point grid 0 ULP (6.7 was 21, 0.1 was 3, 0.001 was 5, -0.5 was 1); vs-sys sin/cos/exp/log/pow 0, gamma/lgamma 1 (sys itself differs)
-- **Edge tests:** 23 suites, all passed (700+ assertions; full sweep 23/23 in gate-v12R2)
-- **Fuzzers:** fuzz_god_mode (61393/0), fuzz_boundary — all passed
+- **Edge tests:** 24 suites, all passed (700+ assertions; incl. `test_edge_despot_r4` 21 pins)
+- **Fuzzers:** fuzz_god_mode (61393/0 measured `--seed 123456789`), fuzz_boundary — all passed
 - **Boundary gauntlet:** 25 passed, 0 failed
 - **Soak:** 10,000 iterations available via `--soak`
 - **Sanitizers:** ASan + UBSan clean (see gate log)
@@ -140,7 +140,7 @@ These are design choices, not hidden defects.
 
 ## Round-2 despot (2026-10-01)
 
-Re-audit in `/tmp/opencode/mathlib-work/` found and fixed 11 issues: zeta OOB (ASan abort → 212/0 clean), kelvin sign flip (ber -pi/8 split), prime_pi odd miss, acosh 458k ULP → 0, softplus 57k ULP → exact, normal_inv sigma stall → exact, hurwitz B2 10k ULP → 9e-10, catalan C35/C36 exact, log1p coeff, Airy LD Taylor, QR NaN-poison + hurwitz alias, 35→34 TU docs. Oracle stays 212/0 worst 0 ULP (gate ≤5 ULP); god 61473/0; edge 23/23; 3-profile clean. Remaining holes (kelvin 0.5%, Airy/K Temme) documented in KNOWN_LIMITATIONS/DESPOT_AUDIT.
+Re-audit in `/tmp/opencode/mathlib-work/` found and fixed 11 issues: zeta OOB (ASan abort → 212/0 clean), kelvin sign flip (ber -pi/8 split), prime_pi odd miss, acosh 458k ULP → 0, softplus 57k ULP → exact, normal_inv sigma stall → exact, hurwitz B2 10k ULP → 9e-10, catalan C35/C36 exact, log1p coeff, Airy LD Taylor, QR NaN-poison + hurwitz alias, 35→34 TU docs. Oracle stays 212/0 worst 0 ULP (gate ≤5 ULP); god 61393/0 measured; edge 23/23; 3-profile clean. Remaining holes (kelvin 0.5%, Airy/K Temme) documented in KNOWN_LIMITATIONS/DESPOT_AUDIT (both closed in Round-3).
 
 ## Round-3 despot (2026-10-01) — closing the remaining limits
 
@@ -169,4 +169,35 @@ Every limit still open after Round-2 is closed with a real method change:
   65536 ULP with 10 new transition-band pins.
 
 Gate: oracle 212/0 worst 0 ULP, modular 4/4, smoke 30/0, boundary 25/0,
-god 61473/0, edge 23/23, 3-profile `-Werror` clean.
+god 61393/0 measured, edge 23/23, 3-profile `-Werror` clean.
+
+## Round-4 despot (2026-10-07) — full system audit + fixes
+
+Mathematical, programming, and operational audit of the entire tree against
+external truth (mpmath 80-dps, system libm, DLMF identities, closed-form
+physics). Full report: `docs/DESPOT_R4_AUDIT.md`.
+
+- **Math (wrong-answer fix):** `ml_zeta(0)` 0 → -1/2 exact (trivial-zero guard
+  wrongly included s==0; reflection needs zeta(1)=Inf so the closed form is
+  returned directly). Verified vs DLMF 25.2.2; trivial zeros -2/-4 still 0.
+- **Math (continuation closed):** `ml_hurwitz_zeta` 0<s<=1,a!=1 NaN stub →
+  shared LD Euler-Maclaurin helper (N=200, B2..B12, Kahan; 0 ULP vs mpmath at
+  1.1/1.5/0.9/0.01). Comment fix B6→B12; duplication 2x30 lines → 1 helper.
+  s<=0,a!=1 stays fail-loud NaN (documented).
+- **Programming:** complex pow shared `ml_cplx_pow_w` helper (was 3x LD
+  product) + zero-guard in `ml_cplx_logarithm_ld`; sqrt comment fix
+  (well-conditioned sum, not "exact power-of-two"); Stirling-LD TwoSum
+  uniformity; `-Wundef` + `float.h` coherence (`LDBL_MANT_DIG` vs
+  `__LDBL_MANT_DIG__` documented); `run_edge_tests.sh` honors
+  `MATHLIB_EDGE_BUILD_DIR` so `/tmp` builds never touch the repo tree.
+- **Operational:** root `*.o`/`*.d` clutter removed (gitignored but violated
+  the `/tmp`-only evidence policy); TU lists re-verified 34/34 in all 4
+  canonical files; fuzz figure corrected to measured 61393/0 (source
+  unchanged since 02/08/26; 61473 was never reproducible).
+- **Physics outcomes verified:** ODE RK4 exp(1), SUVAT, projectile range
+  v0²/g, SHM cos, PDE FTCS r≤1/2 + CFL≤1 enforcement, Poisson/heat-implicit
+  Thomas, Kelvin ber(20) ~1e-13 relative, K/Airy bridges hold.
+- **Guard:** new `tests/test_edge_despot_r4.c` 21/21 pins every fix.
+  Gate on the current tree: oracle 212/0 worst 0 ULP, modular 4/4, smoke 30/0,
+  boundary 25/0, god 61393/0, accuracy_audit 371/0, R4 21/21, edge 24/24,
+  3-profile `-Werror` + ASan/UBSan clean.

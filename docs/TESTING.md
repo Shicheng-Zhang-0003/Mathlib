@@ -3,7 +3,8 @@
 Validation layers (tiers are non-interchangeable, see `PRECISION_CONTRACT.md`):
 
 1. Unit / modular (`test_core/trig/linalg/dsp`, `test.c` smoke 30/0)
-2. Numerical edge (23/23 suites, 700+ assertions, exact IEEE-754 expectations)
+2. Numerical edge (24/24 suites, 700+ assertions, exact IEEE-754 expectations;
+   includes `test_edge_despot_r4` 21 pins for zeta(0)/Hurwitz/clog/csqrt/cpow/remainder/gamma-PQ)
 3. Oracle comparison (212/212 at 0 ULP measured vs mpmath 50-dps
    exact-binary truth; gate stays ≤5 ULP — measurement, not proof)
 4. Wide grids (pow 100 cases, sin/cos 25 benign + 2000 random, gamma 11-point;
@@ -22,4 +23,11 @@ crossings are absolute-error regime). Passing the oracle grid does not prove
 
 Evidence: `docs/GATE_V12R2.md`. Logs live in `/tmp` by policy (never in repo).
 
-Round-3 (2026-10-01): accuracy_audit 371 assertions (was 361); K/Airy tolerances tightened 5e7/1e8 -> 65536 ULP with 10 new transition-band pins. Stack survey via `-fstack-usage` on all 34 TUs (max frame 65,600 B after fft2d 256KB->2KB). Double-only quadrature emulation proves K/Ai are LD-independent.\n\nRound-2 (2026-10-01): oracle 212/0 ASan clean (zeta OOB fixed), god 61473/0, boundary 25/0, edge 23/23 sanitizer-clean sample, 3-profile -Werror 34/34. Probes in /tmp/opencode/mathlib-work (acosh/pi/ninv/sp/kelvin/hk) pin each fix.
+Round-4 (2026-10-07): `test_edge_despot_r4` 21/21 (zeta(0)=-1/2, Hurwitz 0 ULP,
+clog/csqrt/cpow, remainder bit-exact, gamma P/Q at Inf); oracle stays 212/0
+worst 0 ULP (gate ≤5 ULP); god 61393/0 measured (`--seed 123456789`); edge
+24/24; 3-profile `-Werror` + ASan/UBSan clean. Full report:
+`docs/DESPOT_R4_AUDIT.md`. All builds/tests run with objects in `/tmp` only
+(`MATHLIB_EDGE_BUILD_DIR` override for the edge runner).
+
+Round-3 (2026-10-01): accuracy_audit 371 assertions (was 361); K/Airy tolerances tightened 5e7/1e8 -> 65536 ULP with 10 new transition-band pins. Stack survey via `-fstack-usage` on all 34 TUs (max frame 65,600 B after fft2d 256KB->2KB). Double-only quadrature emulation proves K/Ai are LD-independent.\n\nRound-2 (2026-10-01): oracle 212/0 ASan clean (zeta OOB fixed), god 61393/0 measured, boundary 25/0, edge 23/23 sanitizer-clean sample, 3-profile -Werror 34/34. Probes in /tmp/opencode/mathlib-work (acosh/pi/ninv/sp/kelvin/hk) pin each fix. (Earlier drafts wrote 61473; re-measurement on the committed tree with `--seed 123456789` gives 61393 — the fuzz source has not changed since 02/08/26, so 61393 is the audited figure.)

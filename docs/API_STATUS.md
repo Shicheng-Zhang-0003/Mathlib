@@ -51,12 +51,12 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 | `ml_mcmc.h` | **EXPERIMENTAL** | No oracle vectors; tolerances unvalidated |
 | `ml_manifold.h` | **EXPERIMENTAL** | No oracle vectors; tolerances unvalidated |
 | `ml_info.h` | **EXPERIMENTAL** | No oracle vectors; tolerances unvalidated |
-| `ml_analytic_nt.h` | **EXPERIMENTAL** | `ml_hurwitz_zeta` is STUB for s ≤ 1, a ≠ 1 (returns NaN; only s > 1 and a == 1 paths implemented) |
+| `ml_analytic_nt.h` | **EXPERIMENTAL** | `ml_hurwitz_zeta` s>0 via LD Euler-Maclaurin N=200 B2..B12 (0 ULP vs mpmath); s≤0,a≠1 fail-loud NaN stub (needs Hurwitz functional equation) |
 | `ml_control.h` | **EXPERIMENTAL** | No oracle vectors; tolerances unvalidated; `ml_lyapunov_2x2_trace` is a Hurwitz margin (-tr), not a Lyapunov P trace (legacy name) |
 | `ml_orthogonal.h` | **EXPERIMENTAL** | Three-term recurrences, long-double, <1 ULP n<=64 |x|<=2; Laguerre x<0->NaN domain choice; unbounded n is caller-bounded |
 | `ml_numbertheory.h` | **EXPERIMENTAL** | Exact u64; mobius 2=UNRESOLVED sentinel; mult_order exact; crt2 generalized; Round-2 prime_pi odd fix (pi(3)=2) + catalan C0..C36 exact via recurrence (C37+ MAX) |
 | `ml_transforms.h` | **EXPERIMENTAL** | Unscaled DCT-II/III pair; `ml_dst2` implements DST-I (`ml_dst1` alias); `ml_parseval_energy` is time-domain energy; O(n^2) n<=256 |
-| `ml_kelvin.h` | **EXPERIMENTAL** | ber/bei/ker/kei series + 2-term asym at XMAX=20; Round-2 phase fix (ber/bei -pi/8, ker/kei +pi/8; was sign flip); residual ~0.5% at 20; ber/bei(Inf)=NaN, ker/kei(Inf)=0; ker/kei(x<=0)=NaN |
+| `ml_kelvin.h` | **EXPERIMENTAL** | ber/bei/ker/kei series + DLMF 10.67.3-4 full least-term asymptotic sums (Round-3; ~1e-13 relative at 20, was 2-term ~0.5%); ber/bei(Inf)=NaN, ker/kei(Inf)=0; ker/kei(x<=0)=NaN |
 
 > NOTE: all shipped TUs now have status rows (despot audit closed the orthogonal/numbertheory/transforms gap).
 
@@ -86,5 +86,7 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 
 * `compat.h` is not part of the v11S core.
 * `legacy/` modules are not built by default and are outside the v11S stability boundary.
+
+Round-4 (2026-10-07): `ml_hurwitz_zeta` 0<s<=1,a!=1 closed via shared LD EM helper (was NaN stub; s<=0,a!=1 stays fail-loud); `ml_zeta(0)=-1/2` exact (was 0); `ml_cplx_sqrt` Hull-Beebe division form; `ml_cplx_power` shared LD w helper + zero-guard; Stirling-LD TwoSum; `tests/test_edge_despot_r4.c` 21 pins; see `docs/DESPOT_R4_AUDIT.md`.
 
 Round-3 (2026-10-01): `ml_bessel_k0/k1` worst 6.8e-15 (was 2e-9), `ml_airy_ai` worst 2.1e-13 (was 5e-9), `ml_digamma` 0 ULP, Kelvin full DLMF sums (~1e-13), `ml_fft2d_pow2` stack 256KB->2KB; accuracy_audit 371 assertions at 65536 ULP (was 5e7/1e8).\n\nRound-2 (2026-10-01): `ml_hurwitz_margin_2x2` alias added (legacy lyapunov kept ABI); `ml_qr_iter_eig` NaN-poisons on SINGULAR + post-check; `ml_acosh` log1p, `ml_softplus` 36-cutoff, `ml_normal_inv` phi fix, `ml_hurwitz_zeta` B2 tail — all STABLE semantics, EXPERIMENTAL ULP unchanged.
