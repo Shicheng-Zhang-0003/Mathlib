@@ -57,7 +57,10 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 | `ml_numbertheory.h` | **EXPERIMENTAL** | Exact u64; mobius 2=UNRESOLVED sentinel; mult_order exact; crt2 generalized; Round-2 prime_pi odd fix (pi(3)=2) + catalan C0..C36 exact via recurrence (C37+ MAX) |
 | `ml_transforms.h` | **EXPERIMENTAL** | Unscaled DCT-II/III pair; `ml_dst2` implements DST-I (`ml_dst1` alias); `ml_parseval_energy` is time-domain energy; O(n^2) n<=256 |
 | `ml_kelvin.h` | **EXPERIMENTAL** | ber/bei/ker/kei series + DLMF 10.67.3-4 full least-term asymptotic sums (Round-3; ~1e-13 relative at 20, was 2-term ~0.5%); ber/bei(Inf)=NaN, ker/kei(Inf)=0; ker/kei(x<=0)=NaN |
-| `ml_contest.h` | **EXPERIMENTAL** | 36 contest functions (figurate/parity/recurrences/Bell/Stirling/Eulerian/Lah/Motzkin/Schroder/Narayana/partitions/Goldbach/SG/LL/Tonelli/tau/sigma/Frobenius/series/Wythoff/Grundy/Schur/AMGM/Vieta); u64 exact-or-MAX, no oracle vectors; see `docs/CONTEST_GUIDE.md` |
+| `ml_contest.h` | **EXPERIMENTAL** | 41 contest functions (recreational, figurate/parity/recurrences/Bell/Stirling/Eulerian/Lah/Motzkin/Schroder/Narayana/partitions/Goldbach/SG/LL/Tonelli/tau/sigma/Frobenius/series/Wythoff/Grundy/Schur/AMGM/Vieta); u64 exact-or-MAX, no oracle vectors; see `docs/CONTEST_GUIDE.md` |
+| `ml_geometry.h` | **EXPERIMENTAL** | Triangle centers (Euler-vector orthocenter), R=abc/4K, r=K/s (reuse staged Heron), Euler-line + nine-point verifiers, LD predicates (shoelace, seg-intersect, point-in-poly, monotone-chain hull), clock, solids; no oracle vectors |
+| `ml_graph.h` | **EXPERIMENTAL** | DSU + BFS/DFS/bipartite/components/Kahn-DAG/Dijkstra-O(n^2)/Kruskal on edge lists (n<=4096, m<=262144, nonneg weights; Bellman-Ford deferred); Kruskal SINGULAR when disconnected |
+| `ml_modeling.h` | **EXPERIMENTAL** | Markov stationary (power iteration, CONVERGENCE-loud), SIR R0/final-size/peak, Leslie step + growth, M/M/1 closed forms, Beta-Binomial/Gamma-Poisson conjugates + beta credible via staged beta_inv, logistic Lyapunov |
 
 > NOTE: all shipped TUs now have status rows (despot audit closed the orthogonal/numbertheory/transforms gap).
 

@@ -246,3 +246,24 @@ no oracle ULP claimed). See `docs/CONTEST_GUIDE.md`.
 - **Guard:** new `tests/test_edge_contest.c` 96/96 (Python big-int +
   mpmath truth; caught a Motzkin-index slip and the Bernoulli `B1` sign
   live). TU lists 35/35 in all 4 canonical files; edge now 26/26.
+
+## Tier coverage: geometry, olympiad NT, graphs, modeling (38 TUs)
+
+- **Geometry (`ml_geometry.h`):** triangle centers via Euler-vector
+  orthocenter, `R=abc/4K`/`r=K/s` reusing staged Heron, Euler-line +
+  nine-point verifiers, LD predicates, monotone-chain hull, clock, solids.
+  Reuses (not duplicates) the hardened `ml_point_plane_dist`.
+- **Olympiad NT (`ml_numbertheory.h` annex):** Legendre `v_p(n!)`,
+  floor-sum, LTE (odd + 2-adic), CF period/convergents, Pell fundamental
+  (`D=61` → 1766319049/226153980); recreational Tier-0 in `ml_contest.h`
+  (digits, Collatz, magic squares).
+- **Graphs (`ml_graph.h`):** DSU, BFS/DFS, bipartite, components, Kahn DAG,
+  O(n²) Dijkstra, Kruskal (SINGULAR when disconnected); edge lists,
+  `n<=4096`, nonneg weights.
+- **Modeling (`ml_modeling.h`):** Markov stationary (CONVERGENCE-loud;
+  imprimitive Leslie pinned), SIR R0/final-size/peak, Leslie step+growth,
+  M/M/1 closed forms, Beta-Binomial/Gamma-Poisson + beta credible,
+  logistic Lyapunov (ln2 at r=4, -ln2 at r=2.5).
+- **Guard:** `test_edge_geometry` 45/45, `test_edge_olympiad_nt` 39/39,
+  `test_edge_graph` 29/29, `test_edge_modeling` 40/40. TU lists 38/38;
+  edge now 30/30.

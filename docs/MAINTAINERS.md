@@ -8,7 +8,7 @@ Check:
 - compiler cleanliness (`-Werror`, 3 profiles, C++ header check)
 - test coverage impact (modular + edge 25/25 incl. `test_edge_despot_r4` + `test_edge_despot_r5` + oracle + fuzz + sanitizers)
 - documentation updates (tiers only; never quote smoke tolerances as ULP)
-- canonical TU list still matches (CMake/Makefile/run_all_tests/edge, 35 TUs)
+- canonical TU list still matches (CMake/Makefile/run_all_tests/edge, 38 TUs)
 
 Numerical changes require justification and validation:
 - state the error law (e.g. `pow_err ≈ |y|·log_err`),

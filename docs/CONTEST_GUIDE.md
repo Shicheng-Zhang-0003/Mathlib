@@ -4,6 +4,12 @@ Extravagant contest mathematics, tiered low -> high. Extends the existing
 contest core (combinatorics, numbertheory, arith/geom sums, Nim, Karamata,
 partition) with the classic missing staples. 35th TU (`src/contest.c`).
 
+## Tier 0 — recreational (AMC 8/10)
+
+Digit sums, digital roots (`1+(n-1) mod 9`), palindrome checks, Collatz
+total stopping time (`UINT64_MAX` past u64/10^6 steps — no claim on the open
+conjecture), normal magic-square verification (`n<=32`).
+
 ## Tier 1 — school / AMC
 
 | Function | Theorem | Sentinel |
@@ -39,4 +45,15 @@ Schur degree-1 verifier, AM-GM instance check, cubic Vieta sums.
 u64 = exact or `UINT64_MAX`; verdicts fail closed to `0`; doubles follow
 the `ml_sum_k` exactness-guard pattern where exact, else LD
 regression-guard tier (no oracle ULP claimed — `PRECISION_CONTRACT` rule 3).
-Pinned by `tests/test_edge_contest.c` (96 assertions).
+Pinned by `tests/test_edge_contest.c` (96 assertions) and
+`tests/test_edge_olympiad_nt.c` (39 assertions: LTE, floor-sum, Legendre,
+continued fractions, Pell, recreational).
+
+## Olympiad NT annex (`ml_numbertheory.h`)
+
+Legendre's `v_p(n!)`, AtCoder floor-sum (`__uint128_t`, same-file precedent
+as `ml_crt2`), LTE (`v_p(a^n-b^n)` with odd/even-2 cases and precondition
+fail-loud `UINT64_MAX`), `sqrt(D)` continued-fraction period (`0` = square,
+`-1` = invalid, `-2` = past the 10000 bound), convergents, and the Pell
+fundamental solution (first convergent hit wins; `D=61` gives the famous
+1766319049/226153980; beyond-u64 solutions report `OVERFLOW`).
