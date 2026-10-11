@@ -61,6 +61,11 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 | `ml_geometry.h` | **EXPERIMENTAL** | Triangle centers (Euler-vector orthocenter), R=abc/4K, r=K/s (reuse staged Heron), Euler-line + nine-point verifiers, LD predicates (shoelace, seg-intersect, point-in-poly, monotone-chain hull), clock, solids; no oracle vectors |
 | `ml_graph.h` | **EXPERIMENTAL** | DSU + BFS/DFS/bipartite/components/Kahn-DAG/Dijkstra-O(n^2)/Kruskal on edge lists (n<=4096, m<=262144, nonneg weights; Bellman-Ford deferred); Kruskal SINGULAR when disconnected |
 | `ml_modeling.h` | **EXPERIMENTAL** | Markov stationary (power iteration, CONVERGENCE-loud), SIR R0/final-size/peak, Leslie step + growth, M/M/1 closed forms, Beta-Binomial/Gamma-Poisson conjugates + beta credible via staged beta_inv, logistic Lyapunov |
+| `ml_measure.h` | **EXPERIMENTAL** | Lebesgue Dirichlet showcase, simple sums (LD), discrete Lp, Holder/Minkowski/Markov instance verifiers (fail closed) |
+| `ml_funcanal.h` | **EXPERIMENTAL** | Banach solver (certified L + a posteriori bound), Neumann inverses, Hilbert best approximation (scale-aware rank), Rayleigh max via staged power iteration |
+| `ml_topology.h` | **EXPERIMENTAL** | Simplicial mod-2 Betti (validated closure, heap bitsets), chain checks + Betti, Euler char, exact Bareiss rank/det (2^64 guards) |
+| `ml_diffgeom.h` | **EXPERIMENTAL** | Graph/parametric curvature, Frenet frames (per-order step sizes), sphere/plane curvatures; straight motion SINGULAR |
+| `ml_algebraic.h` | **EXPERIMENTAL** | Sylvester resultants + discriminants (staged Bareiss, exact), Sturm isolation (LD tier), Descartes (exact), hook/S_n sizes (exact), Rodrigues so(3); Ei/li/psi in `ml_analytic_nt.h` (PNT pinned) |
 
 > NOTE: all shipped TUs now have status rows (despot audit closed the orthogonal/numbertheory/transforms gap).
 

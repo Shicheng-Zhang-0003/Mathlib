@@ -35,10 +35,13 @@ Rules:
     `pde`, `harmonic`, `mcmc`, `manifold`, `info`, `analytic_nt`, `control`,
     `kelvin`), the contest module (`ml_contest.h`, 41 functions: u64
     exact-or-sentinel paths are edge-tier exact like rule 3's directed
-    cases; LD series paths are regression guards), and the applied modules
+    cases; LD series paths are regression guards), the applied modules
     (`ml_geometry.h`, `ml_graph.h`, `ml_modeling.h`, olympiad-NT annex:
     exact-or-sentinel paths are edge-tier exact; iterative solvers are
-    regression guards with fail-loud CONVERGENCE)
+    regression guards with fail-loud CONVERGENCE), and the doctorate
+    modules (`ml_measure.h`, `ml_funcanal.h`, `ml_topology.h`,
+    `ml_diffgeom.h`, `ml_algebraic.h`: exact integer paths are edge-tier
+    exact; LD/FP paths are regression guards with fail-loud codes)
     have **no oracle coverage** and inherit no precision guarantee until
     oracle vectors exist for them. See `docs/API_STATUS.md` and
     `docs/CONTEST_GUIDE.md`.

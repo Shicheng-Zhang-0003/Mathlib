@@ -2,7 +2,7 @@
 
 v12R2 is the refinement cycle following the v12A1 architectural evolution.
 
-v12A1 proved the architecture. v12R2 fixes critical bugs, improves numerical accuracy, and adds 12 new Batch-1 modules + kelvin (34 TUs), plus the contest extravaganza module (35 TUs), geometry, graph, and modeling kits (38 TUs).
+v12A1 proved the architecture. v12R2 fixes critical bugs, improves numerical accuracy, and adds 12 new Batch-1 modules + kelvin (34 TUs), plus the contest extravaganza module (35 TUs), geometry, graph, and modeling kits (38 TUs), plus the doctorate slice: measure, funcanal, topology, diffgeom, algebraic (43 TUs).
 
 <!-- MATHLIB_V12A1_DOCS_ALIGNMENT -->
 v12R2 key fixes:
@@ -41,6 +41,11 @@ New Batch-1 modules (v12R2):
 - `ml_geometry` — triangle centers, R/r, Euler-line + nine-point, shoelace, seg-intersect, point-in-poly, convex hull, clock, solids
 - `ml_graph` — DSU, BFS/DFS, bipartite, components, Kahn topo, Dijkstra, Kruskal
 - `ml_modeling` — Markov chains, SIR, Leslie, M/M/1, conjugate Bayes, logistic Lyapunov
+- `ml_measure` — Lebesgue Dirichlet, simple sums, Lp, Hölder/Minkowski/Markov verifiers
+- `ml_funcanal` — Banach solver, Neumann inverses, Hilbert projection, Rayleigh max
+- `ml_topology` — simplicial mod-2 Betti, Euler char, Bareiss rank/det
+- `ml_diffgeom` — curvature, Frenet frames, Gaussian/mean curvatures
+- `ml_algebraic` — resultants, discriminants, Sturm, hook/S_n sizes, Rodrigues (see `docs/DOCTORATE_GUIDE.md`)
 
 Despot audit (2026-09-30, see `docs/DESPOT_AUDIT.md`): exp2 subnormal, remainder
 long-double quotient, crt2 `%q` fix, kronecker INT64_MIN, mobius sentinel,
@@ -69,8 +74,8 @@ python3 run_all_tests.py
 A1 closure is **complete** with R2 refinements.
 
 - Oracle validation: **212 passed, 0 failed, worst 0 ULP** (7 core families correctly rounded on the grid vs mpmath 50-dps exact-binary truth; gate stays ≤5 ULP, see `docs/PRECISION_CONTRACT.md` and `docs/ULP_PUSH.md`)
-- Full test gauntlet: modular, smoke, edge (30/30 suites incl. `test_edge_despot_r4` 21 pins + `test_edge_despot_r5` 42 pins + `test_edge_contest` 96 pins + geometry 45 + olympiad-nt 39 + graph 29 + modeling 40), fuzz, oracle, boundary — all passing (oracle 212/0 worst 0, god-mode 0 failed `--seed 123456789`: 61473/0 on AVX2 host, 61393/0 on other hosts — count is host-sensitive, see `docs/DESPOT_R5_AUDIT.md`, boundary 25/0, accuracy_audit 371/0, R4 21/21, R5 42/42)
-- Closure gate: **PASSED** (see `docs/GATE_V12R2.md`; Round-4 re-audit `docs/DESPOT_R4_AUDIT.md` holds the same gate on the current tree; Round-5 `docs/DESPOT_R5_AUDIT.md` holds 25/25 + 42/42 on the current tree; contest module adds the 26th suite, 96/96; geometry/graph/modeling/olympiad-nt add four more, 30/30)
+- Full test gauntlet: modular, smoke, edge (35/35 suites incl. `test_edge_despot_r4` 21 pins + `test_edge_despot_r5` 42 pins + `test_edge_contest` 96 pins + geometry 45 + olympiad-nt 39 + graph 29 + modeling 40 + measure 16 + funcanal 16 + topology 21 + diffgeom 18 + algebraic 32), fuzz, oracle, boundary — all passing (oracle 212/0 worst 0, god-mode 0 failed `--seed 123456789`: 61473/0 on AVX2 host, 61393/0 on other hosts — count is host-sensitive, see `docs/DESPOT_R5_AUDIT.md`, boundary 25/0, accuracy_audit 371/0, R4 21/21, R5 42/42)
+- Closure gate: **PASSED** (see `docs/GATE_V12R2.md`; Round-4 re-audit `docs/DESPOT_R4_AUDIT.md` holds the same gate on the current tree; Round-5 `docs/DESPOT_R5_AUDIT.md` holds 25/25 + 42/42 on the current tree; contest module adds the 26th suite, 96/96; geometry/graph/modeling/olympiad-nt add four more, 30/30; doctorate measure/funcanal/topology/diffgeom/algebraic add five more, 35/35)
 - Thread-safety: **verified** — no per-call mutable static state in any TU (grep + build + 8-thread smoke; no TSan/helgrind evidence claimed)
 
 See `docs/V12A1_ROADMAP.md` for the work plan.

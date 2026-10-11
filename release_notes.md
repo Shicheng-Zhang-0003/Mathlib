@@ -267,3 +267,27 @@ no oracle ULP claimed). See `docs/CONTEST_GUIDE.md`.
 - **Guard:** `test_edge_geometry` 45/45, `test_edge_olympiad_nt` 39/39,
   `test_edge_graph` 29/29, `test_edge_modeling` 40/40. TU lists 38/38;
   edge now 30/30.
+
+## Doctorate slice (43 TUs): measure, funcanal, topology, diffgeom, algebraic
+
+Computable graduate mathematics only (solvers, verifiers, exact integer
+algorithms — never proofs). See `docs/DOCTORATE_GUIDE.md`.
+
+- **Measure (`ml_measure.h`):** Dirichlet showcase (exactly 0), simple
+  sums, discrete L^p, Hölder/Minkowski/Markov verifiers (fail closed).
+- **Funcanal (`ml_funcanal.h`):** Banach solver (certified L + posteriori
+  bound), Neumann inverses, Hilbert projection (scale-aware rank test —
+  irrational norms never hit exact zero), Rayleigh max via staged power
+  iteration.
+- **Topology (`ml_topology.h`):** mod-2 Betti from validated closed
+  complexes (heap bitsets, never 128KB stack), chain checks + Betti,
+  Euler characteristic, exact Bareiss rank/det with 2^64 guards.
+- **Diffgeom (`ml_diffgeom.h`):** graph/parametric curvature, Frenet
+  (per-order step sizes — h=2e-8 loses ~60% on 2nd derivatives, fixed),
+  sphere K=1/9, straight motion SINGULAR.
+- **Algebraic (`ml_algebraic.h`) + PNT:** Sylvester resultants (sympy:
+  Res(x²-2,x³-3)=1), discriminants, Sturm isolation, Descartes (exact),
+  hook/S_n sizes (exact), Rodrigues; Ei/li/psi with li(1e6)≈78627.55.
+- **Guard:** `test_edge_measure` 16/16, `test_edge_funcanal` 16/16,
+  `test_edge_topology` 21/21, `test_edge_diffgeom` 18/18,
+  `test_edge_algebraic` 32/32. TU lists 43/43; edge now 35/35.
