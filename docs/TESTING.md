@@ -3,17 +3,18 @@
 Validation layers (tiers are non-interchangeable, see `PRECISION_CONTRACT.md`):
 
 1. Unit / modular (`test_core/trig/linalg/dsp`, `test.c` smoke 30/0)
-2. Numerical edge (24/24 suites, 700+ assertions, exact IEEE-754 expectations;
-   includes `test_edge_despot_r4` 21 pins for zeta(0)/Hurwitz/clog/csqrt/cpow/remainder/gamma-PQ)
+2. Numerical edge (25/25 suites, 750+ assertions, exact IEEE-754 expectations;
+   includes `test_edge_despot_r4` 21 pins + `test_edge_despot_r5` 42 pins)
 3. Oracle comparison (212/212 at 0 ULP measured vs mpmath 50-dps
    exact-binary truth; gate stays ≤5 ULP — measurement, not proof)
 4. Wide grids (pow 100 cases, sin/cos 25 benign + 2000 random, gamma 11-point;
    exact-binary truth; all core 0 ULP except large-x trig near-zero
    absolute-tiny and vs-sys residual 1)
-5. Boundary fuzzing (25/0) + god-mode fuzz (61393/0, `--seed 123456789`)
+5. Boundary fuzzing (25/0) + god-mode fuzz (0 failed, `--seed 123456789`:
+   61473/0 AVX2 host, 61393/0 elsewhere — count host-sensitive, gate is 0 failed)
 6. Long-running soak (`--soak`, 10k iterations, off by default)
-7. Regression checks (`accuracy_audit` pins, `despot_check` 17 contracts,
-   `oracle_ulp1` 0-ULP scan)
+7. Regression checks (`accuracy_audit` 371 pins, R4 21 + R5 42 pins,
+   `oracle_ulp1` 0-ULP scan; historical `despot_check` 17 now pinned in-repo)
 8. Sanitizers (ASan+UBSan oracle+core clean) + 3-profile `-Werror` builds
 
 Passing normal tests does not imply correctness over unsupported domains
@@ -22,6 +23,13 @@ crossings are absolute-error regime). Passing the oracle grid does not prove
 <0.5 ULP for all inputs (Table Maker's Dilemma; see `ULP_PUSH.md`).
 
 Evidence: `docs/GATE_V12R2.md`. Logs live in `/tmp` by policy (never in repo).
+
+Round-5 (2026-10-10, Edmonton): `test_edge_despot_r5` 42/42 (CPU SIGILL,
+fixed-point UB, LDBL guards, cross3/transpose aliasing, egcd overflow, status
+precision, DoS caps, RNG warmup, ODE clamp, Hurwitz guard); oracle 212/0 worst
+0 ULP; god 61473/0 AVX2 (0 failed is the gate; 61393 elsewhere — rand/AVX
+host-sensitive, see DESPOT_R5_AUDIT §3); edge 25/25; 3-profile `-Werror` +
+ASan/UBSan clean. Full report: `docs/DESPOT_R5_AUDIT.md`.
 
 Round-4 (2026-10-07): `test_edge_despot_r4` 21/21 (zeta(0)=-1/2, Hurwitz 0 ULP,
 clog/csqrt/cpow, remainder bit-exact, gamma P/Q at Inf); oracle stays 212/0

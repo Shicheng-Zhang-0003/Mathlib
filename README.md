@@ -65,8 +65,8 @@ python3 run_all_tests.py
 A1 closure is **complete** with R2 refinements.
 
 - Oracle validation: **212 passed, 0 failed, worst 0 ULP** (7 core families correctly rounded on the grid vs mpmath 50-dps exact-binary truth; gate stays ≤5 ULP, see `docs/PRECISION_CONTRACT.md` and `docs/ULP_PUSH.md`)
-- Full test gauntlet: modular, smoke, edge (24/24 suites incl. `test_edge_despot_r4` 21 pins), fuzz, oracle, boundary — all passing (oracle 212/0 worst 0, god-mode 61393/0 measured `--seed 123456789`, boundary 25/0, accuracy_audit 371/0, despot_check 17/17)
-- Closure gate: **PASSED** (see `docs/GATE_V12R2.md`; Round-4 re-audit `docs/DESPOT_R4_AUDIT.md` holds the same gate on the current tree)
+- Full test gauntlet: modular, smoke, edge (25/25 suites incl. `test_edge_despot_r4` 21 pins + `test_edge_despot_r5` 42 pins), fuzz, oracle, boundary — all passing (oracle 212/0 worst 0, god-mode 0 failed `--seed 123456789`: 61473/0 on AVX2 host, 61393/0 on other hosts — count is host-sensitive, see `docs/DESPOT_R5_AUDIT.md`, boundary 25/0, accuracy_audit 371/0, R4 21/21, R5 42/42)
+- Closure gate: **PASSED** (see `docs/GATE_V12R2.md`; Round-4 re-audit `docs/DESPOT_R4_AUDIT.md` holds the same gate on the current tree; Round-5 `docs/DESPOT_R5_AUDIT.md` holds 25/25 + 42/42 on the current tree)
 - Thread-safety: **verified** — no per-call mutable static state in any TU (grep + build + 8-thread smoke; no TSan/helgrind evidence claimed)
 
 See `docs/V12A1_ROADMAP.md` for the work plan.

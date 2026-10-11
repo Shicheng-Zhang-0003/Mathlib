@@ -22,10 +22,15 @@ Logs: `/tmp/opencode/mathlib-work/gate-v12R2/` (local) + `/tmp/opencode/mathlib-
 - ASan oracle: 212/0. ASan core: pass.
 - god-mode fuzz `--seed 123456789`: **61473 passed, 0 failed** (Round-2 re-measured; was 61393 at push start).
 - boundary gauntlet: **25 passed, 0 failed**.
-- edge: **23/23 PASS** (`accuracy_audit, audit_ip1/2/3, combinatorics,
-  complex, core, fixed, hyperbolic, integral, linalg, numerical, pow,
+- edge: **24/24 PASS** (`accuracy_audit, audit_ip1/2/3, combinatorics,
+  complex, core, despot_r4, fixed, hyperbolic, integral, linalg, numerical, pow,
   quaternion, redteam_p0_1-5, redteam_p1_1, redteam_p2_logexp, stats, trig`).
-- `despot_check` (17 contract assertions): ALL PASS.
+  R5: was 23/23 pre-R4; despot_r4 added the 24th suite.
+- `despot_check` (17 contract assertions, historical `/tmp` probe): ALL PASS
+  at v12R2 time; R5 pins the same contracts in-repo via
+  `tests/test_edge_despot_r4.c` (21) + `tests/test_edge_accuracy_audit.c`
+  (371). The standalone 17-assertion script was never vendored; do not cite
+  it as a current gate tier (see PRECISION_CONTRACT rule 5).
 
 ## Profiles / sanitizers
 

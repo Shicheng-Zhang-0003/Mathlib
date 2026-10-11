@@ -56,7 +56,8 @@ These limitations are design choices, not hidden defects.
 
 An independent audit (mpmath 50-dps references, ULP-measured) repaired the
 following. `tests/test_edge_accuracy_audit.c` pins the results as a
-regression guard (282 assertions). Per `PRECISION_CONTRACT.md` this is a
+regression guard (371 assertions; was 282 before Round-3). Per
+`PRECISION_CONTRACT.md` this is a
 regression guard, not an oracle-tier precision certification.
 
 | Function | Before | After | Note |
@@ -96,7 +97,7 @@ Full mathematical/programming/operational re-audit; see
 Hurwitz 0<s<=1 continuation (was NaN stub) via shared EM helper, B2..B12
 comment fix, complex sqrt Hull-Beebe wording, complex pow shared w helper +
 zero-guard, Stirling-LD TwoSum, edge-runner `/tmp` override, root artifact
-cleanup. Measured: oracle 212/0 worst 0 ULP, god 61393/0, boundary 25/0,
+cleanup. Measured: oracle 212/0 worst 0 ULP, god 0 failed, boundary 25/0,
 accuracy_audit 371/0, R4 21/21, 3-profile `-Werror` + ASan/UBSan clean.
 
 Closed by the ULP push (measured exact-binary, x86-64):
@@ -150,6 +151,8 @@ Remains after Round-2 (all closed in Round-3 except Batch-1/LD-collapse/stacks):
   Euler-Maclaurin N=200 B2..B12 (0 ULP vs mpmath 80-dps, including
   0<s<=1,a!=1 continuation). Only s<=0,a!=1 stays a fail-loud NaN stub
   (needs the Hurwitz functional equation). `ml_zeta(0)=-1/2` exact.
+- `ml_hurwitz_zeta` scope (Round-5): integer test guarded for |v|>=2^53;
+  dead a<=0 limb removed; s<=0,a!=1 stub stays (documented).
 
 ## Round-4 despot (2026-10-07)
 
@@ -159,5 +162,19 @@ Full mathematical/programming/operational re-audit; see
 Hurwitz 0<s<=1 continuation (was NaN stub) via shared EM helper, B2..B12
 comment fix, complex sqrt Hull-Beebe wording, complex pow shared w helper +
 zero-guard, Stirling-LD TwoSum, edge-runner `/tmp` override, root artifact
-cleanup. Measured: oracle 212/0 worst 0 ULP, god 61393/0, boundary 25/0,
+cleanup. Measured: oracle 212/0 worst 0 ULP, god 0 failed, boundary 25/0,
 accuracy_audit 371/0, R4 21/21, 3-profile `-Werror` + ASan/UBSan clean.
+
+## Round-5 despot (2026-10-10, Edmonton)
+
+Full math/programming/operational re-audit; see `docs/DESPOT_R5_AUDIT.md`.
+Fixed and pinned by `tests/test_edge_despot_r5.c` (42 assertions): CPU
+non-GNUC scalar fallback + honest `ml_cpu_has_avx2`, fixed-point shift/INT64_MIN
+hardening, LDBL-guard unification, cross3/transpose aliasing, iterative
+overflow-checked egcd, MSVC builtin mapping, CONVERGENCE/OVERFLOW precision,
+DoS caps (majorizes/ess/DCT/Pollard), RNG warmup unification, ODE `>=`
+arrival, Hurwitz large-guard, `ultimate_fuzzer` CMake target, gate/runner
+`/tmp` honors, soak `/tmp` logs, root-binary cleanup. Measured: oracle 212/0
+worst 0 ULP, god 61473/0 AVX2 (0 failed is the gate), boundary 25/0,
+accuracy_audit 371/0, R4 21/21, R5 42/42, edge 25/25, 3-profile `-Werror` +
+ASan/UBSan clean.

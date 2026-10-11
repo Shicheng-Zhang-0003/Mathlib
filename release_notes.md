@@ -108,8 +108,8 @@ proof for all inputs — Table Maker's Dilemma, x86-64 only).
 
 - **Oracle:** 212 passed, 0 failed, worst 0 ULP (sin, cos, exp, log, gamma, lgamma, pow — correctly rounded on the grid vs mpmath 50-dps; gate ≤5 ULP)
 - **Wide grids (exact-binary truth):** pow 100 cases 0 ULP (was 41); sin/cos benign 25 cases 0 ULP (was 1); gamma 11-point grid 0 ULP (6.7 was 21, 0.1 was 3, 0.001 was 5, -0.5 was 1); vs-sys sin/cos/exp/log/pow 0, gamma/lgamma 1 (sys itself differs)
-- **Edge tests:** 24 suites, all passed (700+ assertions; incl. `test_edge_despot_r4` 21 pins)
-- **Fuzzers:** fuzz_god_mode (61393/0 measured `--seed 123456789`), fuzz_boundary — all passed
+- **Edge tests:** 25 suites, all passed (750+ assertions; incl. `test_edge_despot_r4` 21 pins + `test_edge_despot_r5` 42 pins)
+- **Fuzzers:** fuzz_god_mode (0 failed `--seed 123456789`: 61473/0 AVX2 host, 61393/0 elsewhere — host-sensitive), fuzz_boundary — all passed
 - **Boundary gauntlet:** 25 passed, 0 failed
 - **Soak:** 10,000 iterations available via `--soak`
 - **Sanitizers:** ASan + UBSan clean (see gate log)
@@ -199,5 +199,30 @@ physics). Full report: `docs/DESPOT_R4_AUDIT.md`.
   Thomas, Kelvin ber(20) ~1e-13 relative, K/Airy bridges hold.
 - **Guard:** new `tests/test_edge_despot_r4.c` 21/21 pins every fix.
   Gate on the current tree: oracle 212/0 worst 0 ULP, modular 4/4, smoke 30/0,
-  boundary 25/0, god 61393/0, accuracy_audit 371/0, R4 21/21, edge 24/24,
+  boundary 25/0, god 0 failed, accuracy_audit 371/0, R4 21/21, edge 24/24,
   3-profile `-Werror` + ASan/UBSan clean.
+
+## Round-5 despot (2026-10-10, Edmonton) — full system audit + fixes
+
+Mathematical, programming, and operational audit of the entire tree; full
+report: `docs/DESPOT_R5_AUDIT.md`. R4 history above is left intact; R5
+corrects the fuzz record (61473/0 reproduces on AVX2 hosts; 61393/0
+elsewhere — `rand()` + conditional CHECKs + AVX make the count
+host-sensitive; gate is 0 failed, not an exact count).
+
+- **Math (no wrong-answer on valid inputs; one dead-clause fix):**
+  `ml_hurwitz_zeta` dead integer limb removed + |v|>=2^53 guard; s<=0,a!=1
+  stays fail-loud NaN (documented). Core + Batch-1 physics re-verified vs
+  mpmath 80-dps / DLMF / closed form (see R5 §1).
+- **Programming:** non-GNUC scalar fallback + honest `ml_cpu_has_avx2`,
+  fixed-point shift/INT64_MIN, LDBL-guard unification, cross3/transpose
+  aliasing, iterative overflow-checked egcd, MSVC builtin mapping,
+  CONVERGENCE/OVERFLOW precision, DoS caps, RNG warmup, ODE `>=` arrival.
+- **Operational:** `ultimate_fuzzer` CMake target; gate 10 steps + smoke/god/
+  python-runner + `MATHLIB_BUILD_DIR`; runners honor `MATHLIB_EDGE_BUILD_DIR`
+  / sanitizers; soak `/tmp` logs; root tracked ELFs removed; scripts marked
+  historical; TU lists 34/34.
+- **Guard:** new `tests/test_edge_despot_r5.c` 42/42 pins every fix.
+  Gate on the current tree: oracle 212/0 worst 0 ULP, modular 4/4, smoke 30/0,
+  boundary 25/0, god 61473/0 AVX2 (0 failed), accuracy_audit 371/0, R4 21/21,
+  R5 42/42, edge 25/25, 3-profile `-Werror` + ASan/UBSan clean.

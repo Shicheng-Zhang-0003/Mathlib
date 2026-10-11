@@ -41,6 +41,13 @@ Rules:
    cross_entropy +Inf, ber/bei NaN, sphere unit gates, fixed-point rounding).
    It is a contract guard, not a ULP certification.
 
+Round-5 (2026-10-10, Edmonton): `tests/test_edge_despot_r5.c` (42 assertions)
+pins the R5 programming/robustness fixes at regression-guard tier (rule 3):
+CPU dispatch, fixed-point, cross3/transpose aliasing, egcd, status precision,
+DoS caps, RNG warmup, ODE arrival, Hurwitz guard + closed-form physics
+(SUVAT/projectile/SHM/exp). Oracle stays 212/212 at 0 ULP measured (gate ≤5
+ULP). See `docs/DESPOT_R5_AUDIT.md`.
+
 Round-4 (2026-10-07): `tests/test_edge_despot_r4.c` (21 assertions) pins the
 Round-4 fixes at regression-guard tier (rule 3): zeta(0), Hurwitz EM 0 ULP,
 clog/csqrt/cpow, remainder bit-exact vs system, gamma P/Q at Inf. Oracle stays
