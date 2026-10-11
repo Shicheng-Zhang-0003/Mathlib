@@ -79,6 +79,11 @@ set(MATHLIB_SOURCES
     src/geometry.c
     src/graph.c
     src/modeling.c
+    src/measure.c
+    src/funcanal.c
+    src/topology.c
+    src/diffgeom.c
+    src/algebraic.c
 )
 
 add_library(mathc STATIC ${MATHLIB_SOURCES})

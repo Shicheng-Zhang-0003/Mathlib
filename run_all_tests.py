@@ -66,7 +66,7 @@ EDGE_TEST_CFLAGS = [
 ]
 
 LIB_SOURCES = [
-    # Canonical TU list: must match MATHLIB_SOURCES in CMakeLists.txt (38 TUs).
+    # Canonical TU list: must match MATHLIB_SOURCES in CMakeLists.txt (43 TUs).
     "src/core.c",
     "src/trig.c",
     "src/exp_log.c",
@@ -105,6 +105,11 @@ LIB_SOURCES = [
     "src/geometry.c",
     "src/graph.c",
     "src/modeling.c",
+    "src/measure.c",
+    "src/funcanal.c",
+    "src/topology.c",
+    "src/diffgeom.c",
+    "src/algebraic.c",
 ]
 
 

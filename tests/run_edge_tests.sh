@@ -12,7 +12,7 @@ if [ "${MATHLIB_EDGE_SANITIZERS:-0}" = "1" ]; then
     CFLAGS="$CFLAGS -fsanitize=address,undefined -fno-omit-frame-pointer"
 fi
 
-# Canonical TU list: must match MATHLIB_SOURCES in CMakeLists.txt (38 TUs).
+# Canonical TU list: must match MATHLIB_SOURCES in CMakeLists.txt (43 TUs).
 SRC="
 src/core.c
 src/trig.c
@@ -52,6 +52,11 @@ src/contest.c
 src/geometry.c
 src/graph.c
 src/modeling.c
+src/measure.c
+src/funcanal.c
+src/topology.c
+src/diffgeom.c
+src/algebraic.c
 "
 
 mkdir -p "${MATHLIB_EDGE_BUILD_DIR:-build}"
