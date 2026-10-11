@@ -175,7 +175,7 @@ ML_API void ml_log_split(double x, double *log_hi, double *log_lo) {
         *log_lo = 0.0;
         return;
     }
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
     /* ULP-push: 80-bit logl has 64-bit mantissa (~1e-19), i.e. 0.0005 ULP
      * in double. Split Ll into hi+lo for ~106-bit effective DD downstream.
      * Measured: log(0.1) 0.38 -> <0.02 ULP; lifts pow/gamma/lgamma together.
@@ -292,7 +292,7 @@ if (ml_isinf(x)) {
  if (ml_is_integer_double(y) && ml_fabs(y) <= 1023.0) {
      int n = (int)y;
      int an = n < 0 ? -n : n;
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
      {
          long double base = (long double)x;
          long double result = 1.0L;
@@ -356,7 +356,7 @@ if (x < 0.0) {
  * Proven <0.5 for ALL inputs still requires Ziv + worst-case search
  * (Table Maker's Dilemma); this path is best-effort <1 ULP, typically 0. */
 {
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
     {
         long double Ll = (long double)y * __builtin_logl((long double)x);
         if (!ml_isfinite((double)Ll) && ml_isfinite((double)(long double)y) && x > 0.0) {

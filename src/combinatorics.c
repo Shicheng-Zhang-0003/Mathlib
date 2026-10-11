@@ -162,24 +162,45 @@ ML_API uint64_t ml_modpow(uint64_t a, uint64_t e, uint64_t m) {
 }
 
 ML_API int64_t ml_egcd(int64_t a, int64_t b, int64_t *x, int64_t *y) {
-    /* INT64_MIN guards: -a overflows and MIN%-1 SIGFPEs. Use unsigned
-     * magnitude path for the b==0 base case; reject MIN/-1 recursion. */
+    /* R5 despot: iterative extended Euclid with overflow-checked
+     * x1-(a/b)*y1 (old recursion had signed-overflow UB for large
+     * chains). INT64_MIN inputs and non-representable coefficients
+     * fail loud with sentinel -1 / zeroed coefficients (documented).
+     * Uses __builtin_* overflow checks (same family as __builtin_sqrt
+     * already used tree-wide); strict-C99 pedantic clean. */
     if (a == INT64_MIN || b == INT64_MIN) {
         if (x) *x = 0;
         if (y) *y = 0;
         return -1;
     }
-    if (b == 0) {
-        if (x) *x = (a >= 0) ? 1 : -1;
-        if (y) *y = 0;
-        return (a >= 0) ? a : -a;
-    }
     {
-        int64_t x1 = 0, y1 = 0;
-        int64_t g = ml_egcd(b, a % b, &x1, &y1);
-        if (x) *x = y1;
-        if (y) *y = x1 - (a / b) * y1;
-        return g;
+        int64_t x0 = 1, x1 = 0, y0 = 0, y1 = 1;
+        int64_t aa = a, bb = b;
+        while (bb != 0) {
+            int64_t q = aa / bb;
+            int64_t r = aa % bb;
+            int64_t px, py, nx, ny;
+            if (__builtin_mul_overflow(q, x1, &px) ||
+                __builtin_sub_overflow(x0, px, &nx) ||
+                __builtin_mul_overflow(q, y1, &py) ||
+                __builtin_sub_overflow(y0, py, &ny)) {
+                if (x) *x = 0;
+                if (y) *y = 0;
+                {
+                    int64_t g = (aa >= 0) ? aa : -aa;
+                    int64_t gg = (bb >= 0) ? bb : -bb;
+                    while (gg != 0) { int64_t t = g % gg; g = gg; gg = t; }
+                    return g;
+                }
+            }
+            aa = bb; bb = r;
+            x0 = x1; x1 = nx;
+            y0 = y1; y1 = ny;
+        }
+        if (aa < 0) { aa = -aa; x0 = -x0; y0 = -y0; }
+        if (x) *x = x0;
+        if (y) *y = y0;
+        return aa;
     }
 }
 
@@ -241,7 +262,12 @@ static uint64_t ml_pollard_rho(uint64_t n) {
     if (n % 2ULL == 0ULL) return 2ULL;
     {
         uint64_t x = 2ULL, y = 2ULL, d = 1ULL, c = 1ULL;
-        while (d == 1ULL) {
+        /* R5 despot: iteration cap. Adversarial 64-bit primes stall the
+         * unbounded while(d==1) for seconds (DoS). 1M Floyd steps then
+         * give up (caller falls back to trial division / gives up via
+         * d<=1||d>=n check). Documented worst-case in ml_combinatorics.h. */
+        for (uint64_t iter = 0; iter < 1000000ULL; iter++) {
+            if (d != 1ULL) break;
             x = ml_rho_f(x, c, n);
             y = ml_rho_f(ml_rho_f(y, c, n), c, n);
             {

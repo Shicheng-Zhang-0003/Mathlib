@@ -72,7 +72,12 @@ ML_API void ml_matmul(const double* ML_RESTRICT A, const double* ML_RESTRICT B, 
     }
     ml_matmul_scalar(A, B, C, N);
 #else
-    ml_matmul_avx2(A, B, C, N);
+    /* R5 despot: non-GNUC has no __builtin_cpu_supports and ML_TARGET_AVX2
+     * is empty, so calling ml_matmul_avx2() here risks compile failure
+     * (no _mm256 on MSVC without /arch:AVX2) or SIGILL on non-AVX2 hosts.
+     * Scalar is the only safe default; AVX2 requires an explicit MSVC
+     * CPUID path (deferred, documented in KNOWN_LIMITATIONS). */
+    ml_matmul_scalar(A, B, C, N);
 #endif
 #else
     ml_matmul_scalar(A, B, C, N);
@@ -83,7 +88,11 @@ ML_API int ml_cpu_has_avx2(void) {
 #if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
     return __builtin_cpu_supports("avx2") ? 1 : 0;
 #else
-    return ML_COMPILE_TIME_AVX2;
+    /* R5 despot: previously returned ML_COMPILE_TIME_AVX2 (a build-flag
+     * constant), which lies on heterogeneous CPUs. Without runtime CPUID
+     * we must report 0 (unknown => assume absent) so callers take the
+     * scalar path. */
+    return 0;
 #endif
 }
 

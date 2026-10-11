@@ -158,12 +158,10 @@ ML_API ml_status_t ml_lu_decomp(ml_tensor_view_t A, ml_tensor_view_t LU, int* P,
                 double updated = ML_TENSOR_AT(LU, k, j) - mult * ML_TENSOR_AT(LU, i, j);
 
                 if (ML_UNLIKELY(!ml_isfinite(updated))) {
-                    /* NOTE: ml_types.h defines no ML_ERR_OVERFLOW, so an
-                     * overflow-Inf update (|a| > ~1e308 growth) is masked
-                     * here as ML_ERR_SINGULAR. Genuine singularity (exact
-                     * zero pivot path) and overflow are indistinguishable
-                     * at this point without an overflow code. */
-                    return ML_ERR_SINGULAR;
+                    /* R5 despot: overflow-Inf update is now ML_ERR_OVERFLOW
+                     * (was masked as SINGULAR before the code existed).
+                     * Genuine zero-pivot singularity keeps SINGULAR. */
+                    return ML_ERR_OVERFLOW;
                 }
 
                 ML_TENSOR_AT(LU, k, j) = updated;
@@ -584,6 +582,20 @@ ML_API ml_status_t ml_inverse(ml_tensor_view_t A, ml_tensor_view_t Inv, ml_works
 ML_API void ml_transpose(ml_tensor_view_t A, ml_tensor_view_t T) {
     if (ML_UNLIKELY(!A.data || !T.data)) return;
     if (ML_UNLIKELY(T.rows != A.cols || T.cols != A.rows)) return;
+    /* R5 despot: in-place square transpose (T.data==A.data, rows==cols)
+     * would garbage the upper triangle without a temp. Fail safe rather
+     * than silently wrong; out-of-place remains the contract. */
+    if (ML_UNLIKELY(T.data == A.data)) {
+        if (ML_UNLIKELY(A.rows != A.cols)) return;
+        for (int i = 0; i < A.rows; i++) {
+            for (int j = i + 1; j < A.cols; j++) {
+                double tmp = ML_TENSOR_AT(A, i, j);
+                ML_TENSOR_AT(T, i, j) = ML_TENSOR_AT(A, j, i);
+                ML_TENSOR_AT(T, j, i) = tmp;
+            }
+        }
+        return;
+    }
     {
         int m = A.rows, n = A.cols;
         for (int i = 0; i < m; i++) {
@@ -611,9 +623,15 @@ ML_API double ml_dot(const double* a, const double* b, int n) {
 
 ML_API void ml_cross3(const double a[3], const double b[3], double out[3]) {
     if (ML_UNLIKELY(!a || !b || !out)) return;
-    out[0] = a[1] * b[2] - a[2] * b[1];
-    out[1] = a[2] * b[0] - a[0] * b[2];
-    out[2] = a[0] * b[1] - a[1] * b[0];
+    /* R5 despot: alias-safe via temporaries. ml_cross3(a,b,a) previously
+     * read a[0] after writing out[0] (out==a alias) and produced wrong
+     * y,z. Temporaries make all alias combinations correct. */
+    double t0 = a[1] * b[2] - a[2] * b[1];
+    double t1 = a[2] * b[0] - a[0] * b[2];
+    double t2 = a[0] * b[1] - a[1] * b[0];
+    out[0] = t0;
+    out[1] = t1;
+    out[2] = t2;
 }
 
 ML_API double ml_norm(const double* a, int n) {
@@ -838,9 +856,9 @@ ML_API ml_status_t ml_jacobi_eigen_symmetric(ml_tensor_view_t A, double *evals,
             }
             /* DESPOT-AUDIT: fail-loud non-convergence. Previous code always
              * returned SUCCESS even when off>tol after max_sweeps, leaving
-             * evals unsorted and silently wrong. Now SINGULAR on exhaustion
-             * (no CONVERGENCE code exists yet; see ml_types.h). */
-            if (off_last > tol) return ML_ERR_SINGULAR;
+             * evals unsorted and silently wrong.
+             * R5: CONVERGENCE (was SINGULAR). */
+            if (off_last > tol) return ML_ERR_CONVERGENCE;
         }
         for (int i = 0; i < n; i++) evals[i] = w[(size_t)i * sn + (size_t)i];
         return ML_SUCCESS;

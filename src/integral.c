@@ -113,7 +113,7 @@ static ml_dd_t ml_log_dd(double x) {
     if (ml_isnan(x) || x <= 0.0) return ml_dd_from_d(ml_make_nan());
     if (ml_isinf(x)) return ml_dd_from_d(x);
     if (x == 1.0) return ml_dd_from_d(0.0);
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
     {
         double hi, lo;
         ml_log_split(x, &hi, &lo);
@@ -396,7 +396,7 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
         int k = (int)(8.0 - x) + 1;
         if (k < 1) k = 1;
         if (k > 8) k = 8;
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
         /* ULP-push: LD shift path. lgammal(xs) + sum logl in 64-bit
          * mantissa (~1e-19), single split to DD. Avoids DD-sub alignment
          * loss (Stirling 0 ULP at 8.7 became 2 ULP after two DD subs).
@@ -447,7 +447,7 @@ static ml_dd_t ml_lgamma_positive_dd(double x) {
  * LD holds <1 ULP typical; half-integers keep exact product (0 ULP). */
 static double ml_gamma_positive(double x) {
 if (x >= 8.0) {
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
     {
         long double Ls = __builtin_lgammal((long double)x);
         if (ml_isfinite((double)Ls) || Ls == 0.0L) {
@@ -463,7 +463,7 @@ if (x >= 8.0) {
 if (ml_is_half_integer(x)) {
     return ml_gamma_half_positive(x);
 }
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
     if (x >= 2.0) {
         long double Ls;
         {
@@ -599,7 +599,7 @@ ML_API double ml_gamma_new(double x) {
  * Uses ml_exp_dd(L) instead of g/x to avoid division rounding.
  */
 if (x < 0.5) {
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
     /* FINAL-ONES: LD recurrence (lgammal(x+1) exact-Taylor + logl) + expl
      * single round. Previous DD (Taylor hi-direct + LD-split log + exp_dd
      * double exp) held gamma 0.001 at 1 ULP (L error 0.3 + exp 0.5). */
@@ -636,7 +636,7 @@ if (x < 0.5) {
             ml_dd_t L = ml_stirling_lgamma_dd(pos_arg);
             G = ml_exp_dd(L);
         } else {
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
             /* FINAL-ONES: G via LD lgammal+expl single round (was DD
              * exp_dd holding gamma(-0.5) at 1 ULP via G error). */
             {
@@ -655,7 +655,7 @@ if (x < 0.5) {
 
     if (ml_isinf(G)) return ml_copysign(0.0, sin_use);
     if (G == 0.0) return (sin_use < 0.0) ? -ml_make_inf(0) : ml_make_inf(0);
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
     /* FINAL-ONES: x==-0.5 closed form -2*sqrt(pi) in LD single round.
      * Generic pi/(sin*G) held 1 ULP (0.65 ULP measured: pi-LD + G-LD +
      * division roundings). Closed form removes G/division entirely. */
@@ -666,7 +666,7 @@ if (x < 0.5) {
         if (ml_isfinite(o) && o != 0.0) return o;
     }
 #endif
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
     /* FINAL-ONES: LD reflection division (full-pi LD + single round).
      * Previous DD reciprocal refinement held gamma(-0.5) at 1 ULP. */
     if (ml_is_half_integer(x)) {

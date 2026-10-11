@@ -127,7 +127,7 @@ ML_API cplx ml_cplx_logarithm(cplx a) {
         double n = ml_make_nan();
         return (cplx){n, ml_cplx_arg(a)};
     }
-#if defined(__STDC_VERSION__) && (LDBL_MANT_DIG >= 64)
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
     {
         long double xx = (long double)a.real, yy = (long double)a.imag;
         long double m = xx * xx + yy * yy;

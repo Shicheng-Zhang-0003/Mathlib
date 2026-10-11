@@ -24,8 +24,20 @@ static const ml_q16_16_t fixed_cordic_atan[] = {
  * floor(value / 2^shift).
  */
 static inline int64_t ml_i64_asr(int64_t value, int shift) {
-    if (shift == 0) {
+    /* R5 despot: harden generic helper. 1LL<<shift is UB for shift>=63
+     * or shift<0; -value is UB for INT64_MIN. All in-tree callers use
+     * 0<=shift<=16, but the helper is generic so fail safe. */
+    if (shift <= 0) {
+        if (shift == 0) return value;
         return value;
+    }
+    if (shift >= 63) {
+        return (value >= 0) ? 0 : -1;
+    }
+    if (value == INT64_MIN) {
+        /* floor(INT64_MIN / 2^shift) == -2^(63-shift) exactly, no remainder.
+         * 1<=shift<=62 here so the shift is safe. */
+        return -((int64_t)((uint64_t)1ULL << (unsigned)(63 - shift)));
     }
 
     if (value >= 0) {
@@ -50,8 +62,13 @@ static inline int64_t ml_i64_asr(int64_t value, int shift) {
  * and `y >> i`, which were implementation-defined for negative values.
  */
 static inline ml_q16_16_t ml_q16_asr(ml_q16_16_t value, int shift) {
-    if (shift == 0) {
+    /* R5 despot: same hardening as ml_i64_asr. In-tree shifts are 0..15. */
+    if (shift <= 0) {
+        if (shift == 0) return value;
         return value;
+    }
+    if (shift >= 31) {
+        return (value >= 0) ? 0 : -1;
     }
 
     int64_t v = (int64_t)value;

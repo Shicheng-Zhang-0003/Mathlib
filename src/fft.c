@@ -20,7 +20,7 @@ ML_API void ml_fft_execute(cplx *x, int n) {
     if (!ml_fft_is_power_of_two_internal(n)) return;
     /* DoS cap: 2^24 complex (256MB) already absurd for embedded/static;
      * refuse larger rather than attempting O(n log n) billions of ops. */
-    if (n > (1 << 24)) return;
+    if (n > 16777216) return;
 
     size_t ns = (size_t)n;
 
@@ -75,7 +75,7 @@ ML_API void ml_ifft_execute(cplx *x, int n) {
     /* Same no-op contract as ml_fft_execute: check ml_fft_is_supported. */
     if (ML_UNLIKELY(x == NULL)) return;
     if (!ml_fft_is_power_of_two_internal(n)) return;
-    if (n > (1 << 24)) return;
+    if (n > 16777216) return;
 
     size_t ns = (size_t)n;
 
