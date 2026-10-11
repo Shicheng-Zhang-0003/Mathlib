@@ -16,6 +16,12 @@ ML_API cplx ml_dirichlet_eta_cplx(cplx s);
 ML_API double ml_theta3(double q);
 ML_API double ml_partition_p(int n);
 ML_API cplx ml_zeta_cplx(cplx s);
+/* Doctorate analytic NT: Ei by convergent LD series (|x| <= 50; x = 0
+ * gives -Inf); li(x) = Ei(ln x) for x > 1; Chebyshev psi by heap sieve
+ * (x <= 1e8, psi < 2 -> 0). PNT illustration: pi(x) ~ li(x), psi(x) ~ x. */
+ML_API double ml_ei(double x);
+ML_API double ml_li(double x);
+ML_API double ml_psi_chebyshev(double x);
 #ifdef __cplusplus
 }
 #endif

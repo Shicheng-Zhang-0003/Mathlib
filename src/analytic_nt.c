@@ -1,6 +1,8 @@
 #include "ml_compiler.h"
 #include "ml_analytic_nt.h"
 #include "ml_integral.h"
+#include <stddef.h>
+#include <stdlib.h>
 /* Euler-Maclaurin N=200 + Bernoulli tail through B12, all long double
  * with Kahan summation.
  * Round-4: was N=50 + B2 only (~1e-10: 515k ULP at s=1.1, 1.5M at
@@ -150,4 +152,97 @@ ML_API cplx ml_zeta_cplx(cplx s) {
     if (den == 0.0) return nn;
     cplx num = ml_cplx_mul(eta, conj);
     return (cplx){num.real / den, num.imag / den};
+}
+
+/* ---- Doctorate analytic NT: Ei, li, Chebyshev psi (PNT illustration).
+ * Ei by the everywhere-convergent series (LD + Kahan, |x| <= 50);
+ * li(x) = Ei(ln x) for x > 1; psi by an odd-only heap sieve (x <= 1e8). */
+
+ML_API double ml_ei(double x) {
+    /* Ei(x) = gamma + ln|x| + sum_{k>=1} x^k/(k k!). x = 0 -> -Inf. */
+    static const long double egamma = 0.57721566490153286060651209008240243L;
+    long double s;
+    long double term;
+    int k;
+    double r;
+    if (ml_isnan(x)) return ml_make_nan();
+    if (!ml_isfinite(x)) return x;
+    if (x == 0.0) return ml_make_inf(1);
+    if (ml_fabs(x) > 50.0) return ml_make_nan();
+    s = egamma + __builtin_logl(fabsl((long double)x));
+    term = (long double)x;
+    for (k = 1; k <= 500; k++) {
+        long double add;
+        s += term / (long double)k;
+        if (term > 1e4930L || term < -1e4930L) break;
+        term *= (long double)x / (long double)(k + 1);
+        add = term / (long double)(k + 1);
+        if (fabsl(add) < 1e-22L * (1.0L + fabsl(s))) {
+            s += add;
+            break;
+        }
+        if (k == 500) return ml_make_nan();
+    }
+    r = (double)s;
+    return ml_isfinite(r) ? r : ml_make_nan();
+}
+
+ML_API double ml_li(double x) {
+    /* li(x) = Ei(ln x), x > 1 (singularity at 1 stays NaN). */
+    double l;
+    if (ml_isnan(x) || !ml_isfinite(x)) return ml_make_nan();
+    if (!(x > 1.0)) return ml_make_nan();
+    if (x > 1e21) return ml_make_nan();
+    l = ml_log(x);
+    if (!ml_isfinite(l) || l <= 0.0) return ml_make_nan();
+    return ml_ei(l);
+}
+
+ML_API double ml_psi_chebyshev(double x) {
+    /* psi(x) = sum_{p^k <= x} ln p via odd-only heap sieve. */
+    uint64_t n;
+    uint64_t size;
+    uint8_t *bits = NULL;
+    uint64_t p;
+    long double s = 0.0L;
+    double r;
+    if (ml_isnan(x) || !ml_isfinite(x) || x < 2.0) {
+        if (ml_isfinite(x) && x >= 0.0 && x < 2.0) return 0.0;
+        return ml_make_nan();
+    }
+    if (x > 100000000.0) return ml_make_nan();
+    n = (uint64_t)x;
+    size = (n + 1) / 2;
+    if ((size_t)size != size) return ml_make_nan();
+    bits = (uint8_t *)malloc((size_t)size * sizeof(uint8_t));
+    if (!bits) return ml_make_nan();
+    for (p = 0; p < size; p++) bits[p] = 1;
+    for (p = 3; p * p <= n; p += 2) {
+        if (bits[p / 2]) {
+            uint64_t q;
+            for (q = p * p; q <= n; q += 2 * p) bits[(size_t)(q / 2)] = 0;
+        }
+    }
+    /* p = 2 contributes floor(log2 n) copies of ln 2. */
+    {
+        uint64_t pw = 2;
+        while (pw <= n / 2) {
+            pw *= 2;
+            s += __builtin_logl(2.0L);
+        }
+        s += __builtin_logl(2.0L);
+    }
+    for (p = 3; p <= n; p += 2) {
+        if (bits[(size_t)(p / 2)]) {
+            uint64_t pw = p;
+            while (pw <= n) {
+                s += __builtin_logl((long double)p);
+                if (pw > n / p) break;
+                pw *= p;
+            }
+        }
+    }
+    free(bits);
+    r = (double)s;
+    return ml_isfinite(r) ? r : ml_make_nan();
 }
