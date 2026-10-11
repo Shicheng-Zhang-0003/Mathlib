@@ -75,6 +75,7 @@ set(MATHLIB_SOURCES
     src/analytic_nt.c
     src/control.c
     src/kelvin.c
+    src/contest.c
 )
 
 add_library(mathc STATIC ${MATHLIB_SOURCES})
