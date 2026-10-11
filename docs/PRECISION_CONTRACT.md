@@ -33,9 +33,12 @@ Rules:
    (~1e-8 relative) because those are documented limits, not defects.
 4. New Batch-1 modules (`optim_n`, `ode_sys`, `spectral`, `stats_inv`, `sde`,
     `pde`, `harmonic`, `mcmc`, `manifold`, `info`, `analytic_nt`, `control`,
-    `kelvin`)
+    `kelvin`) and the contest module (`ml_contest.h`, 36 functions: u64
+    exact-or-sentinel paths are edge-tier exact like rule 3's directed
+    cases; LD series paths are regression guards)
     have **no oracle coverage** and inherit no precision guarantee until
-    oracle vectors exist for them. See `docs/API_STATUS.md`.
+    oracle vectors exist for them. See `docs/API_STATUS.md` and
+    `docs/CONTEST_GUIDE.md`.
 5. Despot audit (2026-09-30): targeted regression `/tmp/opencode/mathlib-work/
    despot_check` pins the fixed semantics (exp2 subnormal, crt2 24/30,
    cross_entropy +Inf, ber/bei NaN, sphere unit gates, fixed-point rounding).

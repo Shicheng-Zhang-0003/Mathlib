@@ -3,8 +3,9 @@
 Validation layers (tiers are non-interchangeable, see `PRECISION_CONTRACT.md`):
 
 1. Unit / modular (`test_core/trig/linalg/dsp`, `test.c` smoke 30/0)
-2. Numerical edge (25/25 suites, 750+ assertions, exact IEEE-754 expectations;
-   includes `test_edge_despot_r4` 21 pins + `test_edge_despot_r5` 42 pins)
+2. Numerical edge (26/26 suites, 850+ assertions, exact IEEE-754 expectations;
+   includes `test_edge_despot_r4` 21 pins + `test_edge_despot_r5` 42 pins
+   + `test_edge_contest` 96 pins)
 3. Oracle comparison (212/212 at 0 ULP measured vs mpmath 50-dps
    exact-binary truth; gate stays ≤5 ULP — measurement, not proof)
 4. Wide grids (pow 100 cases, sin/cos 25 benign + 2000 random, gamma 11-point;

@@ -226,3 +226,23 @@ host-sensitive; gate is 0 failed, not an exact count).
   Gate on the current tree: oracle 212/0 worst 0 ULP, modular 4/4, smoke 30/0,
   boundary 25/0, god 61473/0 AVX2 (0 failed), accuracy_audit 371/0, R4 21/21,
   R5 42/42, edge 25/25, 3-profile `-Werror` + ASan/UBSan clean.
+
+## Contest extravaganza (35th TU: `ml_contest.h` + `src/contest.c`)
+
+36 functions tiered low→high, exactness contracts per house style
+(`UINT64_MAX` sentinel, fail-closed verdicts, exactness-guarded doubles;
+no oracle ULP claimed). See `docs/CONTEST_GUIDE.md`.
+
+- **Tier 1:** triangular/pentagonal/hexagonal + is-triangular (integer
+  Newton), double factorial, Lucas-mod-2 parity, stars-and-bars, Hanoi,
+  Josephus, Lucas/Pell/Tribonacci.
+- **Tier 2:** Bell (Aitken), Stirling 1st/2nd, Eulerian, Lah, Motzkin,
+  large Schröder, Narayana (row sums = Catalan, pinned), distinct
+  partitions, Goldbach counts, Sophie Germain, Lucas-Lehmer, Tonelli-Shanks
+  (least root), tau/sigma, Frobenius number + count.
+- **Tier 3:** harmonic via digamma, Basel partial, Faulhaber via Bernoulli
+  `B0..B30` (sign convention pinned by S_1/S_4), Wythoff cold, subtraction
+  Grundy, Schur-r1 verifier, AM-GM check, cubic Vieta sums.
+- **Guard:** new `tests/test_edge_contest.c` 96/96 (Python big-int +
+  mpmath truth; caught a Motzkin-index slip and the Bernoulli `B1` sign
+  live). TU lists 35/35 in all 4 canonical files; edge now 26/26.
