@@ -23,6 +23,9 @@ ML_API ml_status_t ml_mh_sample_ctx(ml_logpdf_t logp, const double *x0, int n, u
     double cur_lp = logp(cur, n, ctx);
     if (!ml_isfinite(cur_lp)) return ML_ERR_NAN_INPUT;
     uint64_t s = seed ? seed : 0x243F6A8885A308D3ULL;
+    /* R5: 16-round warmup matches SDE bridge_sample (tiny seeds unmixed
+     * otherwise). Seed 0 maps to the documented fallback constant. */
+    for (int w = 0; w < 16; w++) ml_mcmc_rng(&s);
     long double acc = 0;
     long double sum[16];
     for (int j = 0; j < n; j++) sum[j] = 0;
@@ -75,6 +78,10 @@ ML_API double ml_kde_gaussian(const double *data, int n, double x, double h) {
 }
 ML_API double ml_ess(const double *xs, int n) {
     if (!xs || n < 4) return ml_make_nan();
+    /* R5 despot: O(n^2) lag loop is an algorithmic DoS vector uncapped.
+     * 100k matches kde_gaussian's cap and keeps worst-case ~5e9 mults
+     * bounded; larger histories must be subsampled by the caller. */
+    if (n > 100000) return ml_make_nan();
     long double m = 0; for (int i = 0; i < n; i++) { if (!ml_isfinite(xs[i])) return ml_make_nan(); m += xs[i]; }
     m /= n;
     long double v = 0; for (int i = 0; i < n; i++) { long double d = xs[i] - m; v += d * d; }

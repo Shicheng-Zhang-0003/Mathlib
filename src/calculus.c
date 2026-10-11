@@ -31,10 +31,10 @@ ML_API ml_status_t ml_gauss_legendre(int n, double *xs, double *ws) {
                 p0 = p1; p1 = p2;
             }
             /* Residual check: Newton must have driven P_n(x) to ~0.
-             * ml_types.h defines no ML_ERR_CONVERGENCE, so a residual
-             * above 1e-14 is reported as ML_ERR_INTERNAL. */
+             * R5 despot: now ML_ERR_CONVERGENCE (was INTERNAL before the
+             * precise code existed). */
             if (__builtin_fabsl(p1) > 1e-14L) {
-                return ML_ERR_INTERNAL;
+                return ML_ERR_CONVERGENCE;
             }
             long double dp = (long double)n * (x * p1 - p0) / (x * x - 1.0L);
             long double w = 2.0L / ((1.0L - x * x) * dp * dp);

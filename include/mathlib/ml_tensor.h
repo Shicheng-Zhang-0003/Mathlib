@@ -28,6 +28,11 @@ typedef struct {
     size_t offset;
     uint64_t magic_canary;
 } ml_workspace_t;
+/* R5 despot thread contract: a workspace is a single-threaded bump
+ * allocator. One workspace per thread; never share one across threads
+ * without external locking. All library scratch is otherwise stack-local
+ * or heap-per-call (no shared mutable statics), so distinct workspaces
+ * imply full thread-safety. */
 
 #define ML_WORKSPACE_CANARY 0xDEADBEEFCAFEBABEULL
 

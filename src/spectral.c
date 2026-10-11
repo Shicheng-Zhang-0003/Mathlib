@@ -30,7 +30,9 @@ ML_API ml_status_t ml_cg_solve(ml_tensor_view_t A, const double *b, double *x, i
         for (int i = 0; i < n; i++) p[i] = r[i] + beta * p[i];
         rs = rsn;
     }
-    return ML_ERR_SINGULAR;
+    /* R5 despot: exhaustion without meeting tol is CONVERGENCE, not SINGULAR
+     * (true breakdown above keeps SINGULAR). */
+    return ML_ERR_CONVERGENCE;
 }
 ML_API ml_status_t ml_gmres_solve(ml_tensor_view_t A, const double *b, double *x, int restart, int max_iter, double tol) {
     int n = A.rows;
@@ -92,7 +94,7 @@ ML_API ml_status_t ml_gmres_solve(ml_tensor_view_t A, const double *b, double *x
         for (int i = 0; i < j; i++) for (int k = 0; k < n; k++) x[k] += ys[i]*V[i][k];
         if (ml_fabs(g[j]) <= tol * (double)bnorm0) return ML_SUCCESS;
     }
-    return ML_ERR_SINGULAR;
+    return ML_ERR_CONVERGENCE;
 }
 ML_API ml_status_t ml_power_iter(ml_tensor_view_t A, double *lambda, double *vec, int max_iter, double tol) {
     int n = A.rows;
@@ -120,7 +122,7 @@ ML_API ml_status_t ml_power_iter(ml_tensor_view_t A, double *lambda, double *vec
         lam = (double)rq;
         for (int i = 0; i < n; i++) v[i] = w[i];
     }
-    return ML_ERR_SINGULAR;
+    return ML_ERR_CONVERGENCE;
 }
 ML_API ml_status_t ml_svd_jacobi(ml_tensor_view_t A, double *svals, ml_tensor_view_t U, ml_tensor_view_t Vt, int max_sweeps) {
     int m = A.rows, n = A.cols;
@@ -225,9 +227,10 @@ ML_API ml_status_t ml_qr_iter_eig(ml_tensor_view_t A, double *evals_re, double *
         for (int i = 0; i < n; i++) H[i][i] += mu;
         if (it == max_iter - 1) {
             /* DESPOT-FIX: poison outputs fail-loud (was untouched, risking
-             * use of stale stack garbage on ignored status). */
+             * use of stale stack garbage on ignored status).
+             * R5: CONVERGENCE (was SINGULAR). */
             for (int k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
-            return ML_ERR_SINGULAR;
+            return ML_ERR_CONVERGENCE;
         }
     }
     /* Post-check: extraction below assumes off<=tol. If a 2x2 block remains
@@ -238,7 +241,7 @@ ML_API ml_status_t ml_qr_iter_eig(ml_tensor_view_t A, double *evals_re, double *
         for (int i = 1; i < n; i++) { long double v = H[i][i-1]; off += v*v; }
         if (__builtin_sqrtl(off) > (long double)tol) {
             for (int k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
-            return ML_ERR_SINGULAR;
+            return ML_ERR_CONVERGENCE;
         }
     }
     for (int i = 0; i < n; i++) {

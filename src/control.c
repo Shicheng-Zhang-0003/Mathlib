@@ -57,10 +57,10 @@ ML_API ml_status_t ml_lqr_gain_2x2(double a00, double a01, double a10, double a1
         double e = ml_fabs(n00-p00)+ml_fabs(n01-p01)+ml_fabs(n11-p11);
         p00=n00; p01=n01; p11=n11;
         if (e < 1e-12*(1.0+ml_fabs(p00)+ml_fabs(p11))) break;
-        /* No dedicated non-convergence code in ml_status_t; the codebase
-         * convention (spectral, ode_sys) reports iteration exhaustion as
-         * ML_ERR_SINGULAR. Never return success without converging. */
-        if (it == 99) return ML_ERR_SINGULAR;
+        /* R5 despot: iteration exhaustion is ML_ERR_CONVERGENCE (was
+         * SINGULAR before the precise code existed). Never return success
+         * without converging. */
+        if (it == 99) return ML_ERR_CONVERGENCE;
     }
     *k0 = (b0*p00 + b1*p01)/r;
     *k1 = (b0*p01 + b1*p11)/r;

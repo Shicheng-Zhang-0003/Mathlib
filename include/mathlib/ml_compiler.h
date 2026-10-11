@@ -5,10 +5,13 @@
 #include <stdint.h>
 #include <string.h>
 /* Round-4: float.h for LDBL_MANT_DIG. Several TUs gate long-double paths
- * on (LDBL_MANT_DIG >= 64); without this include the macro is undefined,
+ * on (__LDBL_MANT_DIG__ >= 64); without this include the macro is undefined,
  * the #if silently evaluates to false, and the TU compiles the portable
  * fallback with NO warning (this disabled the long-double complex-log
- * path in complex.c until caught by external validation). */
+ * path in complex.c until caught by external validation).
+ * R5: canonical pattern is defined(__LDBL_MANT_DIG__) (compiler-provided),
+ * never bare LDBL_MANT_DIG without defined() (breaks under -Wundef if
+ * float.h ordering changes). */
 #include <float.h>
 #ifdef __cplusplus
 extern "C" {
@@ -170,6 +173,48 @@ static inline double ml_fma_soft_impl(double a, double b, double c) {
     }
 }
 #  define ML_FMA(a, b, c) ml_fma_soft_impl((double)(a), (double)(b), (double)(c))
+#endif
+
+/* 11. R5 despot: long-double builtin portability.
+ * The tree uses __builtin_sqrtl/cosl/sinl/expl/logl/powl/fabsl/sqrt/log/
+ * cos/exp unconditionally (GCC/Clang). MSVC has no __builtin_* family;
+ * map the used subset to the standard C library so the tree at least
+ * compiles there (precision then follows MSVC long double == double,
+ * documented in KNOWN_LIMITATIONS; K/Airy quadrature stays exact). */
+#if defined(_MSC_VER) && !defined(__clang__)
+#  ifndef __builtin_sqrt
+#    define __builtin_sqrt sqrt
+#  endif
+#  ifndef __builtin_log
+#    define __builtin_log log
+#  endif
+#  ifndef __builtin_cos
+#    define __builtin_cos cos
+#  endif
+#  ifndef __builtin_exp
+#    define __builtin_exp exp
+#  endif
+#  ifndef __builtin_sqrtl
+#    define __builtin_sqrtl sqrtl
+#  endif
+#  ifndef __builtin_cosl
+#    define __builtin_cosl cosl
+#  endif
+#  ifndef __builtin_sinl
+#    define __builtin_sinl sinl
+#  endif
+#  ifndef __builtin_expl
+#    define __builtin_expl expl
+#  endif
+#  ifndef __builtin_logl
+#    define __builtin_logl logl
+#  endif
+#  ifndef __builtin_powl
+#    define __builtin_powl powl
+#  endif
+#  ifndef __builtin_fabsl
+#    define __builtin_fabsl fabsl
+#  endif
 #endif
 
 #ifdef __cplusplus

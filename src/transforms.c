@@ -4,8 +4,9 @@
 ML_API void ml_dct2(const double *x, double *X, int n) {
     /* Unscaled DCT-II: X[k]=sum x[i]cos(pi*k*(2i+1)/2n). Exact inverse is
      * ml_dct3 below. NOT orthonormal (orthonormal needs sqrt(2/n) + 1/sqrt2
-     * for k=0). Direct O(n^2) long-double single-rounding; use n<=256. */
-    if (ML_UNLIKELY(!x || !X || n <= 0)) return;
+     * for k=0). Direct O(n^2) long-double single-rounding; use n<=256.
+     * R5: hard cap 4096 (matches circular_conv) — O(n^2) beyond is DoS. */
+    if (ML_UNLIKELY(!x || !X || n <= 0 || n > 4096)) return;
     for (int k = 0; k < n; k++) {
         long double s = 0.0L;
         for (int i = 0; i < n; i++) {
@@ -20,7 +21,7 @@ ML_API void ml_dct2(const double *x, double *X, int n) {
 }
 
 ML_API void ml_dct3(const double *X, double *x, int n) {
-    if (ML_UNLIKELY(!X || !x || n <= 0)) return;
+    if (ML_UNLIKELY(!X || !x || n <= 0 || n > 4096)) return;
     for (int i = 0; i < n; i++) {
         long double s = 0.5L * (long double)X[0];
         for (int k = 1; k < n; k++) {
@@ -39,8 +40,9 @@ ML_API void ml_dst2(const double *x, double *X, int n) {
      *   X[k-1] = sum_{i=1..n} x[i-1] sin(pi*k*i/(n+1)),
      * not DST-II (denominator 2n, offset 2i-1). Kept under the legacy
      * ml_dst2 name for ABI stability; see ml_dst1 alias in the header.
-     * No inverse is provided (asymmetric vs DCT-II/III pair). */
-    if (ML_UNLIKELY(!x || !X || n <= 0)) return;
+     * No inverse is provided (asymmetric vs DCT-II/III pair).
+     * R5: hard cap 4096 (O(n^2) DoS guard, matches DCT). */
+    if (ML_UNLIKELY(!x || !X || n <= 0 || n > 4096)) return;
     for (int k = 1; k <= n; k++) {
         long double s = 0.0L;
         for (int i = 1; i <= n; i++) {
@@ -57,7 +59,7 @@ ML_API double ml_parseval_energy(const double *x, int n) {
     /* Time-domain energy sum x^2. Named for the Parseval use-case
      * (compare against (1/N)sum|X|^2 for the unscaled DCT/FFT pair),
      * not a full two-sided identity. */
-    if (ML_UNLIKELY(!x || n <= 0)) return ml_make_nan();
+    if (ML_UNLIKELY(!x || n <= 0 || n > 1000000)) return ml_make_nan();
     {
         long double s = 0.0L;
         for (int i = 0; i < n; i++) {
@@ -80,7 +82,9 @@ ML_API ml_status_t ml_circular_conv(const double *a, const double *b, double *ou
             s += (long double)a[j] * (long double)b[k];
         }
         out[i] = (double)s;
-        if (ML_UNLIKELY(!ml_isfinite(out[i]))) return ML_ERR_INTERNAL;
+        /* R5: non-finite convolution output is overflow (finite inputs can
+         * still overflow the sum), not INTERNAL. */
+        if (ML_UNLIKELY(!ml_isfinite(out[i]))) return ML_ERR_OVERFLOW;
     }
     return ML_SUCCESS;
 }

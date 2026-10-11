@@ -611,6 +611,9 @@ ML_API int ml_majorizes(const double *a, const double *b, int n, double tol) {
     /* Karamata: sorted-desc prefix sums A>=B, totals equal.
      * Heap-backed sort so ANY n works (no 256-element stack cap). */
     if (!a || !b || n <= 0) return 0;
+    /* R5 despot: DoS cap. qsort is O(n log n) + 2x heap; uncapped INT_MAX
+     * would attempt a 16GB malloc. 1M elements is already absurd here. */
+    if (n > 1048576) return 0;
     if (!(tol > 0.0) || !ml_isfinite(tol)) tol = 1e-12;
     {
         double sa = 0.0, sb = 0.0;
@@ -620,6 +623,9 @@ ML_API int ml_majorizes(const double *a, const double *b, int n, double tol) {
         }
         if (ml_fabs(sa - sb) > tol * (1.0 + ml_fabs(sa))) return 0;
         {
+            /* R5: SIZE_MAX guard for 32-bit size_t (n is capped above, so
+             * this is defense-in-depth, not a live path). */
+            if ((size_t)n > (size_t)-1 / sizeof(double)) return 0;
             double *ta = (double *)malloc((size_t)n * sizeof(double));
             double *tb = (double *)malloc((size_t)n * sizeof(double));
             double pa = 0.0, pb = 0.0;

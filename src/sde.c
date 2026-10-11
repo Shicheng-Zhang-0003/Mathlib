@@ -13,6 +13,15 @@ static double ml_sde_normal(uint64_t *s) {
     u2 = (double)(ml_sde_rng(s) >> 11) * (1.0 / 9007199254740992.0);
     return __builtin_sqrt(-2.0 * __builtin_log(u1)) * __builtin_cos(6.28318530717958647692 * u2);
 }
+/* R5 despot: shared 16-round xorshift warmup. Tiny seeds (1,2,...) leave
+ * top bits unmixed on first outputs and skew the first Box-Muller draw;
+ * bridge_sample already warmed up, euler/milstein/mh did not, so the same
+ * seed yielded differently-biased first Gaussians. All paths now warm up.
+ * Seed 0 maps to the documented fallback constant (explicit 0 ==
+ * implicit default; documented in ml_sde.h). */
+static inline void ml_sde_warmup(uint64_t *s) {
+    for (int w = 0; w < 16; w++) ml_sde_rng(s);
+}
 ML_API ml_status_t ml_sde_euler_maruyama(ml_sde_drift_t a, ml_sde_diff_t b, double t0, double x0,
                                          double t1, int steps, uint64_t seed, double *x1) {
     if (!a || !b || !x1 || steps <= 0 || steps > 1000000) return ML_ERR_INVALID_ARG;
@@ -24,6 +33,7 @@ ML_API ml_status_t ml_sde_euler_maruyama(ml_sde_drift_t a, ml_sde_diff_t b, doub
      * forward time. Callers must integrate forward. */
     if (!(dt > 0.0)) return ML_ERR_INVALID_ARG;
     uint64_t s = seed ? seed : 0x123456789ABCDEFULL;
+    ml_sde_warmup(&s);
     double t = t0, x = x0;
     for (int i = 0; i < steps; i++) {
         double ai = a(t, x, 0), bi = b(t, x, 0);
@@ -46,6 +56,7 @@ ML_API ml_status_t ml_sde_milstein(ml_sde_drift_t a, ml_sde_diff_t b,
     if (!ml_isfinite(dt) || dt == 0.0) return ML_ERR_INVALID_ARG;
     if (!(dt > 0.0)) return ML_ERR_INVALID_ARG;
     uint64_t s = seed ? seed : 0x123456789ABCDEFULL;
+    ml_sde_warmup(&s);
     double t = t0, x = x0;
     for (int i = 0; i < steps; i++) {
         double ai = a(t, x, 0), bi = b(t, x, 0), di = dbdx(t, x, 0);
@@ -91,10 +102,7 @@ ML_API double ml_brownian_bridge_sample(double a, double b, double T, double t, 
         if (!(v >= 0.0) || !ml_isfinite(v) || !ml_isfinite(mean)) return ml_make_nan();
         if (v == 0.0) return mean;
         s = seed ? seed : 0x123456789ABCDEFULL;
-        /* Warm up the xorshift stream: tiny seeds (1,2,...) leave the
-         * top bits unmixed on the first outputs, which would skew the
-         * first Box-Muller draw. 16 discarded rounds fully mix any seed. */
-        for (int w = 0; w < 16; w++) ml_sde_rng(&s);
+        ml_sde_warmup(&s);
         z = ml_sde_normal(&s);
         if (!ml_isfinite(z)) return ml_make_nan();
         r = mean + __builtin_sqrt(v) * z;
@@ -123,6 +131,7 @@ ML_API ml_status_t ml_sde_euler_maruyama_ctx(ml_sde_drift_t a, ml_sde_diff_t b,
     double dt = (t1 - t0) / steps;
     if (!ml_isfinite(dt) || !(dt > 0.0)) return ML_ERR_INVALID_ARG;
     uint64_t s = seed ? seed : 0x123456789ABCDEFULL;
+    ml_sde_warmup(&s);
     double t = t0, x = x0;
     for (int i = 0; i < steps; i++) {
         double ai = a(t, x, ctx), bi = b(t, x, ctx);
@@ -145,6 +154,7 @@ ML_API ml_status_t ml_sde_milstein_ctx(ml_sde_drift_t a, ml_sde_diff_t b,
     double dt = (t1 - t0) / steps;
     if (!ml_isfinite(dt) || !(dt > 0.0)) return ML_ERR_INVALID_ARG;
     uint64_t s = seed ? seed : 0x123456789ABCDEFULL;
+    ml_sde_warmup(&s);
     double t = t0, x = x0;
     for (int i = 0; i < steps; i++) {
         double ai = a(t, x, ctx), bi = b(t, x, ctx), di = dbdx(t, x, ctx);

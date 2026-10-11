@@ -41,15 +41,17 @@ ML_API ml_status_t ml_ode_dp5_sys(ml_sys_func_t f, double t0, const double *y0, 
             en2 += (long double)(err/sc)*(err/sc);
         }
         long double enorm = __builtin_sqrtl(en2 / n);
-        if (!(enorm > 0) || enorm <= 1.0L) { t += h; for (int j = 0; j < n; j++) y[j] = y5[j]; if (t == t1) break; }
+        /* R5: t==t1 exact-float arrival may never fire after t+=h
+         * accumulation. Clamp with >= and snap to t1 to terminate. */
+        if (!(enorm > 0) || enorm <= 1.0L) { t += h; for (int j = 0; j < n; j++) y[j] = y5[j]; if ((h > 0 && t >= t1) || (h < 0 && t <= t1)) { t = t1; break; } }
         double fac = (enorm == 0) ? 5.0 : 0.9 / __builtin_pow((double)enorm, 0.2);
         if (fac < 0.2) { fac = 0.2; }
         if (fac > 5.0) { fac = 5.0; }
         h *= fac;
         if (!ml_isfinite(h) || h == 0.0) return ML_ERR_SINGULAR;
-        if (t == t1) break;
+        if ((h > 0 && t >= t1) || (h < 0 && t <= t1)) { t = t1; break; }
     }
-    if (t != t1) return ML_ERR_SINGULAR;
+    if (t != t1) return ML_ERR_CONVERGENCE;
     for (int j = 0; j < n; j++) y1[j] = y[j];
     return ML_SUCCESS;
 }
@@ -223,16 +225,16 @@ ML_API ml_status_t ml_ode_be2_sys(ml_sys_func_t f, double t0, const double *y0, 
         if (enorm <= 1.0L) {
             t += h;
             for (int j = 0; j < n; j++) y[j] = ym[j];
-            if (t == t1) break;
+            if ((h > 0 && t >= t1) || (h < 0 && t <= t1)) { t = t1; break; }
         }
         double fac = (enorm == 0) ? 4.0 : 0.9 / __builtin_sqrt((double)enorm + 1e-300);
         if (fac < 0.2) { fac = 0.2; }
         if (fac > 4.0) { fac = 4.0; }
         h *= fac;
         if (!ml_isfinite(h) || h == 0.0) return ML_ERR_SINGULAR;
-        if (t == t1) break;
+        if ((h > 0 && t >= t1) || (h < 0 && t <= t1)) { t = t1; break; }
     }
-    if (t != t1) return ML_ERR_SINGULAR;
+    if (t != t1) return ML_ERR_CONVERGENCE;
     for (int j = 0; j < n; j++) y1[j] = y[j];
     return ML_SUCCESS;
 }

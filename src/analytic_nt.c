@@ -50,7 +50,14 @@ static cplx ml_hurwitz_em_ld(double s, double a) {
 ML_API cplx ml_hurwitz_zeta(double s, double a) {
     cplx nn = {ml_make_nan(), ml_make_nan()};
     if (ml_isnan(s) || ml_isnan(a) || !ml_isfinite(a) || a <= 0.0) return nn;
-    if (s <= 1.0 && s == ml_round(s) && a == ml_round(a) && a <= 0.0) return nn;
+    /* R5: integer test is meaningless for |v|>=2^53 (all doubles integral
+     * there). Guard the domain check; the a<=0 limb above already rejects
+     * non-positive a, so no dead clause remains. s<=0,a!=1 stays NaN stub. */
+    if (!ml_isfinite(s)) return nn;
+    if (ml_fabs(s) >= 9007199254740992.0 || ml_fabs(a) >= 9007199254740992.0) {
+        if (s > 1.0) return ml_hurwitz_em_ld(s, a);
+        return nn;
+    }
     /* Real s>1 fast path: shared LD Euler-Maclaurin helper above. */
     if (s > 1.0) {
         return ml_hurwitz_em_ld(s, a);

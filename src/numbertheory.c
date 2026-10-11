@@ -231,6 +231,10 @@ ML_API uint64_t ml_prime_pi(uint64_t n) {
          * DESPOT-FIX: size=(nn+1)/2 so odd nn itself is sieved/counted.
          * Old nn/2 missed nn when nn was an odd prime (pi(3)=1, pi(5)=2). */
         uint64_t size = (nn + 1) / 2;
+        /* R5: SIZE_MAX guard (50MB max by the 1e8 cap, so defense-in-depth
+         * on 32-bit). OOM maps to UINT64_MAX sentinel (documented: caller
+         * must treat UINT64_MAX as "unknown", not a count). */
+        if ((size_t)size != size || size > (size_t)-1 / sizeof(uint8_t)) return UINT64_MAX;
         uint8_t *bits = (uint8_t *)malloc((size_t)size * sizeof(uint8_t));
         if (!bits) return UINT64_MAX;
         for (uint64_t i = 0; i < size; i++) bits[i] = 1;
