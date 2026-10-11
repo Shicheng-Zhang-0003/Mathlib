@@ -1,12 +1,11 @@
-# MathLib Closure Scripts
+# MathLib Closure Scripts (HISTORICAL)
 
-This directory contains scripts that apply controlled change sets to the v11S tree.
+This directory documents the controlled change sets once applied to the v11S tree.
 
-Scripts are run from the folder that CONTAINS `v11S`.
-
-Example:
-
-    python3 00_closure_bootstrap.py
+R5 despot: the referenced `00_closure_bootstrap.py`, `01_p0_*`, `02_p1_*`
+scripts were never vendored (only this README exists on disk). Treat this
+file as historical design notes, not an executable runbook. Current gates
+are `closure_gate.sh` + `run_all_tests.py` + `tests/run_edge_tests.sh`.
 
 ---
 

@@ -1,12 +1,18 @@
-# MathLib v12A1 Development Scripts
+# MathLib v12A1 Development Scripts (HISTORICAL)
 
-This directory contains scripts that apply controlled change sets to the v12A1 tree.
+This directory contains the surviving controlled change sets once applied
+to the v12A1 tree (now v12R2).
 
-Scripts are run from the folder that CONTAINS `v12A1`.
+R5 despot: `00_v12a1_bootstrap.py` is referenced below but missing on disk,
+and numbering has gaps (no 34-36, 42-43, 51). The surviving `30.py`..`52.py`
+are kept for provenance; do not treat the sequence as a runnable pipeline.
+Current gates are `closure_gate.sh` + `run_all_tests.py`.
 
-Example:
+Scripts are run from the folder that CONTAINS the tree (now repo root, not `v12A1`).
 
-    python3 00_v12a1_bootstrap.py
+Example (historical):
+
+    python3 30.py
 
 ---
 

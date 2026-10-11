@@ -3,22 +3,27 @@
 set -u
 
 echo "========================================================="
-echo "  MATHLIB v12A1: DETERMINISTIC SOAK TEST"
+echo "  MATHLIB v12R2: DETERMINISTIC SOAK TEST"
 echo "========================================================="
 
 BASE_SEED=${MATHLIB_SOAK_SEED:-1000000}
 ITERATIONS=${MATHLIB_SOAK_ITERATIONS:-10000}
 FAILED=0
+# R5 despot: default logs to /tmp (was tests/regression/artifacts/ in the
+# repo tree, violating the /tmp-only evidence policy). Override with
+# MATHLIB_SOAK_DIR for a custom location.
+LOGDIR="${MATHLIB_SOAK_DIR:-/tmp/opencode/mathlib-soak}"
+BUILD_DIR="${MATHLIB_BUILD_DIR:-build}"
 
-mkdir -p tests/regression/artifacts
+mkdir -p "$LOGDIR"
 
 for i in $(seq 1 "$ITERATIONS"); do
     SEED=$((BASE_SEED + i))
-    LOG="tests/regression/artifacts/soak_${SEED}.log"
+    LOG="$LOGDIR/soak_${SEED}.log"
 
-    if ! ./build/fuzz_god_mode "$SEED" > "$LOG" 2>&1; then
+    if ! "$BUILD_DIR/fuzz_god_mode" "$SEED" > "$LOG" 2>&1; then
         echo "❌ FAILURE at iteration $i (seed $SEED)"
-        python3 tests/run_fuzz_vault.py --logfile "$LOG" --fuzzer ./build/fuzz_god_mode || true
+        python3 tests/run_fuzz_vault.py --logfile "$LOG" --fuzzer "$BUILD_DIR/fuzz_god_mode" || true
         FAILED=1
         break
     fi

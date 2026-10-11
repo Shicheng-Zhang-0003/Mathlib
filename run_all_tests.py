@@ -4,12 +4,11 @@ run_all_tests.py
 ================
 The Nuclear Option.
 
-Runs EVERY test, fuzzer, oracle, and gauntlet in the v11S tree.
+Runs EVERY test, fuzzer, oracle, and gauntlet in the v12R2 tree.
 No shortcuts. No skips. Everything passes or you know exactly what didn't.
 
-Run from INSIDE the v12A1 folder:
+Run from INSIDE the repo root:
 
-    cd v12A1
     python3 run_all_tests.py
 
 Options:
@@ -47,7 +46,8 @@ from typing import Optional
 
 DEFAULT_SEED = 123456789
 DEFAULT_SOAK_ITERATIONS = 10000
-BUILD_DIR = "build"
+# R5: honor MATHLIB_BUILD_DIR so /tmp builds never touch the repo tree.
+BUILD_DIR = os.environ.get("MATHLIB_BUILD_DIR", "build")
 
 CMAKE_CONFIGURE_CMD = [
     "cmake",
@@ -145,7 +145,7 @@ class TestReport:
     def print_summary(self) -> None:
         print()
         print("=" * 72)
-        print("  MATHLIB v12A1: FULL TEST SUITE RESULTS")
+        print("  MATHLIB v12R2: FULL TEST SUITE RESULTS")
         print("=" * 72)
 
         current_phase = ""
@@ -166,7 +166,7 @@ class TestReport:
         print("-" * 72)
 
         if self.failed_count == 0:
-            print("  \U0001f389 ALL TESTS PASSED. v12A1 is clean.")
+            print("  \U0001f389 ALL TESTS PASSED. v12R2 is clean.")
         else:
             print("  \u26a0\ufe0f  FAILURES DETECTED:")
             for r in self.results:
@@ -341,14 +341,21 @@ def phase_edge(report: TestReport, verbose: bool, fail_fast: bool) -> None:
         print("  \u26a0\ufe0f  No edge test sources found.")
         return
 
-    os.makedirs(BUILD_DIR, exist_ok=True)
+    # R5: honor MATHLIB_EDGE_BUILD_DIR (run_edge_tests.sh contract) and
+    # MATHLIB_EDGE_SANITIZERS (default ON here because the full gate builds
+    # with sanitizers; set 0 for plain builds).
+    edge_build_dir = os.environ.get("MATHLIB_EDGE_BUILD_DIR", BUILD_DIR)
+    os.makedirs(edge_build_dir, exist_ok=True)
+    cflags = [c for c in EDGE_TEST_CFLAGS]
+    if os.environ.get("MATHLIB_EDGE_SANITIZERS", "1") != "1":
+        cflags = [c for c in cflags if not c.startswith("-fsanitize") and c != "-fno-omit-frame-pointer"]
 
     for src in edge_sources:
         name = Path(src).stem
-        binary = Path(BUILD_DIR) / name
+        binary = Path(edge_build_dir) / name
 
         # Compile
-        compile_cmd = [cc] + EDGE_TEST_CFLAGS + ["-o", str(binary), src] + LIB_SOURCES + ["-lm"]
+        compile_cmd = [cc] + cflags + ["-o", str(binary), src] + LIB_SOURCES + ["-lm"]
         t0 = time.time()
         rc, stdout, stderr = run_cmd(compile_cmd, timeout=120)
         compile_time = time.time() - t0
@@ -560,7 +567,7 @@ def phase_python_runner(report: TestReport, verbose: bool, fail_fast: bool) -> N
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="MathLib v12A1: Run every test in the tree.",
+        description="MathLib v12R2: Run every test in the tree.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -584,12 +591,12 @@ def main() -> int:
 
     # Verify we're in the right place
     if not Path("src/core.c").exists() or not Path("include/mathlib").is_dir():
-        print("ERROR: Run this script from INSIDE the v12A1 folder.")
+        print("ERROR: Run this script from INSIDE the repo root.")
         print("Expected to find: ./src/core.c and ./include/mathlib/")
         return 2
 
     print("=" * 72)
-    print("  MATHLIB v12A1: FULL TEST SUITE (THE NUCLEAR OPTION)")
+    print("  MATHLIB v12R2: FULL TEST SUITE (THE NUCLEAR OPTION)")
     print("=" * 72)
     print(f"  Seed:       {args.seed}")
     print(f"  Soak:       {'YES (' + str(args.soak_n) + ' iters)' if args.soak else 'NO'}")

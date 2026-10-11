@@ -12,10 +12,13 @@ compile_commands.json
 /bench_scientific
 /fuzz_god_mode
 /fuzz_boundary
+/ultimate_fuzzer
+/oracle_check
 /test_core
 /test_trig
 /test_linalg
 /test_dsp
+# Legacy name (pre-R2 oracle binary); kept as alias, canonical is /oracle_check.
 /test_oracle
 
 # Object files and libraries

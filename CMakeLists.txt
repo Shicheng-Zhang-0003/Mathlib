@@ -101,6 +101,13 @@ add_executable(fuzz_boundary tests/fuzz_boundary_gauntlet.c)
 target_link_libraries(fuzz_boundary mathc m)
 target_include_directories(fuzz_boundary PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+# R5 despot: first-class ultimate_fuzzer target (was ad-hoc gcc lines in
+# closure_gate.sh vs run_all_tests.py that diverged: -Lbuild -lmathc vs
+# direct LIB_SOURCES compile). Single source of truth now.
+add_executable(ultimate_fuzzer tests/ultimate_fuzzer.c)
+target_link_libraries(ultimate_fuzzer mathc m)
+target_include_directories(ultimate_fuzzer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 # Modular CI/CD Tests
 add_executable(test_core tests/test_core.c)
 target_link_libraries(test_core mathc m)

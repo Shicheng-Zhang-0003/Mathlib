@@ -11,6 +11,14 @@ import datetime
 DEFAULT_FUZZER = "./build/fuzz_god_mode"
 
 
+def vault_artifact_dir():
+    # R5: /tmp-only by default (was tests/regression/artifacts in-tree).
+    return os.environ.get(
+        "MATHLIB_SOAK_DIR",
+        os.path.join(os.environ.get("TMPDIR", "/tmp"), "opencode", "mathlib-soak"),
+    )
+
+
 def run_fuzzer(fuzzer, seed):
     cmd = [fuzzer]
     env = os.environ.copy()
@@ -65,9 +73,9 @@ def parse_failures(text):
 
 
 def save_artifact(seed, text):
-    os.makedirs(os.path.join("tests", "regression", "artifacts"), exist_ok=True)
+    os.makedirs(vault_artifact_dir(), exist_ok=True)
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = os.path.join("tests", "regression", "artifacts", f"fuzz_{ts}_seed_{seed}.log")
+    path = os.path.join(vault_artifact_dir(), f"fuzz_{ts}_seed_{seed}.log")
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
