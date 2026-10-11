@@ -32,6 +32,13 @@ extern "C" {
  *   edge-tier exact + regression-guard tier only).
  * ========================================================================== */
 
+/* ---- Tier 0: recreational (AMC 8/10 kit) ---- */
+ML_API uint64_t ml_digit_sum_u64(uint64_t n);
+ML_API uint64_t ml_digital_root(uint64_t n);
+ML_API int ml_is_palindrome_u64(uint64_t n);
+ML_API uint64_t ml_collatz_steps(uint64_t n);
+ML_API int ml_magic_square_check(const long long *a, int n);
+
 /* ---- Tier 1: school / AMC (figurate, parity, recurrences, games) ---- */
 ML_API uint64_t ml_triangular(uint64_t n);
 ML_API uint64_t ml_pentagonal(uint64_t n);

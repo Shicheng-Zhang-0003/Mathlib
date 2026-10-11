@@ -261,3 +261,235 @@ ML_API int ml_quadratic_reciprocity_check(uint64_t p, uint64_t q) {
         return (lp == sign * lq) ? 1 : 0;
     }
 }
+
+/* ---- Olympiad kit: LTE, floor-sum, Legendre-n!, continued fractions, Pell.
+ * Exact u64 paths with UINT64_MAX sentinel (house convention). */
+
+static uint64_t mln_vp_u64(uint64_t v, uint64_t p) {
+    uint64_t c = 0;
+    if (v == 0 || p < 2) return 0;
+    while (v % p == 0) { v /= p; c++; }
+    return c;
+}
+
+static uint64_t mln_isqrt_u64(uint64_t x) {
+    uint64_t r;
+    uint64_t y;
+    if (x <= 1) return x;
+    r = x;
+    y = (r + 1) / 2;
+    while (y < r) { r = y; y = (r + x / r) / 2; }
+    return r;
+}
+
+ML_API uint64_t ml_vp_factorial(long long n, uint64_t p) {
+    /* Legendre: v_p(n!) = n/p + n/p^2 + ... (prime p only). */
+    uint64_t s = 0;
+    uint64_t t;
+    if (n < 0 || n > 9007199254740992LL) return UINT64_MAX;
+    if (p < 2 || !ml_is_prime64(p)) return UINT64_MAX;
+    t = (uint64_t)n;
+    while (t != 0) {
+        t /= p;
+        if (s > UINT64_MAX - t) return UINT64_MAX;
+        s += t;
+    }
+    return s;
+}
+
+ML_API uint64_t ml_floor_sum_u64(uint64_t n, uint64_t m, uint64_t a, uint64_t b) {
+    /* AtCoder floor_sum: sum_{0<=i<n} floor((a*i+b)/m). m = 0 invalid.
+     * Uses __uint128_t internally (same-file precedent: ml_crt2). */
+    __uint128_t ans = 0;
+    if (m == 0) return UINT64_MAX;
+    while (1) {
+        if (a >= m) {
+            __uint128_t q = (__uint128_t)(a / m);
+            ans += q * (__uint128_t)n * (__uint128_t)(n - 1) / (__uint128_t)2;
+            a %= m;
+        }
+        if (b >= m) {
+            ans += (__uint128_t)n * (__uint128_t)(b / m);
+            b %= m;
+        }
+        {
+            __uint128_t y_max = (__uint128_t)a * (__uint128_t)n + (__uint128_t)b;
+            if (y_max < (__uint128_t)m) break;
+            n = (uint64_t)(y_max / (__uint128_t)m);
+            b = (uint64_t)(y_max % (__uint128_t)m);
+            {
+                uint64_t tmp = m;
+                m = a;
+                a = tmp;
+            }
+        }
+        if (ans > (__uint128_t)UINT64_MAX) return UINT64_MAX;
+    }
+    if (ans > (__uint128_t)UINT64_MAX) return UINT64_MAX;
+    return (uint64_t)ans;
+}
+
+ML_API uint64_t ml_lte_vp(uint64_t a, uint64_t b, uint64_t n, uint64_t p) {
+    /* LTE: v_p(a^n-b^n). Odd p: p | a-b, p coprime ab. p = 2: a,b odd;
+     * n odd -> v2(a-b); n even -> v2(a-b)+v2(a+b)+v2(n)-1. */
+    uint64_t d;
+    if (n < 1 || p < 2 || !ml_is_prime64(p)) return UINT64_MAX;
+    if (a == b) return UINT64_MAX;
+    d = (a > b) ? a - b : b - a;
+    if (d % p != 0) return UINT64_MAX;
+    if (a % p == 0) return UINT64_MAX;
+    if (p == 2) {
+        if ((a & 1ULL) == 0 || (b & 1ULL) == 0) return UINT64_MAX;
+        if ((n & 1ULL) != 0) return mln_vp_u64(d, 2);
+        {
+            uint64_t s = a + b;
+            uint64_t vn;
+            if (s < a) return UINT64_MAX;
+            vn = mln_vp_u64(n, 2);
+            if (vn == 0) return UINT64_MAX;
+            if (mln_vp_u64(d, 2) > UINT64_MAX - mln_vp_u64(s, 2)) return UINT64_MAX;
+            {
+                uint64_t t = mln_vp_u64(d, 2) + mln_vp_u64(s, 2);
+                if (t > UINT64_MAX - vn) return UINT64_MAX;
+                t += vn;
+                if (t < 1) return UINT64_MAX;
+                return t - 1;
+            }
+        }
+    }
+    {
+        uint64_t vd = mln_vp_u64(d, p);
+        uint64_t vn = mln_vp_u64(n, p);
+        if (vd > UINT64_MAX - vn) return UINT64_MAX;
+        return vd + vn;
+    }
+}
+
+ML_API int ml_sqrt_cf_period(uint64_t D) {
+    /* Period length of sqrt(D) CF. 0 = perfect square, -1 = invalid (D<2),
+     * -2 = period exceeds the 10000 bound. */
+    uint64_t a0;
+    uint64_t m = 0;
+    uint64_t d = 1;
+    uint64_t a;
+    int len = 0;
+    if (D < 2) return -1;
+    a0 = mln_isqrt_u64(D);
+    if (a0 * a0 == D) return 0;
+    a = a0;
+    do {
+        uint64_t m2;
+        uint64_t d2;
+        if (a > UINT64_MAX - m) return -2;
+        m2 = d * a - m;
+        if (m2 * m2 > D) return -2;
+        if (D - m2 * m2 == 0) return -2;
+        d2 = (D - m2 * m2) / d;
+        if (d2 == 0) return -2;
+        a = (a0 + m2) / d2;
+        m = m2;
+        d = d2;
+        len++;
+        if (len > 10000) return -2;
+    } while (a != 2 * a0);
+    return len;
+}
+
+ML_API ml_status_t ml_cf_convergent_sqrt(uint64_t D, int k, uint64_t *num, uint64_t *den) {
+    /* k-th convergent (0-indexed) of sqrt(D) via the CF generator. */
+    uint64_t a0;
+    uint64_t m = 0;
+    uint64_t d = 1;
+    uint64_t a;
+    uint64_t p0 = 0, p1 = 1;
+    uint64_t q0 = 1, q1 = 0;
+    int i;
+    if (ML_UNLIKELY(!num || !den)) return ML_ERR_INVALID_ARG;
+    if (D < 2 || k < 0 || k > 10000) return ML_ERR_INVALID_ARG;
+    a0 = mln_isqrt_u64(D);
+    if (a0 * a0 == D) return ML_ERR_INVALID_ARG;
+    a = a0;
+    for (i = 0; i <= k; i++) {
+        uint64_t p2;
+        uint64_t q2;
+        uint64_t m2;
+        uint64_t d2;
+        uint64_t anext;
+        if (a != 0 && p1 > UINT64_MAX / a) return ML_ERR_OVERFLOW;
+        p2 = a * p1 + p0;
+        if (p2 < p0) return ML_ERR_OVERFLOW;
+        if (a != 0 && q1 > UINT64_MAX / a) return ML_ERR_OVERFLOW;
+        q2 = a * q1 + q0;
+        if (q2 < q0) return ML_ERR_OVERFLOW;
+        p0 = p1; p1 = p2;
+        q0 = q1; q1 = q2;
+        if (i == k) break;
+        if (a > UINT64_MAX - m) return ML_ERR_OVERFLOW;
+        m2 = d * a - m;
+        if (m2 * m2 > D) return ML_ERR_OVERFLOW;
+        d2 = (D - m2 * m2) / d;
+        if (d2 == 0) return ML_ERR_INTERNAL;
+        anext = (a0 + m2) / d2;
+        m = m2;
+        d = d2;
+        a = anext;
+    }
+    *num = p1;
+    *den = q1;
+    return ML_SUCCESS;
+}
+
+ML_API ml_status_t ml_pell_fund(uint64_t D, uint64_t *x, uint64_t *y) {
+    /* Minimal x^2-Dy^2 = 1 via convergents (first hit wins; theory bounds
+     * it by twice the period). Square D: INVALID_ARG (no solution). */
+    uint64_t a0;
+    uint64_t m = 0;
+    uint64_t d = 1;
+    uint64_t a;
+    uint64_t p0 = 0, p1 = 1;
+    uint64_t q0 = 1, q1 = 0;
+    int i;
+    if (ML_UNLIKELY(!x || !y)) return ML_ERR_INVALID_ARG;
+    if (D < 2) return ML_ERR_INVALID_ARG;
+    a0 = mln_isqrt_u64(D);
+    if (a0 * a0 == D) return ML_ERR_INVALID_ARG;
+    a = a0;
+    for (i = 0; i < 20000; i++) {
+        uint64_t p2;
+        uint64_t q2;
+        uint64_t m2;
+        uint64_t d2;
+        uint64_t lhs;
+        uint64_t rhs;
+        if (a != 0 && p1 > UINT64_MAX / a) return ML_ERR_OVERFLOW;
+        p2 = a * p1 + p0;
+        if (p2 < p0) return ML_ERR_OVERFLOW;
+        if (a != 0 && q1 > UINT64_MAX / a) return ML_ERR_OVERFLOW;
+        q2 = a * q1 + q0;
+        if (q2 < q0) return ML_ERR_OVERFLOW;
+        p0 = p1; p1 = p2;
+        q0 = q1; q1 = q2;
+        if (p1 != 0 && p1 > UINT64_MAX / p1) return ML_ERR_OVERFLOW;
+        lhs = p1 * p1;
+        if (q1 != 0 && D > UINT64_MAX / q1) return ML_ERR_OVERFLOW;
+        {
+            uint64_t dq = D * q1;
+            if (q1 != 0 && dq > UINT64_MAX / q1) return ML_ERR_OVERFLOW;
+            rhs = dq * q1;
+        }
+        if (rhs != UINT64_MAX && lhs == rhs + 1) {
+            *x = p1;
+            *y = q1;
+            return ML_SUCCESS;
+        }
+        if (a > UINT64_MAX - m) return ML_ERR_OVERFLOW;
+        m2 = d * a - m;
+        if (m2 * m2 > D) return ML_ERR_OVERFLOW;
+        d2 = (D - m2 * m2) / d;
+        if (d2 == 0) return ML_ERR_INTERNAL;
+        a = (a0 + m2) / d2;
+        m = m2;
+        d = d2;
+    }
+    return ML_ERR_UNSUPPORTED;
+}

@@ -742,3 +742,85 @@ ML_API ml_status_t ml_vieta_cubic_sums(double a, double b, double c, double d,
     if (ML_UNLIKELY(!ml_isfinite(*s1) || !ml_isfinite(*s2) || !ml_isfinite(*s3))) return ML_ERR_OVERFLOW;
     return ML_SUCCESS;
 }
+
+/* ---- Tier 0: recreational (AMC 8/10 kit) ---- */
+
+ML_API uint64_t ml_digit_sum_u64(uint64_t n) {
+    uint64_t s = 0;
+    if (n == 0) return 0;
+    while (n != 0) {
+        s += n % 10ULL;
+        n /= 10ULL;
+    }
+    return s;
+}
+
+ML_API uint64_t ml_digital_root(uint64_t n) {
+    /* dr(n) = 1 + (n-1) mod 9 for n > 0; dr(0) = 0. */
+    if (n == 0) return 0;
+    return 1ULL + (n - 1ULL) % 9ULL;
+}
+
+ML_API int ml_is_palindrome_u64(uint64_t n) {
+    uint64_t rev = 0;
+    uint64_t t = n;
+    while (t != 0) {
+        uint64_t d = t % 10ULL;
+        if (rev > (UINT64_MAX - d) / 10ULL) return 0;
+        rev = rev * 10ULL + d;
+        t /= 10ULL;
+    }
+    return (rev == n) ? 1 : 0;
+}
+
+ML_API uint64_t ml_collatz_steps(uint64_t n) {
+    /* Total stopping time to 1. UINT64_MAX when the trajectory overflows
+     * u64 or exceeds 10^6 steps (no claim on the open conjecture). */
+    uint64_t steps = 0;
+    if (n < 1) return UINT64_MAX;
+    while (n != 1) {
+        if (steps >= 1000000ULL) return UINT64_MAX;
+        if ((n & 1ULL) == 0) {
+            n /= 2ULL;
+        } else {
+            if (n > (UINT64_MAX - 1ULL) / 3ULL) return UINT64_MAX;
+            n = 3ULL * n + 1ULL;
+        }
+        steps++;
+    }
+    return steps;
+}
+
+ML_API int ml_magic_square_check(const long long *a, int n) {
+    /* Normal magic square: permutation of 1..n^2 with common line sums. */
+    long long target;
+    long long d1 = 0;
+    long long d2 = 0;
+    int seen[1025];
+    int i;
+    int j;
+    if (!a || n < 3 || n > 32) return 0;
+    for (i = 0; i <= n * n; i++) seen[i] = 0;
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            long long v = a[(size_t)i * (size_t)n + (size_t)j];
+            if (v < 1 || v > (long long)n * (long long)n) return 0;
+            if (seen[v]) return 0;
+            seen[v] = 1;
+        }
+    }
+    target = 0;
+    for (j = 0; j < n; j++) target += a[j];
+    for (i = 0; i < n; i++) {
+        long long rs = 0;
+        long long cs = 0;
+        for (j = 0; j < n; j++) {
+            rs += a[(size_t)i * (size_t)n + (size_t)j];
+            cs += a[(size_t)j * (size_t)n + (size_t)i];
+        }
+        if (rs != target || cs != target) return 0;
+        d1 += a[(size_t)i * (size_t)n + (size_t)i];
+        d2 += a[(size_t)i * (size_t)n + (size_t)(n - 1 - i)];
+    }
+    return (d1 == target && d2 == target) ? 1 : 0;
+}
