@@ -104,15 +104,56 @@ static inline void ml_sincos_common(double x, double *s, double *c) {
 }
 
 ML_API double ml_tan(double x) {
-    double s = 0.0;
-    double c = 0.0;
-    ml_sincos_common(x, &s, &c);
-    if (c == 0.0) {
-        if (s == 0.0) return ml_make_nan(); /* NaN for 0/0 */
-        /* IEEE s/c gives correctly-signed Inf from signed zeros. */
+    /* R6 ULP: long-double sincos + LD quotient, single final rounding
+     * (was double sincos (0.5 ULP each) + double divide: ~1 ULP composed
+     * at boundaries). Mirrors ml_sincos_common's LD path exactly. */
+    if (ml_isnan(x) || ml_isinf(x)) return ml_make_nan();
+#if defined(MATHLIB_PROFILE_EMBEDDED)
+    {
+        double s = 0.0, c = 0.0;
+        ml_sincos_common(x, &s, &c);
+        if (c == 0.0) {
+            if (s == 0.0) return ml_make_nan();
+            return s / c;
+        }
         return s / c;
     }
-    return s / c;
+#else
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+    {
+        long double yl = 0.0L;
+        int nl = ml_rem_pio2l(x, &yl);
+        if (yl == yl) {
+            long double sy = __builtin_sinl(yl), cy = __builtin_cosl(yl);
+            long double sl = 0.0L, cl = 0.0L;
+            switch (nl & 3) {
+                case 0: sl = sy; cl = cy; break;
+                case 1: sl = cy; cl = -sy; break;
+                case 2: sl = -sy; cl = -cy; break;
+                default: sl = -cy; cl = sy; break;
+            }
+            if (cl == 0.0L) {
+                if (sl == 0.0L) return ml_make_nan();
+                return (sl > 0.0L) ? ml_make_inf(0) : ml_make_inf(1);
+            }
+            /* Cast overflows to signed Inf exactly like s/c (no NaN swap:
+             * poles legitimately overflow). */
+            return (double)(sl / cl);
+        }
+        return ml_make_nan();
+    }
+#endif
+    {
+        double s = 0.0;
+        double c = 0.0;
+        ml_sincos_common(x, &s, &c);
+        if (c == 0.0) {
+            if (s == 0.0) return ml_make_nan();
+            return s / c;
+        }
+        return s / c;
+    }
+#endif
 }
 
 #ifndef ML_PI_HI_D
@@ -146,12 +187,15 @@ ML_API double ml_sinpi(double x) {
         if (r == 0.5) return 1.0;
         if (r == -0.5) return -1.0;
         {
-            /* pi*r as an exact double-double (ahi, alo).  Collapsing it to a
-             * single double drops alo below the ULP of ahi, which costs
-             * ~1e-13 relative accuracy near the zeros of sin. */
+            /* R6 ULP: double-double argument, long-double combine, single
+             * final rounding (was double sin/cos (0.5 ULP each) + 2 more
+             * roundings: ~1 ULP composed). */
             double ahi = r * ML_PI_HI_D;
             double alo = ML_FMA(r, ML_PI_HI_D, -ahi) + r * ML_PI_LO_D;
-            return ml_sin(ahi) + alo * ml_cos(ahi);
+            long double s = __builtin_sinl((long double)ahi);
+            long double c = __builtin_cosl((long double)ahi);
+            double o = (double)(s + (long double)alo * c);
+            return ml_isfinite(o) ? o : ml_make_nan();
         }
     }
 }
@@ -168,105 +212,156 @@ ML_API double ml_cospi(double x) {
         if (r < -1.0) r += 2.0;
         if (r == 0.5 || r == -0.5) return 0.0;
         {
-            /* Same double-double argument handling as ml_sinpi: keep alo
-             * instead of folding it into ahi, where it would round away. */
+            /* R6 ULP: same LD combine as sinpi (was double cos/sin + 2
+             * roundings). */
             double ahi = r * ML_PI_HI_D;
             double alo = ML_FMA(r, ML_PI_HI_D, -ahi) + r * ML_PI_LO_D;
-            return ml_cos(ahi) - alo * ml_sin(ahi);
+            long double s = __builtin_sinl((long double)ahi);
+            long double c = __builtin_cosl((long double)ahi);
+            double o = (double)(c - (long double)alo * s);
+            return ml_isfinite(o) ? o : ml_make_nan();
         }
     }
 }
 
-static inline ml_ddx_t ml_atan_raw_dd(double x) {
-    /* atan(x)=x*P(x^2), P=Σ(-1)^k t^k/(2k+1), 22 terms, DD Horner. */
-    double t = x * x;
-    ml_ddx_t acc = ml_ddx_from_d(1.0 / 43.0);
-    for (int k = 20; k >= 0; k--) {
-        acc = ml_ddx_mul_d(acc, t);
-        acc = ml_ddx_add_d(acc, ((k % 2 == 0) ? 1.0 : -1.0) / (double)(2 * k + 1));
+/* Long-double error-free transforms for compensated Horner. */
+static inline long double ml_ld_two_sum(long double a, long double b, long double *err) {
+    long double s = a + b;
+    long double v = s - a;
+    *err = (a - (s - v)) + (b - v);
+    return s;
+}
+
+static inline long double ml_ld_two_prod(long double a, long double b, long double *err) {
+    /* Dekker split for 64-bit significands (2^32+1). */
+    static const long double splitter = 4294967297.0L;
+    long double p = a * b;
+    long double ca = a * splitter;
+    long double a_hi = ca - (ca - a);
+    long double a_lo = a - a_hi;
+    long double cb = b * splitter;
+    long double b_hi = cb - (cb - b);
+    long double b_lo = b - b_hi;
+    *err = ((a_hi * b_hi - p) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
+    return p;
+}
+
+static inline long double ml_atan_raw_ld(long double x) {
+    /* atan(x)=x*P(x^2), 22-term compensated Horner (Ogita-Rump-Oishi):
+     * result+error is ~106-bit accurate. Plain LD leaves ~8e-18
+     * absolute (~0.04 ULP), failing points with 0.01-0.04 headroom. */
+    long double t = x * x;
+    long double s = 1.0L / 43.0L;
+    long double e = 0.0L;
+    int k;
+    for (k = 20; k >= 0; k--) {
+        long double c = ((k % 2 == 0) ? 1.0L : -1.0L) / (long double)(2 * k + 1);
+        long double pi, sig;
+        long double m = ml_ld_two_prod(s, t, &pi);
+        long double ns = ml_ld_two_sum(m, c, &sig);
+        e += pi + sig;
+        s = ns;
     }
-    return ml_ddx_mul_d(acc, x);
+    {
+        /* Final multiply by x, compensation folded in. */
+        long double pi, sig;
+        long double m = ml_ld_two_prod(s, x, &pi);
+        long double ex = e * x;
+        long double ns = ml_ld_two_sum(m, ex, &sig);
+        return ns + (sig + pi);
+    }
+}
+
+static long double ml_atan_ld(long double x) {
+    /* R6 ULP: entire identity tree in long double, single rounding at the
+     * caller (was double recursion + DD assembly with decimal 1/(2k+1)
+     * coefficients: ~1 ULP on 10% of [-5,5]). */
+    static const long double pih = 3.14159265358979323846264338327950288L;
+    long double ax = (x < 0.0L) ? -x : x;
+    int neg = (x < 0.0L) ? 1 : 0;
+    long double r;
+    if (ax > 1.0L) {
+        r = pih * 0.5L - ml_atan_ld(1.0L / ax);
+    } else if (ax > 0.5L) {
+        r = pih * 0.25L + ml_atan_ld((ax - 1.0L) / (ax + 1.0L));
+    } else if (ax > 0.2679491924311227L) {
+        r = pih / 12.0L + ml_atan_ld((ax - 0.2679491924311227L) / (1.0L + 0.2679491924311227L * ax));
+    } else {
+        r = ml_atan_raw_ld(ax);
+    }
+    return neg ? -r : r;
 }
 
 ML_API double ml_atan(double x) {
     if (ml_isnan(x)) return x;
     if (ml_isinf(x)) return ml_copysign(ML_PI / 2.0, x);
 
-    /* DD pi slices (HI/LO exact halves/quarters). */
+    /* R6 ULP: single rounding of the LD identity tree (was double
+     * recursion + DD assembly: ~1 ULP on 10% of inputs). */
     {
-        double pih = ML_PI_HI_D, pil = ML_PI_LO_D;
-        double pi2h = pih * 0.5, pi2l = pil * 0.5;
-        double pi4h = pih * 0.25, pi4l = pil * 0.25;
-        if (x > 1.0) {
-            double a = ml_atan(1.0 / x);
-            /* pi/2 - a via DD: hi=pi2h-a with correction. Use generic: */
-            {
-                double s, e;
-                s = ml_two_sum(pi2h, -a, &e);
-                e += pi2l;
-                return ml_ddx_to_d(ml_ddx_renorm(s, e));
-            }
-        }
-        if (x < -1.0) {
-            double a = ml_atan(1.0 / x);
-            double s, e;
-            s = ml_two_sum(-pi2h, -a, &e);
-            e += -pi2l;
-            return ml_ddx_to_d(ml_ddx_renorm(s, e));
-        }
-        if (x > 0.5) {
-            double a = ml_atan((x - 1.0) / (x + 1.0));
-            double s, e;
-            s = ml_two_sum(pi4h, a, &e);
-            e += pi4l;
-            return ml_ddx_to_d(ml_ddx_renorm(s, e));
-        }
-        if (x < -0.5) {
-            double a = ml_atan((x + 1.0) / (1.0 - x));
-            double s, e;
-            s = ml_two_sum(-pi4h, a, &e);
-            e += -pi4l;
-            return ml_ddx_to_d(ml_ddx_renorm(s, e));
-        }
-        if (x > 0.2679491924311227) {
-            double t = 0.2679491924311227;
-            double a = ml_atan((x - t) / (1.0 + t * x));
-            /* pi/12 DD precomputed: avoids double-rounding of HI/12, LO/12. */
-            double c12h = ML_PI12_HI_D;
-            double c12l = ML_PI12_LO_D;
-            double s, e;
-            s = ml_two_sum(c12h, a, &e);
-            e += c12l;
-            return ml_ddx_to_d(ml_ddx_renorm(s, e));
-        }
-        if (x < -0.2679491924311227) {
-            double t = 0.2679491924311227;
-            double a = ml_atan((x + t) / (1.0 - t * x));
-            double c12h = ML_PI12_HI_D;
-            double c12l = ML_PI12_LO_D;
-            double s, e;
-            s = ml_two_sum(-c12h, a, &e);
-            e += -c12l;
-            return ml_ddx_to_d(ml_ddx_renorm(s, e));
-        }
+        long double r = ml_atan_ld((long double)x);
+        double o = (double)r;
+        return ml_isfinite(o) ? o : ml_make_nan();
     }
-
-    return ml_ddx_to_d(ml_atan_raw_dd(x));
 }
 
 ML_API double ml_asin(double x) {
     if (x < -1.0 || x > 1.0) return ml_make_nan();
     if (x == 1.0) return ML_PI / 2.0;
     if (x == -1.0) return -ML_PI / 2.0;
-    if (x > 0.9) return (ML_PI / 2.0) - 2.0 * ml_atan(ml_sqrt((1.0 - x) / (1.0 + x)));
-    if (x < -0.9) return -(ML_PI / 2.0) + 2.0 * ml_atan(ml_sqrt((1.0 + x) / (1.0 - x)));
-    return 2.0 * ml_atan(x / (1.0 + ml_sqrt(1.0 - x * x)));
+    /* R6 ULP: whole formula in long double with atanl source (~1e-19),
+     * single final rounding (was double sqrt/division feeding double
+     * atan: ~2 ULP composed mid-range). */
+    {
+        long double a = (long double)x;
+        long double t;
+        long double r;
+        if (a > 0.9L) {
+            long double u = (1.0L - a) / (1.0L + a);
+            if (u < 0.0L) u = 0.0L;
+            t = __builtin_sqrtl(u);
+            r = 0.5L * 3.14159265358979323846264338327950288L - 2.0L * __builtin_atanl(t);
+        } else if (a < -0.9L) {
+            long double u = (1.0L + a) / (1.0L - a);
+            if (u < 0.0L) u = 0.0L;
+            t = __builtin_sqrtl(u);
+            r = -(0.5L * 3.14159265358979323846264338327950288L - 2.0L * __builtin_atanl(t));
+        } else {
+            long double d = 1.0L - a * a;
+            if (d < 0.0L) d = 0.0L;
+            t = a / (1.0L + __builtin_sqrtl(d));
+            r = 2.0L * __builtin_atanl(t);
+        }
+        {
+            double o = (double)r;
+            return ml_isfinite(o) ? o : ml_make_nan();
+        }
+    }
 }
 
 ML_API double ml_acos(double x) {
     if (x < -1.0 || x > 1.0) return ml_make_nan();
-    if (x >= 0.0) return 2.0 * ml_atan(ml_sqrt((1.0 - x) / (1.0 + x)));
-    return ML_PI - 2.0 * ml_atan(ml_sqrt((1.0 + x) / (1.0 - x)));
+    /* R6 ULP: long double throughout with atanl source (mirrors asin). */
+    {
+        long double a = (long double)x;
+        long double t;
+        long double r;
+        if (a >= 0.0L) {
+            long double u = (1.0L - a) / (1.0L + a);
+            if (u < 0.0L) u = 0.0L;
+            t = __builtin_sqrtl(u);
+            r = 2.0L * __builtin_atanl(t);
+        } else {
+            long double u = (1.0L + a) / (1.0L - a);
+            if (u < 0.0L) u = 0.0L;
+            t = __builtin_sqrtl(u);
+            r = 3.14159265358979323846264338327950288L - 2.0L * __builtin_atanl(t);
+        }
+        {
+            double o = (double)r;
+            return ml_isfinite(o) ? o : ml_make_nan();
+        }
+    }
 }
 
 ML_API double ml_acot(double x) {
