@@ -6,7 +6,7 @@ Check:
 - API compatibility (`extern "C"`, status codes additive only)
 - numerical behavior (exact-binary mpmath truth; report worst ULP + grid)
 - compiler cleanliness (`-Werror`, 3 profiles, C++ header check)
-- test coverage impact (modular + edge 25/25 incl. `test_edge_despot_r4` + `test_edge_despot_r5` + oracle + fuzz + sanitizers)
+- test coverage impact (modular + edge 35/35 incl. `test_edge_despot_r4` + `test_edge_despot_r5` + contest + geometry + olympiad-nt + graph + modeling + measure + funcanal + topology + diffgeom + algebraic + oracle + fuzz + sanitizers)
 - documentation updates (tiers only; never quote smoke tolerances as ULP)
 - canonical TU list still matches (CMake/Makefile/run_all_tests/edge, 43 TUs)
 

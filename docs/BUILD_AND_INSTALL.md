@@ -1,4 +1,4 @@
-# Build and Installation (v12R2 / V1.2-RC2, 34 TUs)
+# Build and Installation (v12R2 / V1.2-RC2, 43 TUs)
 
 Recommended build:
 
@@ -7,14 +7,14 @@ cmake --build build
 
 Profiles: `SCIENTIFIC` (accurate `1/sqrt`), `GRAPHICS` (`ml_fast_rsqrt`),
 `EMBEDDED` (accurate fallback; fixed-point CORDIC path for trig).
-All three compile `-Werror` clean (34 TUs incl. kelvin).
+All three compile `-Werror` clean (43 TUs).
 
 Strict flags (CMake + Makefile aligned):
 
 -Wall -Wextra -Wconversion -Wshadow -Wpedantic -Werror -std=c99
 -fno-fast-math -ffp-contract=off -Iinclude/mathlib -Isrc
 
-Canonical TU list (34) must match across `CMakeLists.txt`, `Makefile`,
+Canonical TU list (43) must match across `CMakeLists.txt`, `Makefile`,
 `run_all_tests.py`, `tests/run_edge_tests.sh` (kelvin drift fixed).
 
 Sanitizers: `-DMATHLIB_SANITIZERS=ON` (ASan+UBSan, compile+link).

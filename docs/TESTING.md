@@ -15,8 +15,9 @@ Validation layers (tiers are non-interchangeable, see `PRECISION_CONTRACT.md`):
 4. Wide grids (pow 100 cases, sin/cos 25 benign + 2000 random, gamma 11-point;
    exact-binary truth; all core 0 ULP except large-x trig near-zero
    absolute-tiny and vs-sys residual 1)
-5. Boundary fuzzing (25/0) + god-mode fuzz (0 failed, `--seed 123456789`:
-   61473/0 AVX2 host, 61393/0 elsewhere — count host-sensitive, gate is 0 failed)
+5. Boundary fuzzing (63/0) + god-mode fuzz (0 failed, `--seed 123456789`:
+   113073/0 = 61473 Part-1 + 51600 Part-2 fixed; Part-2 total is
+   seed/host-stable by construction, Part-1 varies by seed as before)
 6. Long-running soak (`--soak`, 10k iterations, off by default)
 7. Regression checks (`accuracy_audit` 371 pins, R4 21 + R5 42 pins,
    `oracle_ulp1` 0-ULP scan; historical `despot_check` 17 now pinned in-repo)
@@ -28,6 +29,14 @@ crossings are absolute-error regime). Passing the oracle grid does not prove
 <0.5 ULP for all inputs (Table Maker's Dilemma; see `ULP_PUSH.md`).
 
 Evidence: `docs/GATE_V12R2.md`. Logs live in `/tmp` by policy (never in repo).
+
+Round-6 fuzz upgrade: God-mode Part 2 (10 sections, 51,600 fixed checks,
+xorshift stream, seed-independent total) covers Batch-1/contest/geometry/
+graph/modeling/doctorate invariants + differentials; boundary 25->63;
+ultimate 49,962->89,462 (Inf-aware crash predicates). Found and fixed a
+real `ml_qr_iter_eig` convergence bug (nested similarities; Francis
+replacement) and the `ml_fft_is_supported` 2^24 lie. Full report:
+`docs/DESPOT_R6_AUDIT.md`.
 
 Round-5 (2026-10-10, Edmonton): `test_edge_despot_r5` 42/42 (CPU SIGILL,
 fixed-point UB, LDBL guards, cross3/transpose aliasing, egcd overflow, status

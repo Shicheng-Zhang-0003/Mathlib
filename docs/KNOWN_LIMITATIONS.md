@@ -24,7 +24,7 @@ These limitations are design choices, not hidden defects.
 - **A1 closure freeze is lifted for the despot audit.** v12R2 shipped 12
   Batch-1 modules plus kelvin (34 TUs); the freeze document is historical.
   No further silent scope creep: CMake/Makefile/run_all_tests.py/
-  run_edge_tests.sh canonical lists must match (34 TUs).
+  run_edge_tests.sh canonical lists must match (43 TUs).
 
 - **Gamma uses Lanczos g=7 n=9.** This coefficient set has ~1e-15
   intrinsic approximation error. Half-integers bypass Lanczos entirely

@@ -291,3 +291,22 @@ algorithms — never proofs). See `docs/DOCTORATE_GUIDE.md`.
 - **Guard:** `test_edge_measure` 16/16, `test_edge_funcanal` 16/16,
   `test_edge_topology` 21/21, `test_edge_diffgeom` 18/18,
   `test_edge_algebraic` 32/32. TU lists 43/43; edge now 35/35.
+
+## Round-6: fuzz upgrade + QR/fft fixes (see `docs/DESPOT_R6_AUDIT.md`)
+
+- **Coverage:** god-mode Part 2 adds 51,600 fixed-count checks (xorshift
+  stream, seed/host-stable total) over Batch-1/contest/geometry/graph/
+  modeling/doctorate invariants and differentials (Narayana=Catalan,
+  floor/LTE/Pell/Tonelli vs naive, DSU/BFS/Dijkstra/Kruskal agreement,
+  Markov/SIR/Little/conjugate, R>=2r, Betti alternating sum, Sturm vs
+  Descartes, Rodrigues, roundtrips, integer blizzard). Part-1 stream
+  untouched. Totals: god 113,073/0, boundary 63/0 (was 25), ultimate
+  89,462/0 (was 49,962; Inf-aware crash predicates).
+- **Fixed:** `ml_qr_iter_eig` nested-similarity stall (~20% on SPD;
+  Francis Hessenberg + explicit double-shift QR with reorthogonalized
+  MGS and single-shift exceptional path; 0 non-convergences in 2000
+  general 2x2..6x6, LAPACK-agreeing); `ml_fft_is_supported` now
+  enforces the 2^24 cap it documents.
+- **Gate:** oracle 212/0 worst 0 ULP, modular 4/4, smoke 30/0, boundary
+  63/0, god 113073/0, ultimate 89462/0, edge 35/35, 3-profile `-Werror`
+  + ASan/UBSan clean.
