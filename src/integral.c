@@ -1576,11 +1576,14 @@ ML_API double ml_bessel_y0(double x) {
     if (x < ML_BESSEL_XY) {
         long double j0 = (long double)ml_bessel_j0(x);
         long double y = (long double)x * (long double)x * 0.25L;
-        long double t = 1.0L, s = 0.0L, c = 0.0L, hn = 0.0L;
+        long double t = 1.0L, s = 0.0L, c = 0.0L, hn = 0.0L, hc = 0.0L;
         int m;
         for (m = 1; m < 200; m++) {
             long double w, tt;
-            hn += 1.0L / (long double)m;
+            long double w2 = 1.0L / (long double)m - hc;
+            long double tt2 = hn + w2;
+            hc = (tt2 - hn) - w2;
+            hn = tt2;
             t *= -y / ((long double)m * (long double)m);
             w = -t * hn - c;
             tt = s + w;
@@ -1611,15 +1614,28 @@ ML_API double ml_bessel_y1(double x) {
     if (x < ML_BESSEL_XY) {
         /* DLMF 10.8.1 (n=1): -2/(pi z) + (2/pi)ln(z/2)J1
          *                    - (z/2)/pi * S,
-         * S = sum_{k>=0} (psi(k+1)+psi(k+2)) (-y)^k/(k!(k+1)!). */
+         * S = sum_{k>=0} (psi(k+1)+psi(k+2)) (-y)^k/(k!(k+1)!).
+         * R6 ULP: psi(k+1)+psi(k+2) = 2*H_k - 2γ + 1/(k+1) with H_k in
+         * long double Kahan (was ml_digamma(double) per term: 0.5 ULP
+         * double noise ~2e-16 on each ck, composing to measured 5-6 ULP
+         * at x~7; also 2 function calls per term). */
+        static const long double EGAM = 0.57721566490153286060651209008240243L;
         long double j1 = (long double)ml_bessel_j1(x);
         long double y = (long double)x * (long double)x * 0.25L;
         long double t = 1.0L, s = 0.0L, c = 0.0L;
+        long double hk = 0.0L, hk_c = 0.0L;
         int k;
         for (k = 0; k < 200; k++) {
-            long double ck = (long double)ml_digamma((double)k + 1.0)
-                           + (long double)ml_digamma((double)k + 2.0);
+            long double ck;
             long double w, tt;
+            if (k > 0) {
+                long double kinv = 1.0L / (long double)k;
+                long double w2 = kinv - hk_c;
+                long double tt2 = hk + w2;
+                hk_c = (tt2 - hk) - w2;
+                hk = tt2;
+            }
+            ck = 2.0L * hk - 2.0L * EGAM + 1.0L / (long double)(k + 1);
             w = t * ck - c;
             tt = s + w;
             c = (tt - s) - w;
