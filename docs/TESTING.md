@@ -10,8 +10,9 @@ Validation layers (tiers are non-interchangeable, see `PRECISION_CONTRACT.md`):
    + `test_edge_modeling` 40 pins + `test_edge_measure` 16 pins
    + `test_edge_funcanal` 16 pins + `test_edge_topology` 21 pins
    + `test_edge_diffgeom` 18 pins + `test_edge_algebraic` 32 pins)
-3. Oracle comparison (212/212 at 0 ULP measured vs mpmath 50-dps
-   exact-binary truth; gate stays ≤5 ULP — measurement, not proof)
+3. Oracle comparison (412/412 at 0 ULP measured vs mpmath 50-dps
+   exact-binary truth: 212 core + 200 R6 expansion over 19 more families;
+   gate stays ≤5 ULP — measurement, not proof)
 4. Wide grids (pow 100 cases, sin/cos 25 benign + 2000 random, gamma 11-point;
    exact-binary truth; all core 0 ULP except large-x trig near-zero
    absolute-tiny and vs-sys residual 1)

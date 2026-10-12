@@ -13,14 +13,14 @@ Ziv + worst-case search land.
 
 | Tier | Ground truth | Gate | What it proves |
 | :--- | :--- | :--- | :--- |
-| **Oracle** (`tests/test_oracle.c` + `tests/oracle_data.h`) | mpmath at 50 decimal places (`scripts/oracles/generate_oracles.py: mp.dps=50`; sufficient for double ULP work) | **<= 5 ULP** per call, all 7 families (sin, cos, exp, log, gamma, lgamma, pow), 212 vectors | Numerical accuracy of the validated core. This is the only tier that certifies precision. |
+| **Oracle** (`tests/test_oracle.c` + `tests/oracle_data.h` + `tests/oracle_data_ext.h`) | mpmath at 50 decimal places (`scripts/oracles/generate_oracles{,_ext}.py: mp.dps=50`; sufficient for double ULP work) | **<= 5 ULP** per call, all 26 families (sin, cos, exp, log, gamma, lgamma, pow + R6: asin, acos, asinh, acosh, atanh, log10, log2, cbrt, erf, sinh, tanh, sinpi, cospi, tan, exp2, bessel_i0, bessel_i1, bessel_j0, bessel_j1), 412 vectors | Numerical accuracy of the validated core. This is the only tier that certifies precision. |
 | **Smoke / modular** (`tests/test.c`, `test_core`, `test_trig`, `test_linalg`, `test_dsp`) | Self-agreement / mathematical identities (e.g. `fft_dc`, round-trip solves) | Loose absolute `ASSERT_NEAR` tolerances (`1e-9` … `1e-15`); at magnitude ~1, `1e-12` is ~4500 ULP | No-crash, no-NaN, plausible-output smoke coverage. A pass here is **not** a precision claim. |
 | **Edge directed** (`tests/test_edge_*.c`, 24 suites / 700+ assertions, incl. `test_edge_despot_r4`) | Exact IEEE-754 / boundary expectations (signed zero, Inf/NaN guards, `fmod` identities, domain clamps) | Exact or near-exact match on directed cases (`1e-15` on identities such as `atan2(±0,-1) == ±π`) | Boundary and special-value correctness. Covers branches the oracle grid never hits. |
 
 Rules:
 
 1. Only the oracle tier may be cited for ULP claims (see `release_notes.md`:
-   212 passed, 0 failed, all ≤ 5 ULP).
+   412 passed, 0 failed, all ≤ 5 ULP).
 2. Smoke/modular tolerances exist to catch regressions and crashes, not to
    bound error. Do not tighten them into pseudo-oracles and do not quote
    them as accuracy figures.
@@ -49,6 +49,12 @@ Rules:
    despot_check` pins the fixed semantics (exp2 subnormal, crt2 24/30,
    cross_entropy +Inf, ber/bei NaN, sphere unit gates, fixed-point rounding).
    It is a contract guard, not a ULP certification.
+
+Round-6 ULP push: `tests/test_oracle.c` grows 19 families / 200 vectors
+(`tests/oracle_data_ext.h` via `scripts/oracles/generate_oracles_ext.py`;
+Bessel J vectors are benign-only by generator-enforced |truth| > 0.3,
+crossings stay an absolute-error regime per KNOWN_LIMITATIONS).
+Oracle stays 412/412 at 0 ULP measured (gate ≤5 ULP).
 
 Round-5 (2026-10-10, Edmonton): `tests/test_edge_despot_r5.c` (42 assertions)
 pins the R5 programming/robustness fixes at regression-guard tier (rule 3):

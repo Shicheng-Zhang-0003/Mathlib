@@ -3,7 +3,7 @@
 **Internal tag:** v12R2
 **Public tag:** V1.2-RC2 (`V1.2-RC2 == v12R2`, same commit)
 **Date:** 2026-09-30
-**Oracle:** 212 passed, 0 failed, worst 0 ULP (7 core families sin, cos, exp, log, gamma, lgamma, pow correctly rounded on the 212-vector grid vs mpmath 50-dps; gate stays ≤5 ULP, see `docs/PRECISION_CONTRACT.md`)
+**Oracle:** 412 passed, 0 failed, worst 0 ULP (26 families: 7 core sin, cos, exp, log, gamma, lgamma, pow + 19 R6 expansion, correctly rounded on the grid vs mpmath 50-dps; gate stays ≤5 ULP, see `docs/PRECISION_CONTRACT.md`)
 **Gate:** Full closure gate passed (build, modular, edge 23 suites, fuzz, boundary, oracle, sanitizers)
 
 ---
@@ -106,7 +106,7 @@ proof for all inputs — Table Maker's Dilemma, x86-64 only).
 
 ## Test Results
 
-- **Oracle:** 212 passed, 0 failed, worst 0 ULP (sin, cos, exp, log, gamma, lgamma, pow — correctly rounded on the grid vs mpmath 50-dps; gate ≤5 ULP)
+- **Oracle:** 412 passed, 0 failed, worst 0 ULP (26 families: 7 core + 19 R6 — correctly rounded on the grid vs mpmath 50-dps; gate ≤5 ULP)
 - **Wide grids (exact-binary truth):** pow 100 cases 0 ULP (was 41); sin/cos benign 25 cases 0 ULP (was 1); gamma 11-point grid 0 ULP (6.7 was 21, 0.1 was 3, 0.001 was 5, -0.5 was 1); vs-sys sin/cos/exp/log/pow 0, gamma/lgamma 1 (sys itself differs)
 - **Edge tests:** 25 suites, all passed (750+ assertions; incl. `test_edge_despot_r4` 21 pins + `test_edge_despot_r5` 42 pins)
 - **Fuzzers:** fuzz_god_mode (0 failed `--seed 123456789`: 61473/0 AVX2 host, 61393/0 elsewhere — host-sensitive), fuzz_boundary — all passed
@@ -292,7 +292,21 @@ algorithms — never proofs). See `docs/DOCTORATE_GUIDE.md`.
   `test_edge_topology` 21/21, `test_edge_diffgeom` 18/18,
   `test_edge_algebraic` 32/32. TU lists 43/43; edge now 35/35.
 
-## Round-6: fuzz upgrade + QR/fft fixes (see `docs/DESPOT_R6_AUDIT.md`)
+## Round-6 ULP push: 26 families at measured 0 ULP (see `docs/ULP_PUSH.md`)
+
+Starting from the easiest: log10 LO-sign fix (2→0), erf 1-erfc route
+(6→0/1), log2 hex split, cbrt LD-neighbor Ziv-lite, log1p LD Horner,
+atanh/asinh/acosh LD forms, sinh/cosh/tanh/expm1 LD composition,
+asin/acos LD + atanl, ml_exp true-DD Cody-Waite reduction (167→3 fails
+on [0,1], remainder Table-Maker), atan LD tree + compensated Horner
+(200→23), erf LD Taylor (175→0), erfc LD complements, Bessel Y1
+harmonic-LD (5→0.85 ULP benign). New invisible-composition law documented:
+two 0-ULP doubles still compose to 1 ULP; only single-rounding from
+>64-bit evaluation attains 0. Residual Table-Maker boundary catalog
+shipped (exact doubles). Oracle grows 212 → 412 vectors over 26 families
+(19 new, Bessel J benign-only by generator rule), worst 0 ULP.
+
+## Round-6 fuzz upgrade + QR/fft fixes (see `docs/DESPOT_R6_AUDIT.md`)
 
 - **Coverage:** god-mode Part 2 adds 51,600 fixed-count checks (xorshift
   stream, seed/host-stable total) over Batch-1/contest/geometry/graph/
@@ -307,6 +321,6 @@ algorithms — never proofs). See `docs/DOCTORATE_GUIDE.md`.
   MGS and single-shift exceptional path; 0 non-convergences in 2000
   general 2x2..6x6, LAPACK-agreeing); `ml_fft_is_supported` now
   enforces the 2^24 cap it documents.
-- **Gate:** oracle 212/0 worst 0 ULP, modular 4/4, smoke 30/0, boundary
+- **Gate:** oracle 412/0 worst 0 ULP, modular 4/4, smoke 30/0, boundary
   63/0, god 113073/0, ultimate 89462/0, edge 35/35, 3-profile `-Werror`
   + ASan/UBSan clean.
