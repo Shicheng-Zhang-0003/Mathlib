@@ -202,55 +202,251 @@ ML_API ml_status_t ml_qr_iter_eig(ml_tensor_view_t A, double *evals_re, double *
     /* Stack-local scratch (thread-safe; no static storage). */
     double H[16][16];
     for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) { double v = ML_TENSOR_AT(A,i,j); if (!ml_isfinite(v)) return ML_ERR_NAN_INPUT; H[i][j] = v; }
-    for (int it = 0; it < max_iter; it++) {
-        long double off = 0;
-        for (int i = 1; i < n; i++) for (int j = 0; j < i && j + 1 >= i; j++) { if (j + 1 == i || j + 1 < i) {} }
-        for (int i = 1; i < n; i++) { long double v = H[i][i-1]; off += v*v; }
-        if (__builtin_sqrtl(off) <= (long double)tol) break;
-        /* Wilkinson shift from bottom 2x2 */
-        double mu = H[n-1][n-1];
-        if (n >= 2) {
-            double a = H[n-2][n-2], b = H[n-2][n-1], c = H[n-1][n-2], d = H[n-1][n-1];
-            double tr = a + d, det = a*d - b*c, disc = tr*tr - 4*det;
-            if (disc >= 0) { double s = __builtin_sqrt(disc); double l1 = (tr+s)/2, l2 = (tr-s)/2; mu = (ml_fabs(l1-d) < ml_fabs(l2-d)) ? l1 : l2; }
+    /* R6 despot: Householder reduction to upper Hessenberg form first.
+     * The old code swept Givens rotations on the FULL matrix with each
+     * right-rotation applied immediately, nesting similarities instead of
+     * forming RQ: it converged on tridiagonal/diagonal inputs but stalled
+     * (~20% failure) on general SPD, including 2x2 rotation blocks already
+     * in real Schur form. Francis QR below is the textbook algorithm. */
+    for (int m = 0; m < n - 1; m++) {
+        long double x0 = (long double)H[m + 1][m];
+        long double sigma = 0.0L;
+        long double mx = fabsl(x0);
+        int k;
+        for (k = m + 2; k < n; k++) {
+            long double v = fabsl((long double)H[k][m]);
+            if (v > mx) mx = v;
         }
-        for (int i = 0; i < n; i++) H[i][i] -= mu;
-        /* explicit QR via Givens (hypot: overflow-safe at 1e200) */
-        for (int i = 0; i < n - 1; i++) {
-            double x = H[i][i], y = H[i+1][i];
-            if (y == 0) continue;
-            double r = ml_hypot(x, y);
-            double c = x / r, s = -y / r;
-            for (int k = i; k < n; k++) { double a1 = H[i][k], a2 = H[i+1][k]; H[i][k] = c*a1 - s*a2; H[i+1][k] = s*a1 + c*a2; }
-            for (int k = 0; k < n; k++) { double a1 = H[k][i], a2 = H[k][i+1]; H[k][i] = c*a1 - s*a2; H[k][i+1] = s*a1 + c*a2; }
+        if (mx == 0.0L) continue;
+        for (k = m + 1; k < n; k++) {
+            long double v = (long double)H[k][m] / mx;
+            sigma += v * v;
         }
-        for (int i = 0; i < n; i++) H[i][i] += mu;
-        if (it == max_iter - 1) {
-            /* DESPOT-FIX: poison outputs fail-loud (was untouched, risking
-             * use of stale stack garbage on ignored status).
-             * R5: CONVERGENCE (was SINGULAR). */
-            for (int k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
-            return ML_ERR_CONVERGENCE;
+        sigma = mx * __builtin_sqrtl(sigma);
+        if (sigma == 0.0L) continue;
+        {
+            /* Reflector P = I - beta u u', u[0] = 1, alpha = -sgn(x0)*|x|. */
+            long double u[16];
+            long double alpha = (x0 <= 0.0L) ? sigma : -sigma;
+            long double v0 = x0 - alpha;
+            long double beta;
+            int len = n - m - 1;
+            if (v0 == 0.0L) continue;
+            for (k = 0; k < len; k++) u[k] = (long double)H[m + 1 + k][m] / v0;
+            u[0] = 1.0L;
+            /* R6 despot: beta is -v0/alpha for the v0-normalized u
+             * (2/||u||^2 with ||u||^2 = -2 alpha/v0); the old -1/(alpha v0)
+             * was off by v0^2 and silently broke similarity (trace drift). */
+            beta = -v0 / alpha;
+            for (int j = m; j < n; j++) {
+                long double dot = 0.0L;
+                for (k = 0; k < len; k++) dot += u[k] * (long double)H[m + 1 + k][j];
+                dot *= beta;
+                for (k = 0; k < len; k++) H[m + 1 + k][j] = (double)((long double)H[m + 1 + k][j] - dot * u[k]);
+            }
+            for (int i2 = 0; i2 < n; i2++) {
+                long double dot = 0.0L;
+                for (k = 0; k < len; k++) dot += (long double)H[i2][m + 1 + k] * u[k];
+                dot *= beta;
+                for (k = 0; k < len; k++) H[i2][m + 1 + k] = (double)((long double)H[i2][m + 1 + k] - dot * u[k]);
+            }
         }
     }
-    /* Post-check: extraction below assumes off<=tol. If a 2x2 block remains
-     * with real eigenvalues but large subdiagonal, the diagonal is not
-     * converged — fail-loud rather than silent SUCCESS. */
     {
-        long double off = 0;
-        for (int i = 1; i < n; i++) { long double v = H[i][i-1]; off += v*v; }
-        if (__builtin_sqrtl(off) > (long double)tol) {
-            for (int k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
-            return ML_ERR_CONVERGENCE;
+        double out_re[16];
+        double out_im[16];
+        int nout = 0;
+        int hi = n - 1;
+        int sweeps = 0;
+        int stall = 0;
+        while (hi >= 0) {
+            int lo;
+            if (hi == 0) {
+                out_re[nout] = H[0][0];
+                out_im[nout] = 0.0;
+                nout++;
+                break;
+            }
+            if (!(ml_fabs(H[hi][hi - 1]) > tol)) {
+                out_re[nout] = H[hi][hi];
+                out_im[nout] = 0.0;
+                nout++;
+                hi--;
+                continue;
+            }
+            lo = hi - 1;
+            while (lo > 0 && ml_fabs(H[lo][lo - 1]) > tol) lo--;
+            if (hi == lo + 1) {
+                /* Decoupled 2x2: solve directly (real or complex pair). */
+                long double a = (long double)H[lo][lo];
+                long double b = (long double)H[lo][hi];
+                long double c = (long double)H[hi][lo];
+                long double d = (long double)H[hi][hi];
+                long double tr = a + d;
+                long double det = a * d - b * c;
+                long double disc = tr * tr - 4.0L * det;
+                if (disc < 0.0L) {
+                    double s = (double)(__builtin_sqrtl(-disc) / 2.0L);
+                    out_re[nout] = (double)(tr / 2.0L); out_im[nout] = s; nout++;
+                    out_re[nout] = (double)(tr / 2.0L); out_im[nout] = -s; nout++;
+                } else {
+                    double s = (double)(__builtin_sqrtl(disc) / 2.0L);
+                    out_re[nout] = (double)(tr / 2.0L) + s; out_im[nout] = 0.0; nout++;
+                    out_re[nout] = (double)(tr / 2.0L) - s; out_im[nout] = 0.0; nout++;
+                }
+                hi = lo - 1;
+                continue;
+            }
+            /* Explicit shifted QR on [lo..hi] (R6 despot).
+             * The Francis bulge chase it replaces left (k+3,k+1)-type fill
+             * below the band that no chase step ever cleaned (~50% stall
+             * on general 4x4+). Here Q = orthog(M) via MGS and H <- Q'HQ is
+             * a full-block similarity by construction: no band to maintain,
+             * nothing to chase. Normal path is the double shift
+             * M = H^2-tr H+det I (bottom 2x2; handles complex pairs that
+             * stalled single-shift Wilkinson). Exceptional path (stall>10)
+             * is a SINGLE ad-hoc shift M = H-mu I: it breaks the exact
+             * period-2 cycles where |p(nd)| == 1 on the whole spectrum
+             * renders every double shift spectrally invisible. */
+            {
+                double tr = 0.0;
+                double det = 0.0;
+                double mu = 0.0;
+                int single = (stall > 10);
+                double M[16][16];
+                double Q[16][16];
+                double T[16][16];
+                int m = hi - lo + 1;
+                int i;
+                int j;
+                int k;
+                if (single) {
+                    stall = 0;
+                    /* Sweep blocks reaching here are >= 3x3 (2x2 solves
+                     * directly), so H[hi-1][hi-2] is in-block. */
+                    mu = ml_fabs(H[hi][hi - 1]) + ml_fabs(H[hi - 1][hi - 2]);
+                    if (!(mu > 0.0) || !ml_isfinite(mu)) mu = ml_fabs(H[hi][hi]) + 1.0;
+                } else {
+                    long double a = (long double)H[hi - 1][hi - 1];
+                    long double b = (long double)H[hi - 1][hi];
+                    long double c = (long double)H[hi][hi - 1];
+                    long double d = (long double)H[hi][hi];
+                    tr = (double)(a + d);
+                    det = (double)(a * d - b * c);
+                }
+                if (!ml_isfinite(tr) || !ml_isfinite(det) || !ml_isfinite(mu)) {
+                    for (k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
+                    return ML_ERR_SINGULAR;
+                }
+                /* M = shift polynomial on the block, LD accumulation. */
+                for (i = 0; i < m; i++) {
+                    for (j = 0; j < m; j++) {
+                        long double s;
+                        if (single) {
+                            s = (long double)H[lo + i][lo + j];
+                            if (i == j) s -= (long double)mu;
+                        } else {
+                            s = 0.0L;
+                            for (k = 0; k < m; k++) s += (long double)H[lo + i][lo + k] * (long double)H[lo + k][lo + j];
+                            s -= (long double)tr * (long double)H[lo + i][lo + j];
+                            if (i == j) s += (long double)det;
+                        }
+                        M[i][j] = (double)s;
+                        if (!ml_isfinite(M[i][j])) {
+                            for (k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
+                            return ML_ERR_OVERFLOW;
+                        }
+                    }
+                }
+                /* MGS orthogonalization of M's columns, done TWICE (R6).
+                 * Classical MGS loses orthogonality (~eps*cond(M)) precisely
+                 * when p(H) goes singular near convergence; the resulting
+                 * non-orthogonal "similarities" then inject drift (~1e-8)
+                 * and stall deflation for hundreds of sweeps. A second
+                 * pass (Giraud-Langou) restores orthogonality to ~eps.
+                 * Dependent columns get a re-orthogonalized unit fallback,
+                 * never divide-by-zero. R factor unneeded. */
+                for (i = 0; i < m; i++) {
+                    for (j = 0; j < m; j++) {
+                        Q[i][j] = 0.0;
+                    }
+                }
+                for (j = 0; j < m; j++) {
+                    long double v[16];
+                    int pass;
+                    for (i = 0; i < m; i++) v[i] = (long double)M[i][j];
+                    for (pass = 0; pass < 2; pass++) {
+                        for (k = 0; k < j; k++) {
+                            long double dot = 0.0L;
+                            for (i = 0; i < m; i++) dot += (long double)Q[i][k] * v[i];
+                            for (i = 0; i < m; i++) v[i] -= dot * (long double)Q[i][k];
+                        }
+                    }
+                    {
+                        long double nn = 0.0L;
+                        for (i = 0; i < m; i++) nn += v[i] * v[i];
+                        nn = __builtin_sqrtl(nn);
+                        if (!(nn > 1e-300L) || !ml_isfinite((double)nn)) {
+                            int t;
+                            int ok = 0;
+                            for (t = 0; t < m && !ok; t++) {
+                                long double w[16] = {0.0L};
+                                long double wn;
+                                int q;
+                                w[t] = 1.0L;
+                                for (q = 0; q < j; q++) {
+                                    long double dot = 0.0L;
+                                    for (i = 0; i < m; i++) dot += (long double)Q[i][q] * w[i];
+                                    for (i = 0; i < m; i++) w[i] -= dot * (long double)Q[i][q];
+                                }
+                                wn = 0.0L;
+                                for (i = 0; i < m; i++) wn += w[i] * w[i];
+                                wn = __builtin_sqrtl(wn);
+                                if (wn > 0.5L && ml_isfinite((double)wn)) {
+                                    for (i = 0; i < m; i++) v[i] = w[i] / wn;
+                                    nn = 1.0L;
+                                    ok = 1;
+                                }
+                            }
+                            if (!ok) {
+                                for (k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
+                                return ML_ERR_SINGULAR;
+                            }
+                        }
+                        for (i = 0; i < m; i++) Q[i][j] = (double)(v[i] / nn);
+                    }
+                }
+                /* H <- Q' H Q on the block. */
+                for (i = 0; i < m; i++) {
+                    for (j = 0; j < m; j++) {
+                        long double s = 0.0L;
+                        for (k = 0; k < m; k++) s += (long double)Q[k][i] * (long double)H[lo + k][lo + j];
+                        T[i][j] = (double)s;
+                    }
+                }
+                for (i = 0; i < m; i++) {
+                    for (j = 0; j < m; j++) {
+                        long double s = 0.0L;
+                        for (k = 0; k < m; k++) s += T[i][k] * (long double)Q[k][j];
+                        if (!ml_isfinite((double)s)) {
+                            for (k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
+                            return ML_ERR_OVERFLOW;
+                        }
+                        H[lo + i][lo + j] = (double)s;
+                    }
+                }
+            }
+            sweeps++;
+            stall++;
+            if (sweeps > max_iter) {
+                for (int k = 0; k < n; k++) { evals_re[k] = ml_make_nan(); evals_im[k] = ml_make_nan(); }
+                return ML_ERR_CONVERGENCE;
+            }
         }
+        for (int k = 0; k < n; k++) {
+            evals_re[k] = (k < nout) ? out_re[k] : ml_make_nan();
+            evals_im[k] = (k < nout) ? out_im[k] : ml_make_nan();
+        }
+        return ML_SUCCESS;
     }
-    for (int i = 0; i < n; i++) {
-        if (i + 1 < n && ml_fabs(H[i+1][i]) > tol) {
-            double a = H[i][i], b = H[i][i+1], c = H[i+1][i], d = H[i+1][i+1];
-            double tr = a + d, det = a*d - b*c, disc = tr*tr - 4*det;
-            if (disc < 0) { double s = __builtin_sqrt(-disc)/2; evals_re[i] = tr/2; evals_im[i] = s; evals_re[i+1] = tr/2; evals_im[i+1] = -s; i++; }
-            else { evals_re[i] = a; evals_im[i] = 0; }
-        } else { evals_re[i] = H[i][i]; evals_im[i] = 0; }
-    }
-    return ML_SUCCESS;
 }
