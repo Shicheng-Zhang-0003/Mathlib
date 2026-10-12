@@ -9,7 +9,10 @@ static inline int ml_fft_is_power_of_two_internal(int n) {
 }
 
 ML_API int ml_fft_is_supported(int n) {
-    return ml_fft_is_power_of_two_internal(n);
+    /* R6 despot: must agree with ml_fft_execute's enforcement (pow2 AND
+     * n <= 2^24). Previously pow2-only, so is_supported(2^25) returned 1
+     * for a length execute() silently refuses. */
+    return ml_fft_is_power_of_two_internal(n) && n <= 16777216;
 }
 
 ML_API void ml_fft_execute(cplx *x, int n) {

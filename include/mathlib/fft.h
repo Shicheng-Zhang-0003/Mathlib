@@ -9,10 +9,11 @@ extern "C" {
 #endif
 
 /*
- * v11S FFT contract:
- * ml_fft_execute() and ml_ifft_execute() support power-of-two lengths only.
- * Unsupported lengths (including NULL or n <= 0) are safe no-ops.
- * Use ml_fft_is_supported() to query support before calling.
+ * v11S FFT contract (R6: is_supported now enforces the same cap):
+ * ml_fft_execute() and ml_ifft_execute() support power-of-two lengths
+ * up to 2^24 only. Unsupported lengths (including NULL, n <= 0, or
+ * n > 2^24) are safe no-ops. Use ml_fft_is_supported() to query support
+ * before calling.
  */
 ML_API int ml_fft_is_supported(int n);
 
