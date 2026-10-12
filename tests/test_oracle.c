@@ -15,6 +15,7 @@
 
 #ifdef MATHLIB_HAS_ORACLE_DATA
 #include "oracle_data.h"
+#include "oracle_data_ext.h"
 #endif
 
 static uint64_t ulp_distance(double a, double b) {
@@ -160,8 +161,47 @@ int main() {
         }
     }
 
-    /* --- Large-argument domain checks (Payne-Hanek) --- */
-    printf("--- Large-argument domain checks (Payne-Hanek) ---\n");
+    /* --- R6 ULP-push expansion: 19 families at measured 0 ULP ---
+     * Same <=5 ULP gate, same worst-case tracking. Zero/NaN/Inf inputs
+     * pass through on exact agreement (mirrors the blocks above). */
+#define ORACLE_UNARY(fname, func, arr, count) do { \
+        printf("--- " fname " vs mpmath oracle (%d entries) ---\n", count); \
+        for (int i = 0; i < count; i++) { \
+            double got = func((arr)[i].input); \
+            double exp_val = (arr)[i].expected; \
+            if (ml_isnan(exp_val) && ml_isnan(got)) { passed++; continue; } \
+            if (ml_isinf(exp_val) && ml_isinf(got)) { passed++; continue; } \
+            if (exp_val == 0.0 && got == 0.0) { passed++; continue; } \
+            { int64_t ulp = (int64_t)ulp_distance(got, exp_val); \
+            if (ulp > max_ulp) { max_ulp = ulp; worst_x = (arr)[i].input; worst_func = fname; } \
+            if (ulp <= 5) { passed++; } \
+            else { failed++; \
+                printf("  [FAIL] %s(%.17e): got %.17e expected %.17e (%lld ULP)\n", \
+                       fname, (arr)[i].input, got, exp_val, (long long)ulp); } } \
+        } \
+    } while (0)
+
+    ORACLE_UNARY("asin", ml_asin, oracle_asin, oracle_asin_count);
+    ORACLE_UNARY("acos", ml_acos, oracle_acos, oracle_acos_count);
+    ORACLE_UNARY("asinh", ml_asinh, oracle_asinh, oracle_asinh_count);
+    ORACLE_UNARY("acosh", ml_acosh, oracle_acosh, oracle_acosh_count);
+    ORACLE_UNARY("atanh", ml_atanh, oracle_atanh, oracle_atanh_count);
+    ORACLE_UNARY("log10", ml_log10, oracle_log10, oracle_log10_count);
+    ORACLE_UNARY("log2", ml_log2, oracle_log2, oracle_log2_count);
+    ORACLE_UNARY("cbrt", ml_cbrt, oracle_cbrt, oracle_cbrt_count);
+    ORACLE_UNARY("erf", ml_erf, oracle_erf, oracle_erf_count);
+    ORACLE_UNARY("sinh", ml_sinh, oracle_sinh, oracle_sinh_count);
+    ORACLE_UNARY("tanh", ml_tanh, oracle_tanh, oracle_tanh_count);
+    ORACLE_UNARY("sinpi", ml_sinpi, oracle_sinpi, oracle_sinpi_count);
+    ORACLE_UNARY("cospi", ml_cospi, oracle_cospi, oracle_cospi_count);
+    ORACLE_UNARY("tan", ml_tan, oracle_tan, oracle_tan_count);
+    ORACLE_UNARY("exp2", ml_exp2, oracle_exp2, oracle_exp2_count);
+    ORACLE_UNARY("bessel_i0", ml_bessel_i0, oracle_bessel_i0, oracle_bessel_i0_count);
+    ORACLE_UNARY("bessel_i1", ml_bessel_i1, oracle_bessel_i1, oracle_bessel_i1_count);
+    ORACLE_UNARY("bessel_j0", ml_bessel_j0, oracle_bessel_j0, oracle_bessel_j0_count);
+    ORACLE_UNARY("bessel_j1", ml_bessel_j1, oracle_bessel_j1, oracle_bessel_j1_count);
+
+    /* --- Large-argument domain checks (Payne-Hanek) --- */    printf("--- Large-argument domain checks (Payne-Hanek) ---\n");
     {
         double large_vals[] = {1e10, 1e15, 1e20, 1e50, 1e100, 1e200, 1e300};
         for (int i = 0; i < 7; i++) {
