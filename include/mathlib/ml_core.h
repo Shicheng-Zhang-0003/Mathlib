@@ -7,60 +7,68 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /* Safe IEEE-754 Specials (UBSan-proof, MSVC-compatible) */
-static inline double ml_make_inf(int negative) {
+static inline double ml_make_inf (int negative) {
     uint64_t bits = negative ? 0xFFF0000000000000ULL : 0x7FF0000000000000ULL;
-    double val; memcpy(&val, &bits, sizeof(double)); return val;
+    double val;
+    memcpy (&val, &bits, sizeof (double));
+    return val;
 }
-static inline double ml_make_nan(void) {
+static inline double ml_make_nan (void) {
     uint64_t bits = 0x7FF8000000000000ULL;
-    double val; memcpy(&val, &bits, sizeof(double)); return val;
+    double val;
+    memcpy (&val, &bits, sizeof (double));
+    return val;
 }
-
-ML_INLINE double ml_fabs(double x) {
-    uint64_t bits; memcpy(&bits, &x, sizeof(uint64_t));
-    bits &= 0x7FFFFFFFFFFFFFFFULL; memcpy(&x, &bits, sizeof(double)); return x;
+ML_INLINE double ml_fabs (double x) {
+    uint64_t bits;
+    memcpy (&bits, &x, sizeof (uint64_t));
+    bits &= 0x7FFFFFFFFFFFFFFFULL;
+    memcpy (&x, &bits, sizeof (double));
+    return x;
 }
-ML_INLINE int ml_isnan(double x) {
-    uint64_t bits; memcpy(&bits, &x, sizeof(uint64_t));
+ML_INLINE int ml_isnan (double x) {
+    uint64_t bits;
+    memcpy (&bits, &x, sizeof (uint64_t));
     return ((bits & 0x7FF0000000000000ULL) == 0x7FF0000000000000ULL) && ((bits & 0x000FFFFFFFFFFFFFULL) != 0);
 }
-ML_INLINE int ml_isinf(double x) {
-    uint64_t bits; memcpy(&bits, &x, sizeof(uint64_t));
+ML_INLINE int ml_isinf (double x) {
+    uint64_t bits;
+    memcpy (&bits, &x, sizeof (uint64_t));
     return ((bits & 0x7FF0000000000000ULL) == 0x7FF0000000000000ULL) && ((bits & 0x000FFFFFFFFFFFFFULL) == 0);
 }
-ML_INLINE double ml_copysign(double x, double y) {
-    uint64_t bx, by; memcpy(&bx, &x, sizeof(uint64_t)); memcpy(&by, &y, sizeof(uint64_t));
+ML_INLINE double ml_copysign (double x, double y) {
+    uint64_t bx, by;
+    memcpy (&bx, &x, sizeof (uint64_t));
+    memcpy (&by, &y, sizeof (uint64_t));
     bx = (bx & 0x7FFFFFFFFFFFFFFFULL) | (by & 0x8000000000000000ULL);
-    memcpy(&x, &bx, sizeof(double)); return x;
+    memcpy (&x, &bx, sizeof (double));
+    return x;
 }
-ML_INLINE int ml_signbit(double x) {
+ML_INLINE int ml_signbit (double x) {
     uint64_t bits;
-    memcpy(&bits, &x, sizeof(uint64_t));
-    return (int)(bits >> 63);
+    memcpy (&bits, &x, sizeof (uint64_t));
+    return (int) (bits >> 63);
 }
-
-ML_INLINE int ml_isfinite(double x) {
+ML_INLINE int ml_isfinite (double x) {
     uint64_t bits;
-    memcpy(&bits, &x, sizeof(uint64_t));
+    memcpy (&bits, &x, sizeof (uint64_t));
     return ((bits & 0x7FF0000000000000ULL) != 0x7FF0000000000000ULL);
 }
+ML_API double ml_ldexp_pure (double x, int exp);
+ML_API double ml_frexp_pure (double x, int *exp);
 
-ML_API double ml_ldexp_pure(double x, int exp);
-ML_API double ml_frexp_pure(double x, int *exp);
-
-ML_API double ml_sqrt(double x);
-ML_API double ml_fmod(double x, double y);
-ML_API double ml_round(double x);
-ML_API double ml_trunc(double x);
-ML_API double ml_floor(double x);
-ML_API double ml_ceil(double x);
-ML_API double ml_hypot(double x, double y);
-ML_API double ml_remainder(double x, double y);
-ML_API double ml_fdim(double x, double y);
-ML_API double ml_fmax(double x, double y);
-ML_API double ml_fmin(double x, double y);
+ML_API double ml_sqrt (double x);
+ML_API double ml_fmod (double x, double y);
+ML_API double ml_round (double x);
+ML_API double ml_trunc (double x);
+ML_API double ml_floor (double x);
+ML_API double ml_ceil (double x);
+ML_API double ml_hypot (double x, double y);
+ML_API double ml_remainder (double x, double y);
+ML_API double ml_fdim (double x, double y);
+ML_API double ml_fmax (double x, double y);
+ML_API double ml_fmin (double x, double y);
 
 #ifndef ML_PI
 #define ML_PI 3.14159265358979323846

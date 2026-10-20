@@ -1,42 +1,41 @@
 /* v11S CLOSURE IP-20: edge trig tests */
 #include "test_harness.h"
 #include "ml_trig.h"
-
-int main(void) {
+int main (void) {
     ml_test_ctx_t ctx;
-    ml_test_init(&ctx, "Edge Trig");
+    ml_test_init (&ctx, "Edge Trig");
 
-    ASSERT_TRUE(&ctx, ml_isnan(ml_sin(ml_make_nan())), "sin(NaN) is NaN");
-    ASSERT_TRUE(&ctx, ml_isnan(ml_sin(ml_make_inf(0))), "sin(Inf) is NaN");
-    ASSERT_TRUE(&ctx, ml_isnan(ml_cos(ml_make_nan())), "cos(NaN) is NaN");
-    ASSERT_TRUE(&ctx, ml_isnan(ml_cos(ml_make_inf(0))), "cos(Inf) is NaN");
+    ASSERT_TRUE (&ctx, ml_isnan (ml_sin (ml_make_nan ())), "sin(NaN) is NaN");
+    ASSERT_TRUE (&ctx, ml_isnan (ml_sin (ml_make_inf (0))), "sin(Inf) is NaN");
+    ASSERT_TRUE (&ctx, ml_isnan (ml_cos (ml_make_nan ())), "cos(NaN) is NaN");
+    ASSERT_TRUE (&ctx, ml_isnan (ml_cos (ml_make_inf (0))), "cos(Inf) is NaN");
 
-    ASSERT_NEAR(&ctx, ml_tan(0.0), 0.0, 1e-15, "tan(0)");
-    ASSERT_NEAR(&ctx, ml_tan(ML_PI / 4.0), 1.0, 1e-14, "tan(pi/4)");
+    ASSERT_NEAR (&ctx, ml_tan (0.0), 0.0, 1e-15, "tan(0)");
+    ASSERT_NEAR (&ctx, ml_tan (ML_PI / 4.0), 1.0, 1e-14, "tan(pi/4)");
 
-    ASSERT_NEAR(&ctx, ml_atan(ml_make_inf(0)), ML_PI / 2.0, 1e-15, "atan(+inf)");
-    ASSERT_NEAR(&ctx, ml_atan(-ml_make_inf(0)), -ML_PI / 2.0, 1e-15, "atan(-inf)");
-    ASSERT_TRUE(&ctx, ml_isnan(ml_atan(ml_make_nan())), "atan(NaN) is NaN");
+    ASSERT_NEAR (&ctx, ml_atan (ml_make_inf (0)), ML_PI / 2.0, 1e-15, "atan(+inf)");
+    ASSERT_NEAR (&ctx, ml_atan (-ml_make_inf (0)), -ML_PI / 2.0, 1e-15, "atan(-inf)");
+    ASSERT_TRUE (&ctx, ml_isnan (ml_atan (ml_make_nan ())), "atan(NaN) is NaN");
 
-    ASSERT_TRUE(&ctx, ml_isnan(ml_asin(2.0)), "asin domain");
-    ASSERT_TRUE(&ctx, ml_isnan(ml_acos(2.0)), "acos domain");
+    ASSERT_TRUE (&ctx, ml_isnan (ml_asin (2.0)), "asin domain");
+    ASSERT_TRUE (&ctx, ml_isnan (ml_acos (2.0)), "acos domain");
 
-    ASSERT_NEAR(&ctx, ml_atan2(0.0, -0.0), ML_PI, 1e-14, "atan2(+0,-0)");
-    ASSERT_NEAR(&ctx, ml_atan2(-0.0, -0.0), -ML_PI, 1e-14, "atan2(-0,-0)");
-    ASSERT_NEAR(&ctx, ml_atan2(0.0, 0.0), 0.0, 1e-14, "atan2(+0,+0)");
+    ASSERT_NEAR (&ctx, ml_atan2 (0.0, -0.0), ML_PI, 1e-14, "atan2(+0,-0)");
+    ASSERT_NEAR (&ctx, ml_atan2 (-0.0, -0.0), -ML_PI, 1e-14, "atan2(-0,-0)");
+    ASSERT_NEAR (&ctx, ml_atan2 (0.0, 0.0), 0.0, 1e-14, "atan2(+0,+0)");
 
-    ASSERT_TRUE(&ctx, !ml_isnan(ml_sin(1e10)) && !ml_isinf(ml_sin(1e10)), "sin(1e10) finite");
+    ASSERT_TRUE (&ctx, !ml_isnan (ml_sin (1e10)) && !ml_isinf (ml_sin (1e10)), "sin(1e10) finite");
     /* MATHLIB_V12A1_PAYNE_HANEK_V2_TEST */
     /* Payne-Hanek v2: large arguments produce finite results */
     {
-        double s50 = ml_sin(1e50);
-        double c50 = ml_cos(1e50);
-        ASSERT_TRUE(&ctx, !ml_isnan(s50) && !ml_isinf(s50), "sin(1e50) is finite");
-        ASSERT_TRUE(&ctx, s50 >= -1.0 && s50 <= 1.0, "sin(1e50) in [-1,1]");
-        ASSERT_TRUE(&ctx, !ml_isnan(c50) && !ml_isinf(c50), "cos(1e50) is finite");
-        ASSERT_TRUE(&ctx, c50 >= -1.0 && c50 <= 1.0, "cos(1e50) in [-1,1]");
-        ASSERT_NEAR(&ctx, s50*s50 + c50*c50, 1.0, 1e-10, "sin^2+cos^2 at 1e50");
+        double s50 = ml_sin (1e50);
+        double c50 = ml_cos (1e50);
+        ASSERT_TRUE (&ctx, !ml_isnan (s50) && !ml_isinf (s50), "sin(1e50) is finite");
+        ASSERT_TRUE (&ctx, s50 >= -1.0 && s50 <= 1.0, "sin(1e50) in [-1,1]");
+        ASSERT_TRUE (&ctx, !ml_isnan (c50) && !ml_isinf (c50), "cos(1e50) is finite");
+        ASSERT_TRUE (&ctx, c50 >= -1.0 && c50 <= 1.0, "cos(1e50) in [-1,1]");
+        ASSERT_NEAR (&ctx, s50 * s50 + c50 * c50, 1.0, 1e-10, "sin^2+cos^2 at 1e50");
     }
 
-    return ml_test_summary(&ctx);
+    return ml_test_summary (&ctx);
 }

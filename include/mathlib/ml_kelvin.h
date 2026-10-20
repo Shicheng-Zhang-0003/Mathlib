@@ -8,10 +8,10 @@
 extern "C" {
 #endif
 
-ML_API double ml_kelvin_ber(double x);
-ML_API double ml_kelvin_bei(double x);
-ML_API double ml_kelvin_ker(double x);
-ML_API double ml_kelvin_kei(double x);
+ML_API double ml_kelvin_ber (double x);
+ML_API double ml_kelvin_bei (double x);
+ML_API double ml_kelvin_ker (double x);
+ML_API double ml_kelvin_kei (double x);
 
 #ifdef __cplusplus
 }

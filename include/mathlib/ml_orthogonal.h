@@ -26,13 +26,13 @@ extern "C" {
  * (via copysign) preserving the true sign, not NaN.
  * ========================================================================== */
 
-ML_API double ml_legendre_p(int n, double x);
-ML_API double ml_legendre_p_deriv(int n, double x);
-ML_API double ml_chebyshev_t(int n, double x);
-ML_API double ml_chebyshev_u(int n, double x);
-ML_API double ml_hermite_h(int n, double x);
-ML_API double ml_laguerre_l(int n, double x);
-ML_API double ml_laguerre_l_gen(int n, double alpha, double x);
+ML_API double ml_legendre_p (int n, double x);
+ML_API double ml_legendre_p_deriv (int n, double x);
+ML_API double ml_chebyshev_t (int n, double x);
+ML_API double ml_chebyshev_u (int n, double x);
+ML_API double ml_hermite_h (int n, double x);
+ML_API double ml_laguerre_l (int n, double x);
+ML_API double ml_laguerre_l_gen (int n, double alpha, double x);
 
 #ifdef __cplusplus
 }

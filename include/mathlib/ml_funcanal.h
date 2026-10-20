@@ -21,17 +21,17 @@ extern "C" {
 
 /* Banach: x_{n+1} = T(x_n); L in [0,1) is the caller certificate.
  * bound_out (optional) receives L^n/(1-L)|x_1-x_0|. */
-ML_API ml_status_t ml_banach_fixed_point(ml_func_t T, double x0, double L,
-                                         double tol, int max_iter,
-                                         double *xstar, double *bound_out);
+ML_API ml_status_t ml_banach_fixed_point (ml_func_t T, double x0, double L,
+                                          double tol, int max_iter,
+                                          double *xstar, double *bound_out);
 /* Neumann: out = sum_{k<terms} (I-A)^k, needs row-sum ||I-A|| < 1, n <= 16. */
-ML_API ml_status_t ml_neumann_inverse(const double *A, int n, int terms, double *out);
+ML_API ml_status_t ml_neumann_inverse (const double *A, int n, int terms, double *out);
 /* Best approximation: coeff minimizing ||V coeff - y||, V m x k row-major
  * (m <= 1024, k <= 32); SINGULAR on rank loss. */
-ML_API ml_status_t ml_hilbert_project(const double *V, const double *y,
-                                      int m, int k, double *coeff);
+ML_API ml_status_t ml_hilbert_project (const double *V, const double *y,
+                                       int m, int k, double *coeff);
 /* Largest-magnitude eigenvalue of symmetric A (row-major, n <= 128). */
-ML_API ml_status_t ml_rayleigh_max(const double *A, int n, double *lambda);
+ML_API ml_status_t ml_rayleigh_max (const double *A, int n, double *lambda);
 
 #ifdef __cplusplus
 }

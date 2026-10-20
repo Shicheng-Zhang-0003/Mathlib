@@ -18,25 +18,24 @@ extern "C" {
  * ========================================================================== */
 
 /* Floating Point Types */
-typedef float  ml_f32;
+typedef float ml_f32;
 typedef double ml_f64;
 
 /* Signed Integer Types */
-typedef int8_t   ml_i8;
-typedef int16_t  ml_i16;
-typedef int32_t  ml_i32;
-typedef int64_t  ml_i64;
+typedef int8_t ml_i8;
+typedef int16_t ml_i16;
+typedef int32_t ml_i32;
+typedef int64_t ml_i64;
 
 /* Unsigned Integer Types */
-typedef uint8_t  ml_u8;
+typedef uint8_t ml_u8;
 typedef uint16_t ml_u16;
 typedef uint32_t ml_u32;
 typedef uint64_t ml_u64;
 
 /* Pointer & Size Types */
-typedef size_t    ml_size;
+typedef size_t ml_size;
 typedef ptrdiff_t ml_ptrdiff;
-
 /* ============================================================================
  * v11S UNIFIED STATUS CODES
  * DESPOT-AUDIT: SINGULAR was overloaded for singular/overflow/
@@ -45,17 +44,16 @@ typedef ptrdiff_t ml_ptrdiff;
  * ABI stability; new code should prefer the precise code.
  * ========================================================================== */
 typedef enum {
-    ML_SUCCESS          =  0,
-    ML_ERR_SINGULAR     = -1,
-    ML_ERR_WORKSPACE    = -2,
-    ML_ERR_INVALID_ARG  = -3,
-    ML_ERR_NAN_INPUT    = -4,
-    ML_ERR_OVERFLOW     = -5,
-    ML_ERR_CONVERGENCE  = -6,
-    ML_ERR_UNSUPPORTED  = -7,
-    ML_ERR_INTERNAL     = -99
+    ML_SUCCESS = 0,
+    ML_ERR_SINGULAR = -1,
+    ML_ERR_WORKSPACE = -2,
+    ML_ERR_INVALID_ARG = -3,
+    ML_ERR_NAN_INPUT = -4,
+    ML_ERR_OVERFLOW = -5,
+    ML_ERR_CONVERGENCE = -6,
+    ML_ERR_UNSUPPORTED = -7,
+    ML_ERR_INTERNAL = -99
 } ml_status_t;
-
 #ifdef __cplusplus
 }
 #endif

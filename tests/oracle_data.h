@@ -5,11 +5,16 @@
 
 #include "ml_core.h"
 #include <math.h>
-
-typedef struct { double input; double expected; } oracle_entry_t;
-typedef struct { double base; double exponent; double expected; } oracle_pow_entry_t;
-
-static const oracle_entry_t oracle_sin[] = {
+typedef struct {
+    double input;
+    double expected;
+} oracle_entry_t;
+typedef struct {
+    double base;
+    double exponent;
+    double expected;
+} oracle_pow_entry_t;
+static const oracle_entry_t oracle_sin [] = {
     {0.00000000000000000e+00, 0.00000000000000000e+00},
     {5.00000000000000000e-01, 4.79425538604203005e-01},
     {1.00000000000000000e+00, 8.41470984807896505e-01},
@@ -58,7 +63,7 @@ static const oracle_entry_t oracle_sin[] = {
 };
 static const int oracle_sin_count = 45;
 
-static const oracle_entry_t oracle_cos[] = {
+static const oracle_entry_t oracle_cos [] = {
     {0.00000000000000000e+00, 1.00000000000000000e+00},
     {5.00000000000000000e-01, 8.77582561890372759e-01},
     {1.00000000000000000e+00, 5.40302305868139765e-01},
@@ -107,7 +112,7 @@ static const oracle_entry_t oracle_cos[] = {
 };
 static const int oracle_cos_count = 45;
 
-static const oracle_entry_t oracle_exp[] = {
+static const oracle_entry_t oracle_exp [] = {
     {5.00000000000000000e-01, 1.64872127070012819e+00},
     {1.00000000000000000e+00, 2.71828182845904509e+00},
     {1.50000000000000000e+00, 4.48168907033806452e+00},
@@ -134,7 +139,7 @@ static const oracle_entry_t oracle_exp[] = {
 };
 static const int oracle_exp_count = 23;
 
-static const oracle_entry_t oracle_log[] = {
+static const oracle_entry_t oracle_log [] = {
     {5.00000000000000000e-01, -6.93147180559945286e-01},
     {1.00000000000000000e+00, 0.00000000000000000e+00},
     {1.50000000000000000e+00, 4.05465108108164385e-01},
@@ -161,7 +166,7 @@ static const oracle_entry_t oracle_log[] = {
 };
 static const int oracle_log_count = 23;
 
-static const oracle_entry_t oracle_gamma[] = {
+static const oracle_entry_t oracle_gamma [] = {
     {5.00000000000000000e-01, 1.77245385090551610e+00},
     {1.00000000000000000e+00, 1.00000000000000000e+00},
     {1.50000000000000000e+00, 8.86226925452758052e-01},
@@ -187,7 +192,7 @@ static const oracle_entry_t oracle_gamma[] = {
 };
 static const int oracle_gamma_count = 22;
 
-static const oracle_entry_t oracle_lgamma[] = {
+static const oracle_entry_t oracle_lgamma [] = {
     {5.00000000000000000e-01, 5.72364942924700082e-01},
     {1.00000000000000000e+00, 0.00000000000000000e+00},
     {1.50000000000000000e+00, -1.20782237635245218e-01},
@@ -208,7 +213,7 @@ static const oracle_entry_t oracle_lgamma[] = {
 };
 static const int oracle_lgamma_count = 17;
 
-static const oracle_pow_entry_t oracle_pow[] = {
+static const oracle_pow_entry_t oracle_pow [] = {
     {2.00000000000000000e+00, 5.00000000000000000e-01, 1.41421356237309515e+00},
     {2.00000000000000000e+00, 1.00000000000000000e+01, 1.02400000000000000e+03},
     {2.00000000000000000e+00, -1.00000000000000000e+00, 5.00000000000000000e-01},

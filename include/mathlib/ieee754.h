@@ -7,7 +7,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /* ============================================================================
  * DEPRECATED (despot audit): legacy inline log/exp below are naive series
  * (7-term log, 15-term exp, single-term reduction, subnormal flush at
@@ -16,15 +15,15 @@ extern "C" {
  * new code; kept only for ABI archaeology. Prefer ml_log/ml_exp.
  * ========================================================================== */
 
-ML_INLINE double logarithm_ieee754(double x) {
-    if (ml_isnan(x)) return x;
-    if (x == 0.0) return -ml_make_inf(0);
-    if (x < 0.0) return ml_make_nan();
-    if (ml_isinf(x)) return x;
+ML_INLINE double logarithm_ieee754 (double x) {
+    if (ml_isnan (x)) return x;
+    if (x == 0.0) return -ml_make_inf (0);
+    if (x < 0.0) return ml_make_nan ();
+    if (ml_isinf (x)) return x;
     if (x == 1.0) return 0.0;
 
     uint64_t bits;
-    memcpy(&bits, &x, sizeof(uint64_t));
+    memcpy (&bits, &x, sizeof (uint64_t));
 
     uint64_t exp_bits = (bits >> 52) & 0x7FFULL;
     uint64_t mantissa = bits & 0x000FFFFFFFFFFFFFULL;
@@ -34,9 +33,9 @@ ML_INLINE double logarithm_ieee754(double x) {
 
     if (exp_bits == 0) {
         /* Subnormal */
-        if (mantissa == 0) return -ml_make_inf(0);
+        if (mantissa == 0) return -ml_make_inf (0);
 
-        m = (double)mantissa / 4503599627370496.0; /* 2^52 */
+        m = (double) mantissa / 4503599627370496.0; /* 2^52 */
         e = -1022;
 
         while (m < 1.0) {
@@ -45,8 +44,8 @@ ML_INLINE double logarithm_ieee754(double x) {
         }
     } else {
         mantissa |= 0x10000000000000ULL;
-        m = (double)mantissa / 4503599627370496.0; /* 2^52 */
-        e = (int)exp_bits - 1023;
+        m = (double) mantissa / 4503599627370496.0; /* 2^52 */
+        e = (int) exp_bits - 1023;
     }
 
     /* Balance into [sqrt(1/2), sqrt(2)] */
@@ -66,21 +65,20 @@ ML_INLINE double logarithm_ieee754(double x) {
         res += term / i;
     }
 
-    return 2.0 * res + (double)e * ML_LN2;
+    return 2.0 * res + (double) e * ML_LN2;
 }
-
-ML_INLINE double exponential_ieee754(double x) {
-    if (ml_isnan(x)) return x;
+ML_INLINE double exponential_ieee754 (double x) {
+    if (ml_isnan (x)) return x;
     if (x == 0.0) return 1.0;
-    if (ml_isinf(x)) return x > 0.0 ? ml_make_inf(0) : 0.0;
+    if (ml_isinf (x)) return x > 0.0 ? ml_make_inf (0) : 0.0;
 
-    if (x > 709.782712893384) return ml_make_inf(0);
+    if (x > 709.782712893384) return ml_make_inf (0);
     if (x < -745.133219101941) return 0.0;
 
     double n_d = x / ML_LN2;
-    int n = (int)(n_d + (n_d > 0.0 ? 0.5 : -0.5));
+    int n = (int) (n_d + (n_d > 0.0 ? 0.5 : -0.5));
 
-    double r = x - (double)n * ML_LN2;
+    double r = x - (double) n * ML_LN2;
 
     double res = 1.0;
     double term = 1.0;
@@ -91,22 +89,21 @@ ML_INLINE double exponential_ieee754(double x) {
     }
 
     uint64_t bits;
-    memcpy(&bits, &res, sizeof(uint64_t));
+    memcpy (&bits, &res, sizeof (uint64_t));
 
-    int64_t current_exp = (int64_t)((bits >> 52) & 0x7FFULL);
+    int64_t current_exp = (int64_t) ((bits >> 52) & 0x7FFULL);
     int64_t new_exp = current_exp + n;
 
     if (new_exp <= 0) return 0.0;
-    if (new_exp >= 0x7FF) return ml_make_inf(0);
+    if (new_exp >= 0x7FF) return ml_make_inf (0);
 
-    bits = (bits & 0x800FFFFFFFFFFFFFULL) | ((uint64_t)new_exp << 52);
+    bits = (bits & 0x800FFFFFFFFFFFFFULL) | ((uint64_t) new_exp << 52);
 
     double final_res;
-    memcpy(&final_res, &bits, sizeof(double));
+    memcpy (&final_res, &bits, sizeof (double));
 
     return final_res;
 }
-
 #ifdef __cplusplus
 }
 #endif

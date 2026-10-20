@@ -15,13 +15,13 @@ extern "C" {
  * ========================================================================== */
 
 /* Core Matrix Multiplication API (Exported) */
-ML_API void ml_matmul(const double* ML_RESTRICT A, const double* ML_RESTRICT B, double* ML_RESTRICT C, int N);
+ML_API void ml_matmul (const double *ML_RESTRICT A, const double *ML_RESTRICT B, double *ML_RESTRICT C, int N);
 
 /* Compile-Time Capability Queries (Exported) */
-ML_API int ml_cpu_has_avx2(void);
-ML_API int ml_cpu_has_fma(void);
-ML_API int ml_cpu_has_sse41(void);
-ML_API int ml_cpu_has_neon(void);
+ML_API int ml_cpu_has_avx2 (void);
+ML_API int ml_cpu_has_fma (void);
+ML_API int ml_cpu_has_sse41 (void);
+ML_API int ml_cpu_has_neon (void);
 
 #ifdef __cplusplus
 }

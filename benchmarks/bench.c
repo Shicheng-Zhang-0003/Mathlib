@@ -2,8 +2,8 @@
 #include <math.h>
 #include <time.h>
 
-static double (*raw_libm_sin)(double) = sin;
-static double (*raw_libm_sqrt)(double) = sqrt;
+static double (*raw_libm_sin) (double) = sin;
+static double (*raw_libm_sqrt) (double) = sqrt;
 
 #include "ml_trig.h"
 #include "ml_core.h"
@@ -11,75 +11,74 @@ static double (*raw_libm_sqrt)(double) = sqrt;
 
 /* benchmark-only, excluded from lib build, non-portable rdtsc isolated here. */
 #if defined(__x86_64__) || defined(__i386__)
-static inline unsigned long long bench_tick(void) {
+static inline unsigned long long bench_tick (void) {
     unsigned int lo, hi;
-    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
-    return ((unsigned long long)hi << 32) | lo;
+    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+    return ((unsigned long long) hi << 32) | lo;
 }
 #define BENCH_UNITS "cycles"
 #else
 /* Portable fallback for non-x86: clock() ticks (coarse, not cycle-accurate). */
-static inline unsigned long long bench_tick(void) {
-    return (unsigned long long)clock();
+static inline unsigned long long bench_tick (void) {
+    return (unsigned long long) clock ();
 }
 #define BENCH_UNITS "ticks"
 #endif
 
 volatile double sink = 0.0;
+int main () {
+    printf ("=========================================================\n");
+    printf ("   MATHLIB v1.0: Zero-Dependency Benchmark (rdtsc on x86, clock() fallback elsewhere)\n");
+    printf ("=========================================================\n\n");
 
-int main() {
-    printf("=========================================================\n");
-    printf("   MATHLIB v1.0: Zero-Dependency Benchmark (rdtsc on x86, clock() fallback elsewhere)\n");
-    printf("=========================================================\n\n");
-
-    #if defined(MATHLIB_PROFILE_GRAPHICS)
-    printf("Active Profile: GRAPHICS (Minimax + Fast RSqrt)\n");
-    #elif defined(MATHLIB_PROFILE_EMBEDDED)
-    printf("Active Profile: EMBEDDED (CORDIC)\n");
-    #else
-    printf("Active Profile: SCIENTIFIC (IEEE-754 Strict)\n");
-    #endif
-    printf("---------------------------------------------------------\n\n");
+#if defined(MATHLIB_PROFILE_GRAPHICS)
+    printf ("Active Profile: GRAPHICS (Minimax + Fast RSqrt)\n");
+#elif defined(MATHLIB_PROFILE_EMBEDDED)
+    printf ("Active Profile: EMBEDDED (CORDIC)\n");
+#else
+    printf ("Active Profile: SCIENTIFIC (IEEE-754 Strict)\n");
+#endif
+    printf ("---------------------------------------------------------\n\n");
 
     int iterations = 10000000;
     unsigned long long start, end;
     double cycles_per_op;
 
-    start = bench_tick();
-    for(int i = 0; i < iterations; i++) sink += raw_libm_sin(i * 0.0001);
-    end = bench_tick();
-    cycles_per_op = (double)(end - start) / iterations;
-    printf("GNU libm sin()        : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
+    start = bench_tick ();
+    for (int i = 0; i < iterations; i++) sink += raw_libm_sin (i * 0.0001);
+    end = bench_tick ();
+    cycles_per_op = (double) (end - start) / iterations;
+    printf ("GNU libm sin()        : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
 
-    start = bench_tick();
-    for(int i = 0; i < iterations; i++) sink += ml_sin(i * 0.0001);
-    end = bench_tick();
-    cycles_per_op = (double)(end - start) / iterations;
-    printf("mathlib ml_sin()      : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
+    start = bench_tick ();
+    for (int i = 0; i < iterations; i++) sink += ml_sin (i * 0.0001);
+    end = bench_tick ();
+    cycles_per_op = (double) (end - start) / iterations;
+    printf ("mathlib ml_sin()      : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
 
-    start = bench_tick();
-    for(int i = 0; i < iterations; i++) sink += ml_sqrt(i + 1.0);
-    end = bench_tick();
-    cycles_per_op = (double)(end - start) / iterations;
-    printf("mathlib ml_sqrt()     : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
+    start = bench_tick ();
+    for (int i = 0; i < iterations; i++) sink += ml_sqrt (i + 1.0);
+    end = bench_tick ();
+    cycles_per_op = (double) (end - start) / iterations;
+    printf ("mathlib ml_sqrt()     : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
 
-    start = bench_tick();
-    for(int i = 0; i < iterations; i++) sink += raw_libm_sqrt(i + 1.0);
-    end = bench_tick();
-    cycles_per_op = (double)(end - start) / iterations;
-    printf("GNU libm sqrt()       : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
+    start = bench_tick ();
+    for (int i = 0; i < iterations; i++) sink += raw_libm_sqrt (i + 1.0);
+    end = bench_tick ();
+    cycles_per_op = (double) (end - start) / iterations;
+    printf ("GNU libm sqrt()       : %6.2f %s / op\n", cycles_per_op, BENCH_UNITS);
 
-    double simd_in[4096] __attribute__((aligned(32)));
-    double simd_out[4096] __attribute__((aligned(32)));
-    for(int i=0; i<4096; i++) simd_in[i] = i + 1.0;
+    double simd_in [4096] __attribute__ ((aligned (32)));
+    double simd_out [4096] __attribute__ ((aligned (32)));
+    for (int i = 0; i < 4096; i++) simd_in [i] = i + 1.0;
 
-    start = bench_tick();
-    for(int i = 0; i < 10000; i++) {
-        for(int j=0; j<4096; j+=4) ml_simd_batch_poly(&simd_in[j], &simd_out[j]);
+    start = bench_tick ();
+    for (int i = 0; i < 10000; i++) {
+        for (int j = 0; j < 4096; j += 4) ml_simd_batch_poly (&simd_in [j], &simd_out [j]);
     }
-    end = bench_tick();
-    printf("mathlib SIMD Batch    : %6.2f %s / 4 ops\n", (double)(end - start) / (10000.0 * 1024.0), BENCH_UNITS);
+    end = bench_tick ();
+    printf ("mathlib SIMD Batch    : %6.2f %s / 4 ops\n", (double) (end - start) / (10000.0 * 1024.0), BENCH_UNITS);
 
-    printf("\n=========================================================\n");
+    printf ("\n=========================================================\n");
     return 0;
 }

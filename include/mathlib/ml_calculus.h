@@ -28,20 +28,20 @@ extern "C" {
 /* True 3-D scalar component: F_i(x,y,z). Replaces the old 1-D slice
  * ml_func_t f3[3] convention, which could not represent off-axis
  * partials (e.g. dF_z/dy needs F_z(x,y+hy,z)). */
-typedef double (*ml_vec3_func_t)(double x, double y, double z);
+typedef double (*ml_vec3_func_t) (double x, double y, double z);
 
-ML_API ml_status_t ml_gauss_legendre(int n, double *xs, double *ws);
-ML_API double ml_gauss_legendre_integral(ml_func_t f, double a, double b, int n);
-ML_API double ml_lagrange_interp(const double *x, const double *y, int n, double x0);
-ML_API ml_status_t ml_cubic_spline_natural(const double *x, const double *y, int n,
-                                           double *m2);
-ML_API double ml_cubic_spline_eval(const double *x, const double *y,
-                                   const double *m2, int n, double x0);
-ML_API void ml_grad3(ml_vec3_func_t f3[3], double x, double y, double z, double h,
-                     double *gx, double *gy, double *gz);
-ML_API double ml_div3(ml_vec3_func_t f3[3], double x, double y, double z, double h);
-ML_API void ml_curl3(ml_vec3_func_t f3[3], double x, double y, double z, double h,
-                     double *cx, double *cy, double *cz);
+ML_API ml_status_t ml_gauss_legendre (int n, double *xs, double *ws);
+ML_API double ml_gauss_legendre_integral (ml_func_t f, double a, double b, int n);
+ML_API double ml_lagrange_interp (const double *x, const double *y, int n, double x0);
+ML_API ml_status_t ml_cubic_spline_natural (const double *x, const double *y, int n,
+                                            double *m2);
+ML_API double ml_cubic_spline_eval (const double *x, const double *y,
+                                    const double *m2, int n, double x0);
+ML_API void ml_grad3 (ml_vec3_func_t f3 [3], double x, double y, double z, double h,
+                      double *gx, double *gy, double *gz);
+ML_API double ml_div3 (ml_vec3_func_t f3 [3], double x, double y, double z, double h);
+ML_API void ml_curl3 (ml_vec3_func_t f3 [3], double x, double y, double z, double h,
+                      double *cx, double *cy, double *cz);
 
 #ifdef __cplusplus
 }

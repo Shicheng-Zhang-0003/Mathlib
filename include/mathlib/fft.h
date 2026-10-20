@@ -15,10 +15,10 @@ extern "C" {
  * n > 2^24) are safe no-ops. Use ml_fft_is_supported() to query support
  * before calling.
  */
-ML_API int ml_fft_is_supported(int n);
+ML_API int ml_fft_is_supported (int n);
 
-ML_API void ml_fft_execute(cplx *x, int n);
-ML_API void ml_ifft_execute(cplx *x, int n);
+ML_API void ml_fft_execute (cplx *x, int n);
+ML_API void ml_ifft_execute (cplx *x, int n);
 
 #ifdef __cplusplus
 }

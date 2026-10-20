@@ -23,17 +23,17 @@ extern "C" {
  * the rank query). No oracle ULP claimed.
  * ========================================================================== */
 
-ML_API long long ml_euler_char(const int *counts, int dim);
-ML_API ml_status_t ml_simplicial_betti_f2(int nverts, const int *verts,
-                                          const int *off, const int *sdim,
-                                          int nsimps, int *betti, int maxdim);
-ML_API int ml_chain_f2_is_complex(const int *mats, const int *rows,
-                                  const int *cols, const int *offm, int nmaps);
-ML_API ml_status_t ml_chain_betti_f2(const int *mats, const int *rows,
-                                     const int *cols, const int *offm,
-                                     int nmaps, int *betti);
-ML_API int ml_bareiss_rank(const long long *A, int m, int n);
-ML_API ml_status_t ml_bareiss_det(const long long *A, int n, long long *det);
+ML_API long long ml_euler_char (const int *counts, int dim);
+ML_API ml_status_t ml_simplicial_betti_f2 (int nverts, const int *verts,
+                                           const int *off, const int *sdim,
+                                           int nsimps, int *betti, int maxdim);
+ML_API int ml_chain_f2_is_complex (const int *mats, const int *rows,
+                                   const int *cols, const int *offm, int nmaps);
+ML_API ml_status_t ml_chain_betti_f2 (const int *mats, const int *rows,
+                                      const int *cols, const int *offm,
+                                      int nmaps, int *betti);
+ML_API int ml_bareiss_rank (const long long *A, int m, int n);
+ML_API ml_status_t ml_bareiss_det (const long long *A, int n, long long *det);
 
 #ifdef __cplusplus
 }

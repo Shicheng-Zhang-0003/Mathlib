@@ -8,10 +8,10 @@
 extern "C" {
 #endif
 
-typedef double (*ml_opt_func_t)(double x);
+typedef double (*ml_opt_func_t) (double x);
 
-ML_API double ml_optimize_golden(ml_opt_func_t f, double a, double b, double tol, int max_iter);
-ML_API double ml_optimize_gradient_descent(ml_opt_func_t f, double start, double lr, double tol, int max_iter);
+ML_API double ml_optimize_golden (ml_opt_func_t f, double a, double b, double tol, int max_iter);
+ML_API double ml_optimize_gradient_descent (ml_opt_func_t f, double start, double lr, double tol, int max_iter);
 
 #ifdef __cplusplus
 }

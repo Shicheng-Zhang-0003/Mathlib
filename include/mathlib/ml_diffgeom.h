@@ -21,16 +21,16 @@ extern "C" {
  * No oracle ULP claimed.
  * ========================================================================== */
 
-typedef double (*ml_surf_func_t)(double u, double v);
+typedef double (*ml_surf_func_t) (double u, double v);
 
-ML_API double ml_curvature_graph(ml_func_t f, double x);
-ML_API double ml_curvature_param(ml_func_t fx, ml_func_t fy, double t);
-ML_API ml_status_t ml_frenet_frame(ml_func_t fx, ml_func_t fy, ml_func_t fz,
-                                   double t, double T[3], double N[3],
-                                   double B[3], double *kappa, double *tau);
-ML_API ml_status_t ml_surf_curvatures(ml_surf_func_t rx, ml_surf_func_t ry,
-                                      ml_surf_func_t rz, double u, double v,
-                                      double *K, double *H);
+ML_API double ml_curvature_graph (ml_func_t f, double x);
+ML_API double ml_curvature_param (ml_func_t fx, ml_func_t fy, double t);
+ML_API ml_status_t ml_frenet_frame (ml_func_t fx, ml_func_t fy, ml_func_t fz,
+                                    double t, double T [3], double N [3],
+                                    double B [3], double *kappa, double *tau);
+ML_API ml_status_t ml_surf_curvatures (ml_surf_func_t rx, ml_surf_func_t ry,
+                                       ml_surf_func_t rz, double u, double v,
+                                       double *K, double *H);
 
 #ifdef __cplusplus
 }
