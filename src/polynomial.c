@@ -1,35 +1,33 @@
 #include "ml_compiler.h"
 #include "ml_polynomial.h"
-
 /* v11S CLOSURE IP-15: polynomial robustness */
 
-ML_API double ml_polynomial_eval(const double *coeffs, int degree, double x) {
-    if (ML_UNLIKELY(coeffs == NULL || degree < 0)) {
-        return ml_make_nan();
+ML_API double ml_polynomial_eval (const double *coeffs, int degree, double x) {
+    if (ML_UNLIKELY (coeffs == NULL || degree < 0)) {
+        return ml_make_nan ();
     }
     /* Finite-input validation: non-finite x or coefficients -> NaN. */
-    if (ML_UNLIKELY(!ml_isfinite(x))) {
-        return ml_make_nan();
+    if (ML_UNLIKELY (!ml_isfinite (x))) {
+        return ml_make_nan ();
     }
     for (int i = 0; i <= degree; i++) {
-        if (ML_UNLIKELY(!ml_isfinite(coeffs[i]))) {
-            return ml_make_nan();
+        if (ML_UNLIKELY (!ml_isfinite (coeffs [i]))) {
+            return ml_make_nan ();
         }
     }
 
     {
-        double result = coeffs[degree];
+        double result = coeffs [degree];
 
         for (int i = degree - 1; i >= 0; i--) {
-            result = ML_FMA(result, x, coeffs[i]);
+            result = ML_FMA (result, x, coeffs [i]);
         }
 
         return result;
     }
 }
-
-ML_API void ml_polynomial_derivative(const double *coeffs, int degree, double *out) {
-    if (ML_UNLIKELY(coeffs == NULL || out == NULL || degree < 0)) {
+ML_API void ml_polynomial_derivative (const double *coeffs, int degree, double *out) {
+    if (ML_UNLIKELY (coeffs == NULL || out == NULL || degree < 0)) {
         return;
     }
     /* DESPOT-AUDIT: degree==0 has no derivative coefficients; contract says
@@ -38,56 +36,55 @@ ML_API void ml_polynomial_derivative(const double *coeffs, int degree, double *o
     if (degree == 0) return;
     /* Finite-input validation: non-finite coefficients -> NaN outputs. */
     for (int i = 0; i <= degree; i++) {
-        if (ML_UNLIKELY(!ml_isfinite(coeffs[i]))) {
+        if (ML_UNLIKELY (!ml_isfinite (coeffs [i]))) {
             for (int j = 0; j < degree; j++) {
-                out[j] = ml_make_nan();
+                out [j] = ml_make_nan ();
             }
             return;
         }
     }
 
     for (int i = 0; i < degree; i++) {
-        out[i] = coeffs[i + 1] * (double)(i + 1);
+        out [i] = coeffs [i + 1] * (double) (i + 1);
     }
 }
-
-ML_API double ml_polynomial_newton(const double *coeffs, int degree, double x0, double epsilon, int max_iter) {
-    if (ML_UNLIKELY(coeffs == NULL || degree < 0)) {
-        return ml_make_nan();
+ML_API double ml_polynomial_newton (const double *coeffs, int degree, double x0, double epsilon, int max_iter) {
+    if (ML_UNLIKELY (coeffs == NULL || degree < 0)) {
+        return ml_make_nan ();
     }
 
-    if (ML_UNLIKELY(!(epsilon > 0.0) || !ml_isfinite(epsilon) || max_iter <= 0)) {
-        return ml_make_nan();
+    if (ML_UNLIKELY (!(epsilon > 0.0) || !ml_isfinite (epsilon) || max_iter <= 0)) {
+        return ml_make_nan ();
     }
 
-    if (ML_UNLIKELY(degree == 0)) {
-        return ml_make_nan();
+    if (ML_UNLIKELY (degree == 0)) {
+        return ml_make_nan ();
     }
 
-    if (ML_UNLIKELY(!ml_isfinite(x0))) {
-        return ml_make_nan();
+    if (ML_UNLIKELY (!ml_isfinite (x0))) {
+        return ml_make_nan ();
     }
 
     /* Finite-input validation: non-finite coefficients -> NaN. */
     for (int i = 0; i <= degree; i++) {
-        if (ML_UNLIKELY(!ml_isfinite(coeffs[i]))) {
-            return ml_make_nan();
+        if (ML_UNLIKELY (!ml_isfinite (coeffs [i]))) {
+            return ml_make_nan ();
         }
     }
 
     double x = x0;
 
     for (int iter = 0; iter < max_iter; iter++) {
-        double fx = coeffs[degree];
+        double fx = coeffs [degree];
         double dfx = 0.0;
 
         for (int i = degree - 1; i >= 0; i--) {
-            dfx = ML_FMA(dfx, x, fx);
-            fx = ML_FMA(fx, x, coeffs[i]);
+            dfx = ML_FMA (dfx, x, fx);
+            fx = ML_FMA (fx, x, coeffs [i]);
         }
 
-        if (ML_UNLIKELY(!ml_isfinite(fx) || !ml_isfinite(dfx))) {
-            return ml_make_nan();
+        if (ML_UNLIKELY (!ml_isfinite (fx) || !ml_isfinite (dfx))) {
+            return ml_make_nan ();
         }
 
         if (fx == 0.0) {
@@ -98,17 +95,17 @@ ML_API double ml_polynomial_newton(const double *coeffs, int degree, double x0, 
          * nonzero derivative is traversable; the old
          * fabs(dfx)<epsilon test confused x-tolerance with derivative
          * scale and spuriously aborted (e.g. dfx=1e-13, eps=1e-12). */
-        if (ML_UNLIKELY(dfx == 0.0)) {
-            return ml_make_nan();
+        if (ML_UNLIKELY (dfx == 0.0)) {
+            return ml_make_nan ();
         }
 
         double x_next = x - fx / dfx;
 
-        if (ML_UNLIKELY(!ml_isfinite(x_next))) {
-            return ml_make_nan();
+        if (ML_UNLIKELY (!ml_isfinite (x_next))) {
+            return ml_make_nan ();
         }
 
-        if (ml_fabs(x_next - x) <= epsilon * (1.0 + ml_fabs(x_next))) {
+        if (ml_fabs (x_next - x) <= epsilon * (1.0 + ml_fabs (x_next))) {
             return x_next;
         }
 
@@ -117,5 +114,5 @@ ML_API double ml_polynomial_newton(const double *coeffs, int degree, double x0, 
 
     /* Convergence-failure signal: max_iter exhausted without meeting
      * the epsilon criterion returns NaN (not the last iterate). */
-    return ml_make_nan();
+    return ml_make_nan ();
 }

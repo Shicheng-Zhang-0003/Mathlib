@@ -1,26 +1,24 @@
 #include "ml_compiler.h"
 #include "ml_core.h"
 #include "internal/ieee_exact.h"
-
-ML_API double ml_sqrt(double x) {
-    if (x < 0.0) return ml_make_nan();
+ML_API double ml_sqrt (double x) {
+    if (x < 0.0) return ml_make_nan ();
     if (x == 0.0) return x;
-    return __builtin_sqrt(x);
+    return __builtin_sqrt (x);
 }
-
-ML_API double ml_ldexp_pure(double x, int exp) {
+ML_API double ml_ldexp_pure (double x, int exp) {
     /* MATHLIB_REDP2_P0_1_LDEXP_SUBNORMAL_OVERFLOW */
-    ml_fp_parts_t p = ml_fp_decompose(x);
+    ml_fp_parts_t p = ml_fp_decompose (x);
 
     if (p.kind == ML_FP_ZERO || p.kind == ML_FP_INF || p.kind == ML_FP_NAN) {
         return x;
     }
 
-    long long e = (long long)p.exp + (long long)exp;
+    long long e = (long long) p.exp + (long long) exp;
     uint64_t sig = p.sig;
 
     if (sig == 0) {
-        return ml_copysign(0.0, x);
+        return ml_copysign (0.0, x);
     }
 
     /*
@@ -47,23 +45,22 @@ ML_API double ml_ldexp_pure(double x, int exp) {
     }
 
     if (e > 971) {
-        return ml_make_inf(p.sign);
+        return ml_make_inf (p.sign);
     }
 
     if (e < -2098) {
         uint64_t bits = p.sign ? 0x8000000000000000ULL : 0ULL;
         double d;
-        memcpy(&d, &bits, sizeof(double));
+        memcpy (&d, &bits, sizeof (double));
         return d;
     }
 
-    return ml_fp_compose(sig, (int)e, p.sign);
+    return ml_fp_compose (sig, (int) e, p.sign);
 }
+ML_API double ml_frexp_pure (double x, int *exp) {
+    if (!exp) return ml_make_nan ();
 
-ML_API double ml_frexp_pure(double x, int *exp) {
-    if (!exp) return ml_make_nan();
-
-    ml_fp_parts_t p = ml_fp_decompose(x);
+    ml_fp_parts_t p = ml_fp_decompose (x);
 
     if (p.kind == ML_FP_ZERO) {
         *exp = 0;
@@ -84,29 +81,28 @@ ML_API double ml_frexp_pure(double x, int *exp) {
         e--;
     }
 
-    double m = (double)sig / 9007199254740992.0; /* 2^53 */
+    double m = (double) sig / 9007199254740992.0; /* 2^53 */
     *exp = e + 53;
 
     return p.sign ? -m : m;
 }
-
-ML_API double ml_fmod(double x, double y) {
+ML_API double ml_fmod (double x, double y) {
     /* v11S AUDIT IP-1: exact fmod for all finite nonzero inputs */
-    if (ml_isnan(x) || ml_isnan(y) || ml_isinf(x)) return ml_make_nan();
-    if (ml_isinf(y)) return x;
-    if (y == 0.0) return ml_make_nan();
+    if (ml_isnan (x) || ml_isnan (y) || ml_isinf (x)) return ml_make_nan ();
+    if (ml_isinf (y)) return x;
+    if (y == 0.0) return ml_make_nan ();
 
-    double ax = ml_fabs(x);
-    double ay = ml_fabs(y);
+    double ax = ml_fabs (x);
+    double ay = ml_fabs (y);
 
     if (ax < ay) return x;
-    if (ax == ay) return ml_copysign(0.0, x);
+    if (ax == ay) return ml_copysign (0.0, x);
 
-    ml_fp_parts_t px = ml_fp_decompose(ax);
-    ml_fp_parts_t py = ml_fp_decompose(ay);
+    ml_fp_parts_t px = ml_fp_decompose (ax);
+    ml_fp_parts_t py = ml_fp_decompose (ay);
 
-    if (px.sig == 0) return ml_copysign(0.0, x);
-    if (py.sig == 0) return ml_make_nan();
+    if (px.sig == 0) return ml_copysign (0.0, x);
+    if (py.sig == 0) return ml_make_nan ();
 
     int d = px.exp - py.exp;
 
@@ -130,13 +126,13 @@ ML_API double ml_fmod(double x, double y) {
         uint64_t ysig = py.sig << sd;
         uint64_t rem = px.sig % ysig;
 
-        return ml_fp_compose(rem, px.exp, ml_signbit(x));
+        return ml_fp_compose (rem, px.exp, ml_signbit (x));
     }
 
     uint64_t rem = px.sig % py.sig;
 
     if (rem == 0) {
-        return ml_copysign(0.0, x);
+        return ml_copysign (0.0, x);
     }
 
     for (int i = 0; i < d; i++) {
@@ -145,16 +141,15 @@ ML_API double ml_fmod(double x, double y) {
         if (rem == 0) break;
     }
 
-    return ml_fp_compose(rem, py.exp, ml_signbit(x));
+    return ml_fp_compose (rem, py.exp, ml_signbit (x));
 }
-
-ML_API double ml_round(double x) {
+ML_API double ml_round (double x) {
     /* MATHLIB_REDP2_P0_2_ROUND_CORRECT */
-    if (ml_isnan(x) || ml_isinf(x)) return x;
+    if (ml_isnan (x) || ml_isinf (x)) return x;
     if (x == 0.0) return x;
 
-    int neg = ml_signbit(x);
-    ml_fp_parts_t p = ml_fp_decompose(neg ? -x : x);
+    int neg = ml_signbit (x);
+    ml_fp_parts_t p = ml_fp_decompose (neg ? -x : x);
 
     if (p.kind == ML_FP_ZERO) {
         return x;
@@ -174,7 +169,7 @@ ML_API double ml_round(double x) {
         return neg ? -0.0 : 0.0;
     }
 
-    unsigned frac_bits = (unsigned)(-p.exp);
+    unsigned frac_bits = (unsigned) (-p.exp);
 
     uint64_t int_part = p.sig >> frac_bits;
     uint64_t frac_mask = (1ULL << frac_bits) - 1ULL;
@@ -191,18 +186,17 @@ ML_API double ml_round(double x) {
         int_part++;
     }
 
-    double r = (double)int_part;
+    double r = (double) int_part;
     return neg ? -r : r;
 }
-
-ML_API double ml_trunc(double x) {
+ML_API double ml_trunc (double x) {
     /* Truncation toward zero via exact integer-bit manipulation.
      * Avoids x±0.5 rounding hazards and preserves signed zero. */
-    if (ml_isnan(x) || ml_isinf(x)) return x;
+    if (ml_isnan (x) || ml_isinf (x)) return x;
     if (x == 0.0) return x;
 
-    int neg = ml_signbit(x);
-    ml_fp_parts_t p = ml_fp_decompose(neg ? -x : x);
+    int neg = ml_signbit (x);
+    ml_fp_parts_t p = ml_fp_decompose (neg ? -x : x);
 
     if (p.kind == ML_FP_ZERO) {
         return x;
@@ -215,39 +209,35 @@ ML_API double ml_trunc(double x) {
         return neg ? -0.0 : 0.0;
     }
     {
-        unsigned fb = (unsigned)(-p.exp);
+        unsigned fb = (unsigned) (-p.exp);
         uint64_t int_part = p.sig >> fb;
-        double r = (double)int_part;
+        double r = (double) int_part;
         return neg ? -r : r;
     }
 }
-
-ML_API double ml_floor(double x) {
-    if (ml_isnan(x) || ml_isinf(x)) return x;
+ML_API double ml_floor (double x) {
+    if (ml_isnan (x) || ml_isinf (x)) return x;
     if (x == 0.0) return x;
     {
-        double t = ml_trunc(x);
+        double t = ml_trunc (x);
         if (t == x) return x;
         return (x < 0.0) ? t - 1.0 : t;
     }
 }
-
-ML_API double ml_ceil(double x) {
-    if (ml_isnan(x) || ml_isinf(x)) return x;
+ML_API double ml_ceil (double x) {
+    if (ml_isnan (x) || ml_isinf (x)) return x;
     if (x == 0.0) return x;
     {
-        double t = ml_trunc(x);
+        double t = ml_trunc (x);
         if (t == x) return x;
         return (x > 0.0) ? t + 1.0 : t;
     }
 }
-
-ML_API double ml_hypot(double x, double y) {
+ML_API double ml_hypot (double x, double y) {
     /* Correctly-rounded builtin: <1 ULP + overflow-safe (was 2 ULP manual). */
-    return __builtin_hypot(x, y);
+    return __builtin_hypot (x, y);
 }
-
-ML_API double ml_remainder(double x, double y) {
+ML_API double ml_remainder (double x, double y) {
     /* C99 remainder: x - n*y with n=rint_half_even(x/y), exact for all
      * finite nonzero inputs.
      * Round-4: the long-double quotient path was catastrophically wrong for
@@ -256,17 +246,17 @@ ML_API double ml_remainder(double x, double y) {
      * on the exact ml_fmod plus exact half-comparison and exact quotient
      * parity — no floating-point arithmetic except the final Sterbenz-exact
      * subtraction. Matches system remainder bit-for-bit on the full grid. */
-    if (ml_isnan(x) || ml_isnan(y)) return ml_make_nan();
-    if (ml_isinf(x) || y == 0.0) return ml_make_nan();
-    if (ml_isinf(y)) return x;
+    if (ml_isnan (x) || ml_isnan (y)) return ml_make_nan ();
+    if (ml_isinf (x) || y == 0.0) return ml_make_nan ();
+    if (ml_isinf (y)) return x;
     if (x == 0.0) return x;
     {
-        double ay = ml_fabs(y);
-        double f = ml_fmod(x, y);
+        double ay = ml_fabs (y);
+        double f = ml_fmod (x, y);
         double af;
         int cmp;
         if (f == 0.0) return f;
-        af = ml_fabs(f);
+        af = ml_fabs (f);
         /* Exact compare of 2*|f| vs |y| (never forms 2*|f|: it could
          * overflow near DBL_MAX, and odd-normalized exponent-first
          * comparison is WRONG since significands differ).
@@ -275,14 +265,14 @@ ML_API double ml_remainder(double x, double y) {
          * Subnormal |y|: both are on the -1074 grid, so compare the
          * integer significands 2F vs Y (2F < 2^54, no overflow). */
         {
-            ml_fp_parts_t py = ml_fp_decompose(ay);
+            ml_fp_parts_t py = ml_fp_decompose (ay);
             if (py.kind == ML_FP_NORMAL) {
                 double h = ay * 0.5;
                 if (af < h) cmp = -1;
                 else if (af > h) cmp = 1;
                 else cmp = 0;
             } else {
-                ml_fp_parts_t pf = ml_fp_decompose(af);
+                ml_fp_parts_t pf = ml_fp_decompose (af);
                 uint64_t two_f = pf.sig << 1;
                 if (two_f < py.sig) cmp = -1;
                 else if (two_f > py.sig) cmp = 1;
@@ -294,20 +284,20 @@ ML_API double ml_remainder(double x, double y) {
         /* Exact tie: 2|f| == |y|. Pick the even n (t or t+1).
          * t = trunc(|x|/|y|); t odd  <=>  ((X*2^d) mod 2Y)/Y == 1. */
         {
-            ml_fp_parts_t px = ml_fp_decompose(ml_fabs(x));
-            ml_fp_parts_t py = ml_fp_decompose(ay);
+            ml_fp_parts_t px = ml_fp_decompose (ml_fabs (x));
+            ml_fp_parts_t py = ml_fp_decompose (ay);
             uint64_t X = px.sig, Y = py.sig;
-            long long d = (long long)px.exp - (long long)py.exp;
+            long long d = (long long) px.exp - (long long) py.exp;
             int t_odd;
             if (d < 0) {
                 uint64_t t;
                 if (d < -63) t = 0;
                 else {
-                    uint64_t den = Y << (unsigned)(-d);
-                    if ((den >> (unsigned)(-d)) != Y) t = 0;
+                    uint64_t den = Y << (unsigned) (-d);
+                    if ((den >> (unsigned) (-d)) != Y) t = 0;
                     else t = X / den;
                 }
-                t_odd = (int)(t & 1ULL);
+                t_odd = (int) (t & 1ULL);
             } else {
                 /* m = (X * 2^d) mod 2Y by repeated doubling (d <= ~2100).
                  * Pure uint64: X < 2^53, Y < 2^53, so 2Y < 2^54 and every
@@ -321,31 +311,27 @@ ML_API double ml_remainder(double x, double y) {
                     if (m >= mod) m -= mod;
                     if (m >= mod) m -= mod;
                 }
-                t_odd = (int)((m / Y) & 1ULL);
+                t_odd = (int) ((m / Y) & 1ULL);
             }
             if (!t_odd) return f;
             return (f > 0.0) ? f - ay : f + ay;
         }
     }
 }
-
-ML_API double ml_fdim(double x, double y) {
-    if (ml_isnan(x) || ml_isnan(y)) return ml_make_nan();
+ML_API double ml_fdim (double x, double y) {
+    if (ml_isnan (x) || ml_isnan (y)) return ml_make_nan ();
     if (x <= y) return 0.0;
     return x - y;
 }
-
-ML_API double ml_fmax(double x, double y) {
-    if (ml_isnan(x)) return y;
-    if (ml_isnan(y)) return x;
-    if (x == y) return ml_signbit(x) ? y : x;
+ML_API double ml_fmax (double x, double y) {
+    if (ml_isnan (x)) return y;
+    if (ml_isnan (y)) return x;
+    if (x == y) return ml_signbit (x) ? y : x;
     return (x > y) ? x : y;
 }
-
-ML_API double ml_fmin(double x, double y) {
-    if (ml_isnan(x)) return y;
-    if (ml_isnan(y)) return x;
-    if (x == y) return ml_signbit(x) ? x : y;
+ML_API double ml_fmin (double x, double y) {
+    if (ml_isnan (x)) return y;
+    if (ml_isnan (y)) return x;
+    if (x == y) return ml_signbit (x) ? x : y;
     return (x < y) ? x : y;
 }
-

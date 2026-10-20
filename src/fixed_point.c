@@ -11,11 +11,9 @@
  * too large (accumulated ~1e-3 rad ~= 65 LSB angle error). Values below
  * are round-to-nearest; residual CORDIC angle error is now ~2 LSB.
  */
-static const ml_q16_16_t fixed_cordic_atan[] = {
+static const ml_q16_16_t fixed_cordic_atan [] = {
     51472, 30386, 16055, 8150, 4091, 2047, 1024, 512,
-    256, 128, 64, 32, 16, 8, 4, 2, 1
-};
-
+    256, 128, 64, 32, 16, 8, 4, 2, 1};
 /*
  * Defined arithmetic right shift for signed 64-bit integers.
  *
@@ -23,7 +21,7 @@ static const ml_q16_16_t fixed_cordic_atan[] = {
  * This helper emulates the usual arithmetic-shift behavior portably:
  * floor(value / 2^shift).
  */
-static inline int64_t ml_i64_asr(int64_t value, int shift) {
+static inline int64_t ml_i64_asr (int64_t value, int shift) {
     /* R5 despot: harden generic helper. 1LL<<shift is UB for shift>=63
      * or shift<0; -value is UB for INT64_MIN. All in-tree callers use
      * 0<=shift<=16, but the helper is generic so fail safe. */
@@ -37,14 +35,14 @@ static inline int64_t ml_i64_asr(int64_t value, int shift) {
     if (value == INT64_MIN) {
         /* floor(INT64_MIN / 2^shift) == -2^(63-shift) exactly, no remainder.
          * 1<=shift<=62 here so the shift is safe. */
-        return -((int64_t)((uint64_t)1ULL << (unsigned)(63 - shift)));
+        return -((int64_t) ((uint64_t) 1ULL << (unsigned) (63 - shift)));
     }
 
     if (value >= 0) {
         return value >> shift;
     }
 
-    int64_t divisor = (int64_t)1LL << shift;
+    int64_t divisor = (int64_t) 1LL << shift;
     int64_t pos = -value;
 
     /*
@@ -54,14 +52,13 @@ static inline int64_t ml_i64_asr(int64_t value, int shift) {
     int64_t rounded = (pos + divisor - 1) >> shift;
     return -rounded;
 }
-
 /*
  * Defined arithmetic right shift for signed 32-bit integers.
  *
  * This is used by the CORDIC iteration to replace raw `x >> i`
  * and `y >> i`, which were implementation-defined for negative values.
  */
-static inline ml_q16_16_t ml_q16_asr(ml_q16_16_t value, int shift) {
+static inline ml_q16_16_t ml_q16_asr (ml_q16_16_t value, int shift) {
     /* R5 despot: same hardening as ml_i64_asr. In-tree shifts are 0..15. */
     if (shift <= 0) {
         if (shift == 0) return value;
@@ -71,40 +68,38 @@ static inline ml_q16_16_t ml_q16_asr(ml_q16_16_t value, int shift) {
         return (value >= 0) ? 0 : -1;
     }
 
-    int64_t v = (int64_t)value;
+    int64_t v = (int64_t) value;
 
     if (v >= 0) {
-        return (ml_q16_16_t)(v >> shift);
+        return (ml_q16_16_t) (v >> shift);
     }
 
-    int64_t divisor = (int64_t)1LL << shift;
+    int64_t divisor = (int64_t) 1LL << shift;
     int64_t pos = -v;
     int64_t rounded = (pos + divisor - 1) >> shift;
 
-    return (ml_q16_16_t)(-rounded);
+    return (ml_q16_16_t) (-rounded);
 }
-
-ML_API ml_q16_16_t ml_fixed_mul(ml_q16_16_t a, ml_q16_16_t b) {
-    int64_t product = (int64_t)a * (int64_t)b;
+ML_API ml_q16_16_t ml_fixed_mul (ml_q16_16_t a, ml_q16_16_t b) {
+    int64_t product = (int64_t) a * (int64_t) b;
 
     /*
      * Portable arithmetic shift instead of raw `>> 16`.
      */
-    int64_t res = ml_i64_asr(product, 16);
+    int64_t res = ml_i64_asr (product, 16);
 
-    if (res > (int64_t)INT32_MAX) {
-        return (ml_q16_16_t)INT32_MAX;
+    if (res > (int64_t) INT32_MAX) {
+        return (ml_q16_16_t) INT32_MAX;
     }
 
-    if (res < (int64_t)INT32_MIN) {
-        return (ml_q16_16_t)INT32_MIN;
+    if (res < (int64_t) INT32_MIN) {
+        return (ml_q16_16_t) INT32_MIN;
     }
 
-    return (ml_q16_16_t)res;
+    return (ml_q16_16_t) res;
 }
-
-ML_API void ml_cordic_sincos_fixed(ml_q16_16_t theta, ml_q16_16_t *sin_out, ml_q16_16_t *cos_out) {
-    if (ML_UNLIKELY(sin_out == NULL || cos_out == NULL)) {
+ML_API void ml_cordic_sincos_fixed (ml_q16_16_t theta, ml_q16_16_t *sin_out, ml_q16_16_t *cos_out) {
+    if (ML_UNLIKELY (sin_out == NULL || cos_out == NULL)) {
         return;
     }
 
@@ -148,8 +143,8 @@ ML_API void ml_cordic_sincos_fixed(ml_q16_16_t theta, ml_q16_16_t *sin_out, ml_q
      * The gain constant matches the 16-iteration regime.
      */
     for (int i = 0; i < 16; i++) {
-        ml_q16_16_t x_shift = ml_q16_asr(x, i);
-        ml_q16_16_t y_shift = ml_q16_asr(y, i);
+        ml_q16_16_t x_shift = ml_q16_asr (x, i);
+        ml_q16_16_t y_shift = ml_q16_asr (y, i);
 
         ml_q16_16_t x_new;
         ml_q16_16_t y_new;
@@ -157,11 +152,11 @@ ML_API void ml_cordic_sincos_fixed(ml_q16_16_t theta, ml_q16_16_t *sin_out, ml_q
         if (z >= 0) {
             x_new = x - y_shift;
             y_new = y + x_shift;
-            z -= fixed_cordic_atan[i];
+            z -= fixed_cordic_atan [i];
         } else {
             x_new = x + y_shift;
             y_new = y - x_shift;
-            z += fixed_cordic_atan[i];
+            z += fixed_cordic_atan [i];
         }
 
         x = x_new;

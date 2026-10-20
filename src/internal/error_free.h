@@ -26,19 +26,17 @@
  */
 
 #include "ml_compiler.h"
-
 /*
  * Knuth's Two-Sum.
  * No magnitude assumption on a, b.
  * Returns s = fl(a + b) and sets *err = (a + b) - s exactly.
  */
-static inline double ml_two_sum(double a, double b, double *err) {
+static inline double ml_two_sum (double a, double b, double *err) {
     double s = a + b;
     double v = s - a;
     *err = (a - (s - v)) + (b - v);
     return s;
 }
-
 /*
  * Dekker's Fast Two-Sum.
  * PRECONDITION: |a| >= |b| (caller must guarantee this).
@@ -47,13 +45,12 @@ static inline double ml_two_sum(double a, double b, double *err) {
  * Faster than ml_two_sum (3 ops vs 6) but only valid when
  * the magnitude ordering is known.
  */
-static inline double ml_fast_two_sum(double a, double b, double *err) {
+static inline double ml_fast_two_sum (double a, double b, double *err) {
     double s = a + b;
     double z = s - a;
     *err = b - z;
     return s;
 }
-
 /*
  * Dekker's Two-Product.
  * Returns p = fl(a * b) and sets *err = (a * b) - p exactly.
@@ -67,7 +64,7 @@ static inline double ml_fast_two_sum(double a, double b, double *err) {
  * remains useful for platforms without FMA and for code that
  * needs to be FMA-independent.
  */
-static inline double ml_two_product(double a, double b, double *err) {
+static inline double ml_two_product (double a, double b, double *err) {
     double p = a * b;
     double ca = a * 134217729.0; /* 2^27 + 1 */
     double a_hi = ca - (ca - a);
@@ -78,7 +75,6 @@ static inline double ml_two_product(double a, double b, double *err) {
     *err = ((a_hi * b_hi - p) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
     return p;
 }
-
 /*
  * Software FMA emulation.
  *
@@ -92,42 +88,100 @@ static inline double ml_two_product(double a, double b, double *err) {
  *     back to (a*b)+c on such platforms, which is even worse)
  *   - educational/reference purposes
  */
-static inline double ml_fma_soft(double a, double b, double c) {
+static inline double ml_fma_soft (double a, double b, double c) {
     double p, prod_err;
-    p = ml_two_product(a, b, &prod_err);
+    p = ml_two_product (a, b, &prod_err);
     double s1, sum_err;
-    s1 = ml_two_sum(p, c, &sum_err);
+    s1 = ml_two_sum (p, c, &sum_err);
     return s1 + (prod_err + sum_err);
 }
-
 /* ---- Double-double helpers for <1 ULP Horner (all via ML_FMA) ---- */
-typedef struct { double hi; double lo; } ml_ddx_t;
-
-static inline ml_ddx_t ml_ddx_from_d(double a) {
-    ml_ddx_t r; r.hi = a; r.lo = 0.0; return r;
+typedef struct {
+    double hi;
+    double lo;
+} ml_ddx_t;
+static inline ml_ddx_t ml_ddx_from_d (double a) {
+    ml_ddx_t r;
+    r.hi = a;
+    r.lo = 0.0;
+    return r;
 }
-
-static inline ml_ddx_t ml_ddx_renorm(double hi, double lo) {
+static inline ml_ddx_t ml_ddx_renorm (double hi, double lo) {
     double s, e;
-    s = ml_two_sum(hi, lo, &e);
-    ml_ddx_t r; r.hi = s; r.lo = e; return r;
+    s = ml_two_sum (hi, lo, &e);
+    ml_ddx_t r;
+    r.hi = s;
+    r.lo = e;
+    return r;
 }
-
-static inline ml_ddx_t ml_ddx_add_d(ml_ddx_t a, double b) {
+static inline ml_ddx_t ml_ddx_add_d (ml_ddx_t a, double b) {
     double s, e1, e2;
-    s = ml_two_sum(a.hi, b, &e1);
+    s = ml_two_sum (a.hi, b, &e1);
     e2 = e1 + a.lo;
-    return ml_ddx_renorm(s, e2);
+    return ml_ddx_renorm (s, e2);
 }
-
-static inline ml_ddx_t ml_ddx_mul_d(ml_ddx_t a, double b) {
+static inline ml_ddx_t ml_ddx_mul_d (ml_ddx_t a, double b) {
     double p = a.hi * b;
-    double e = ML_FMA(a.hi, b, -p) + a.lo * b;
-    return ml_ddx_renorm(p, e);
+    double e = ML_FMA (a.hi, b, -p) + a.lo * b;
+    return ml_ddx_renorm (p, e);
 }
-
-static inline double ml_ddx_to_d(ml_ddx_t a) {
+static inline double ml_ddx_to_d (ml_ddx_t a) {
+    /* Correctly rounded DD->double barring over/underflow (single rounding
+     * of the exact hi+lo sum). */
     return a.hi + a.lo;
 }
+/* ---- Full double-double arithmetic (R6 ULP push toward <0.5).
+ *
+ * Error bounds (Muller et al.): add/mul ~2^-102 relative, div ~ a few
+ * ULP DD (~1e-31). Enough to decide double rounding everywhere except
+ * within ~1e-31 of a boundary (true Table-Maker points, cataloged).
+ * All static inline (per-TU code, no ABI surface, thread-safe).
+ * Preconditions: finite non-overlapping (hi,lo) with |lo| <= ulp(hi)/2
+ * (ml_ddx_renorm establishes this; ml_ddx_from_ld below too).
+ * No NaN/Inf/overflow checking inside: callers validate domains. */
 
+static inline ml_ddx_t ml_ddx_neg (ml_ddx_t a) {
+    ml_ddx_t r;
+    r.hi = -a.hi;
+    r.lo = -a.lo;
+    return r;
+}
+static inline ml_ddx_t ml_ddx_from_ld (long double x) {
+    /* Split LD into non-overlapping DD (difference is exact in LD:
+     * hi holds the leading 53 bits). */
+    double hi = (double) x;
+    double lo = (double) (x - (long double) hi);
+    return ml_ddx_renorm (hi, lo);
+}
+static inline ml_ddx_t ml_ddx_add (ml_ddx_t a, ml_ddx_t b) {
+    /* QD ieee_add: exact-ish DD sum. */
+    double s, e, t1, t2;
+    s = ml_two_sum (a.hi, b.hi, &e);
+    t1 = ml_two_sum (a.lo, b.lo, &t2);
+    e += t1;
+    s = ml_two_sum (s, e, &t2);
+    e = t2 + e;
+    return ml_ddx_renorm (s, e);
+}
+static inline ml_ddx_t ml_ddx_sub (ml_ddx_t a, ml_ddx_t b) {
+    ml_ddx_t nb;
+    nb.hi = -b.hi;
+    nb.lo = -b.lo;
+    return ml_ddx_add (a, nb);
+}
+static inline ml_ddx_t ml_ddx_mul (ml_ddx_t a, ml_ddx_t b) {
+    /* Dekker product with FMA error capture. */
+    double p = a.hi * b.hi;
+    double e = ML_FMA (a.hi, b.hi, -p) + a.hi * b.lo + a.lo * b.hi;
+    return ml_ddx_renorm (p, e);
+}
+static inline ml_ddx_t ml_ddx_div (ml_ddx_t a, ml_ddx_t b) {
+    /* One Newton correction (QD divdd): q0 = fl(ahi/bhi), then exact-ish
+     * residual correction. Relative error ~ a few ULP DD. */
+    double q0 = a.hi / b.hi;
+    ml_ddx_t qb = ml_ddx_from_d (q0);
+    ml_ddx_t rb = ml_ddx_sub (a, ml_ddx_mul (qb, b));
+    double dq = (rb.hi + rb.lo) / b.hi;
+    return ml_ddx_add (qb, ml_ddx_from_d (dq));
+}
 #endif /* LIBMATHC_ERROR_FREE_H */

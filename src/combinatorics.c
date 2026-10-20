@@ -1,10 +1,9 @@
 #include "ml_compiler.h"
 #include "ml_combinatorics.h"
 #include <stdint.h>
-
 /* v11S CLOSURE IP-12: portable combinatorics + overflow detection */
 
-static uint64_t ml_gcd_u64(uint64_t a, uint64_t b) {
+static uint64_t ml_gcd_u64 (uint64_t a, uint64_t b) {
     while (b != 0) {
         uint64_t t = a % b;
         a = b;
@@ -12,22 +11,19 @@ static uint64_t ml_gcd_u64(uint64_t a, uint64_t b) {
     }
     return a;
 }
-
-ML_API uint64_t ml_gcd(uint64_t a, uint64_t b) {
-    return ml_gcd_u64(a, b);
+ML_API uint64_t ml_gcd (uint64_t a, uint64_t b) {
+    return ml_gcd_u64 (a, b);
 }
-
-ML_API uint64_t ml_lcm(uint64_t a, uint64_t b) {
+ML_API uint64_t ml_lcm (uint64_t a, uint64_t b) {
     if (a == 0 || b == 0) return 0;
     {
-        uint64_t g = ml_gcd_u64(a, b);
+        uint64_t g = ml_gcd_u64 (a, b);
         uint64_t d = a / g;
         if (d > UINT64_MAX / b) return UINT64_MAX;
         return d * b;
     }
 }
-
-ML_API uint64_t ml_factorial(int x) {
+ML_API uint64_t ml_factorial (int x) {
     if (x < 0) return UINT64_MAX;
     if (x > 20) return UINT64_MAX;
     if (x == 0) return 1;
@@ -35,7 +31,7 @@ ML_API uint64_t ml_factorial(int x) {
     uint64_t result = 1;
 
     for (int i = 2; i <= x; i++) {
-        uint64_t factor = (uint64_t)i;
+        uint64_t factor = (uint64_t) i;
 
         if (result > UINT64_MAX / factor) {
             return UINT64_MAX;
@@ -46,14 +42,13 @@ ML_API uint64_t ml_factorial(int x) {
 
     return result;
 }
-
-ML_API uint64_t ml_npr(int n, int r) {
+ML_API uint64_t ml_npr (int n, int r) {
     if (n < 0 || r < 0 || r > n) return 0;
 
     uint64_t result = 1;
 
     for (int i = 0; i < r; i++) {
-        uint64_t factor = (uint64_t)n - (uint64_t)i;
+        uint64_t factor = (uint64_t) n - (uint64_t) i;
 
         if (factor == 0) return 0;
 
@@ -66,8 +61,7 @@ ML_API uint64_t ml_npr(int n, int r) {
 
     return result;
 }
-
-ML_API uint64_t ml_ncr(int n, int r) {
+ML_API uint64_t ml_ncr (int n, int r) {
     if (n < 0 || r < 0 || r > n) return 0;
 
     if (r > n - r) {
@@ -88,8 +82,8 @@ ML_API uint64_t ml_ncr(int n, int r) {
     uint64_t result = 1;
 
     for (int i = 1; i <= r; i++) {
-        uint64_t a = (uint64_t)n - (uint64_t)r + (uint64_t)i;
-        uint64_t b = (uint64_t)i;
+        uint64_t a = (uint64_t) n - (uint64_t) r + (uint64_t) i;
+        uint64_t b = (uint64_t) i;
 
         /*
          * Cancel factors before multiplication.
@@ -97,11 +91,11 @@ ML_API uint64_t ml_ncr(int n, int r) {
          * This keeps the intermediate result as small as possible while
          * preserving exact integer arithmetic.
          */
-        uint64_t g = ml_gcd_u64(result, b);
+        uint64_t g = ml_gcd_u64 (result, b);
         result /= g;
         b /= g;
 
-        g = ml_gcd_u64(a, b);
+        g = ml_gcd_u64 (a, b);
         a /= g;
         b /= g;
 
@@ -128,40 +122,36 @@ ML_API uint64_t ml_ncr(int n, int r) {
 
     return result;
 }
-
-static uint64_t ml_addmod(uint64_t a, uint64_t b, uint64_t m) {
+static uint64_t ml_addmod (uint64_t a, uint64_t b, uint64_t m) {
     /* (a+b)%m for a,b<m without overflow: m-a never overflows. */
     uint64_t d = m - a;
     if (b >= d) return b - d;
     return a + b;
 }
-
-static uint64_t ml_mulmod(uint64_t a, uint64_t b, uint64_t m) {
+static uint64_t ml_mulmod (uint64_t a, uint64_t b, uint64_t m) {
     uint64_t r = 0;
     a %= m;
     while (b) {
-        if (b & 1ULL) r = ml_addmod(r, a, m);
-        a = ml_addmod(a, a, m);
+        if (b & 1ULL) r = ml_addmod (r, a, m);
+        a = ml_addmod (a, a, m);
         b >>= 1;
     }
     return r;
 }
-
-ML_API uint64_t ml_modpow(uint64_t a, uint64_t e, uint64_t m) {
+ML_API uint64_t ml_modpow (uint64_t a, uint64_t e, uint64_t m) {
     if (m <= 1) return 0;
     {
         uint64_t r = 1 % m;
         a %= m;
         while (e) {
-            if (e & 1ULL) r = ml_mulmod(r, a, m);
-            a = ml_mulmod(a, a, m);
+            if (e & 1ULL) r = ml_mulmod (r, a, m);
+            a = ml_mulmod (a, a, m);
             e >>= 1;
         }
         return r;
     }
 }
-
-ML_API int64_t ml_egcd(int64_t a, int64_t b, int64_t *x, int64_t *y) {
+ML_API int64_t ml_egcd (int64_t a, int64_t b, int64_t *x, int64_t *y) {
     /* R5 despot: iterative extended Euclid with overflow-checked
      * x1-(a/b)*y1 (old recursion had signed-overflow UB for large
      * chains). INT64_MIN inputs and non-representable coefficients
@@ -180,85 +170,94 @@ ML_API int64_t ml_egcd(int64_t a, int64_t b, int64_t *x, int64_t *y) {
             int64_t q = aa / bb;
             int64_t r = aa % bb;
             int64_t px, py, nx, ny;
-            if (__builtin_mul_overflow(q, x1, &px) ||
-                __builtin_sub_overflow(x0, px, &nx) ||
-                __builtin_mul_overflow(q, y1, &py) ||
-                __builtin_sub_overflow(y0, py, &ny)) {
+            if (__builtin_mul_overflow (q, x1, &px) ||
+                __builtin_sub_overflow (x0, px, &nx) ||
+                __builtin_mul_overflow (q, y1, &py) ||
+                __builtin_sub_overflow (y0, py, &ny)) {
                 if (x) *x = 0;
                 if (y) *y = 0;
                 {
                     int64_t g = (aa >= 0) ? aa : -aa;
                     int64_t gg = (bb >= 0) ? bb : -bb;
-                    while (gg != 0) { int64_t t = g % gg; g = gg; gg = t; }
+                    while (gg != 0) {
+                        int64_t t = g % gg;
+                        g = gg;
+                        gg = t;
+                    }
                     return g;
                 }
             }
-            aa = bb; bb = r;
-            x0 = x1; x1 = nx;
-            y0 = y1; y1 = ny;
+            aa = bb;
+            bb = r;
+            x0 = x1;
+            x1 = nx;
+            y0 = y1;
+            y1 = ny;
         }
-        if (aa < 0) { aa = -aa; x0 = -x0; y0 = -y0; }
+        if (aa < 0) {
+            aa = -aa;
+            x0 = -x0;
+            y0 = -y0;
+        }
         if (x) *x = x0;
         if (y) *y = y0;
         return aa;
     }
 }
-
-ML_API uint64_t ml_modinv(uint64_t a, uint64_t m) {
+ML_API uint64_t ml_modinv (uint64_t a, uint64_t m) {
     if (m <= 1) return UINT64_MAX;
     /* int64 Euclid only covers m<=INT64_MAX; larger moduli would wrap
      * negative and give wrong residues. */
-    if (m > (uint64_t)INT64_MAX) return UINT64_MAX;
+    if (m > (uint64_t) INT64_MAX) return UINT64_MAX;
     if (a >= m) a %= m;
     {
         int64_t x = 0, y = 0;
-        int64_t g = ml_egcd((int64_t)(a % m), (int64_t)m, &x, &y);
+        int64_t g = ml_egcd ((int64_t) (a % m), (int64_t) m, &x, &y);
         if (g != 1 && g != -1) return UINT64_MAX;
         {
-            int64_t r = x % (int64_t)m;
-            if (r < 0) r += (int64_t)m;
-            return (uint64_t)r;
+            int64_t r = x % (int64_t) m;
+            if (r < 0) r += (int64_t) m;
+            return (uint64_t) r;
         }
     }
 }
-
-static int ml_mr_pass(uint64_t n, uint64_t a) {
+static int ml_mr_pass (uint64_t n, uint64_t a) {
     uint64_t d = n - 1;
     int s = 0;
-    while ((d & 1ULL) == 0ULL) { d >>= 1; s++; }
+    while ((d & 1ULL) == 0ULL) {
+        d >>= 1;
+        s++;
+    }
     {
-        uint64_t x = ml_modpow(a % n, d, n);
+        uint64_t x = ml_modpow (a % n, d, n);
         if (x == 1 || x == n - 1) return 1;
         for (int r = 1; r < s; r++) {
-            x = ml_mulmod(x, x, n);
+            x = ml_mulmod (x, x, n);
             if (x == n - 1) return 1;
         }
         return 0;
     }
 }
-
-ML_API int ml_is_prime64(uint64_t n) {
-    static const uint64_t small[] = {2,3,5,7,11,13,17,19,23,29,31,37};
+ML_API int ml_is_prime64 (uint64_t n) {
+    static const uint64_t small [] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37};
     if (n < 2) return 0;
-    for (unsigned i = 0; i < sizeof(small)/sizeof(small[0]); i++) {
-        if (n == small[i]) return 1;
-        if (n % small[i] == 0ULL) return 0;
+    for (unsigned i = 0; i < sizeof (small) / sizeof (small [0]); i++) {
+        if (n == small [i]) return 1;
+        if (n % small [i] == 0ULL) return 0;
     }
     /* Deterministic MR for 64-bit (Sinclair bases). */
-    static const uint64_t bases[] = {2ULL, 325ULL, 9375ULL, 28178ULL, 450775ULL, 9780504ULL, 1795265022ULL};
-    for (unsigned i = 0; i < sizeof(bases)/sizeof(bases[0]); i++) {
-        uint64_t a = bases[i] % n;
+    static const uint64_t bases [] = {2ULL, 325ULL, 9375ULL, 28178ULL, 450775ULL, 9780504ULL, 1795265022ULL};
+    for (unsigned i = 0; i < sizeof (bases) / sizeof (bases [0]); i++) {
+        uint64_t a = bases [i] % n;
         if (a == 0) continue;
-        if (!ml_mr_pass(n, a)) return 0;
+        if (!ml_mr_pass (n, a)) return 0;
     }
     return 1;
 }
-
-static uint64_t ml_rho_f(uint64_t x, uint64_t c, uint64_t m) {
-    return (ml_mulmod(x, x, m) + c) % m;
+static uint64_t ml_rho_f (uint64_t x, uint64_t c, uint64_t m) {
+    return (ml_mulmod (x, x, m) + c) % m;
 }
-
-static uint64_t ml_pollard_rho(uint64_t n) {
+static uint64_t ml_pollard_rho (uint64_t n) {
     if (n % 2ULL == 0ULL) return 2ULL;
     {
         uint64_t x = 2ULL, y = 2ULL, d = 1ULL, c = 1ULL;
@@ -268,69 +267,84 @@ static uint64_t ml_pollard_rho(uint64_t n) {
          * d<=1||d>=n check). Documented worst-case in ml_combinatorics.h. */
         for (uint64_t iter = 0; iter < 1000000ULL; iter++) {
             if (d != 1ULL) break;
-            x = ml_rho_f(x, c, n);
-            y = ml_rho_f(ml_rho_f(y, c, n), c, n);
+            x = ml_rho_f (x, c, n);
+            y = ml_rho_f (ml_rho_f (y, c, n), c, n);
             {
                 uint64_t diff = (x > y) ? x - y : y - x;
-                if (diff == 0) { c++; x = y = 2ULL; continue; }
+                if (diff == 0) {
+                    c++;
+                    x = y = 2ULL;
+                    continue;
+                }
                 /* gcd via Euclid (64-bit, no recursion). */
                 uint64_t a = diff, b = n;
-                while (b) { uint64_t t = a % b; a = b; b = t; }
+                while (b) {
+                    uint64_t t = a % b;
+                    a = b;
+                    b = t;
+                }
                 d = a;
-                if (d == n) { c++; x = y = 2ULL; d = 1ULL; }
+                if (d == n) {
+                    c++;
+                    x = y = 2ULL;
+                    d = 1ULL;
+                }
             }
         }
         return d;
     }
 }
-
-static void ml_factor_rec(uint64_t n, uint64_t *out, int *cnt, int cap) {
+static void ml_factor_rec (uint64_t n, uint64_t *out, int *cnt, int cap) {
     if (n <= 1 || *cnt >= cap) return;
-    if (ml_is_prime64(n)) {
+    if (ml_is_prime64 (n)) {
         /* Insert sorted. */
         int i = *cnt;
-        while (i > 0 && out[i - 1] > n) { out[i] = out[i - 1]; i--; }
-        out[i] = n;
+        while (i > 0 && out [i - 1] > n) {
+            out [i] = out [i - 1];
+            i--;
+        }
+        out [i] = n;
         (*cnt)++;
         return;
     }
     {
-        uint64_t d = ml_pollard_rho(n);
+        uint64_t d = ml_pollard_rho (n);
         if (d <= 1 || d >= n) {
             /* Fallback trial division for small factors. */
             for (uint64_t p = 3; p * p <= n && p < 1000000ULL; p += 2) {
-                if (n % p == 0ULL) { d = p; break; }
+                if (n % p == 0ULL) {
+                    d = p;
+                    break;
+                }
             }
             if (d <= 1 || d >= n) return;
         }
-        ml_factor_rec(d, out, cnt, cap);
-        ml_factor_rec(n / d, out, cnt, cap);
+        ml_factor_rec (d, out, cnt, cap);
+        ml_factor_rec (n / d, out, cnt, cap);
     }
 }
-
-ML_API uint64_t ml_phi(uint64_t n) {
+ML_API uint64_t ml_phi (uint64_t n) {
     if (n == 0) return 0;
     if (n == 1) return 1;
     {
-        uint64_t fac[64];
+        uint64_t fac [64];
         int cnt = 0;
-        ml_factor_rec(n, fac, &cnt, 64);
+        ml_factor_rec (n, fac, &cnt, 64);
         if (cnt == 0) return 0;
         {
             uint64_t r = n;
             uint64_t prev = 0;
             for (int i = 0; i < cnt; i++) {
-                if (fac[i] != prev) {
-                    r = r / fac[i] * (fac[i] - 1ULL);
-                    prev = fac[i];
+                if (fac [i] != prev) {
+                    r = r / fac [i] * (fac [i] - 1ULL);
+                    prev = fac [i];
                 }
             }
             return r;
         }
     }
 }
-
-ML_API uint64_t ml_catalan(int n) {
+ML_API uint64_t ml_catalan (int n) {
     if (n < 0) return 0;
     if (n == 0) return 1;
     /* C37 first overflows 64-bit; C35/C36 fit but C(70,35)/C(72,36) do not,
@@ -341,13 +355,13 @@ ML_API uint64_t ml_catalan(int n) {
     {
         uint64_t c = 1;
         for (int k = 0; k < n; k++) {
-            uint64_t num = 2u * ((uint64_t)k * 2u + 1u);
+            uint64_t num = 2u * ((uint64_t) k * 2u + 1u);
             /* num = 2*(2k+1); den = k+2 */
-            uint64_t den = (uint64_t)k + 2u;
-            uint64_t g = ml_gcd_u64(c, den);
+            uint64_t den = (uint64_t) k + 2u;
+            uint64_t g = ml_gcd_u64 (c, den);
             c /= g;
             den /= g;
-            g = ml_gcd_u64(num, den);
+            g = ml_gcd_u64 (num, den);
             num /= g;
             den /= g;
             if (den != 1) {
@@ -360,9 +374,7 @@ ML_API uint64_t ml_catalan(int n) {
         return c;
     }
 }
-
-
-ML_API uint64_t ml_fib_pair(long long n, uint64_t *fn, uint64_t *fn1) {
+ML_API uint64_t ml_fib_pair (long long n, uint64_t *fn, uint64_t *fn1) {
     if (n < 0) return 0;
     /* F(93) fits, F(94) overflows; O(n) loop would hang on 1e12. */
     if (n > 93) {
@@ -386,7 +398,8 @@ ML_API uint64_t ml_fib_pair(long long n, uint64_t *fn, uint64_t *fn1) {
             }
             {
                 uint64_t c = a + b;
-                a = b; b = c;
+                a = b;
+                b = c;
             }
         }
         if (fn) *fn = b;
@@ -397,8 +410,7 @@ ML_API uint64_t ml_fib_pair(long long n, uint64_t *fn, uint64_t *fn1) {
         return b;
     }
 }
-
-ML_API uint64_t ml_derange(int n) {
+ML_API uint64_t ml_derange (int n) {
     if (n < 0) return 0;
     if (n == 0) return 1;
     if (n == 1) return 0;
@@ -409,12 +421,13 @@ ML_API uint64_t ml_derange(int n) {
             uint64_t s = a + b;
             uint64_t m;
             if (s < a) return UINT64_MAX;
-            m = (uint64_t)(i - 1);
+            m = (uint64_t) (i - 1);
             if (m != 0 && s > UINT64_MAX / m) return UINT64_MAX;
             c = s * m;
             /* exact overflow check for s*(i-1): */
-            if ((uint64_t)(i - 1) != 0 && c / (uint64_t)(i - 1) != s) return UINT64_MAX;
-            a = b; b = c;
+            if ((uint64_t) (i - 1) != 0 && c / (uint64_t) (i - 1) != s) return UINT64_MAX;
+            a = b;
+            b = c;
         }
         return b;
     }

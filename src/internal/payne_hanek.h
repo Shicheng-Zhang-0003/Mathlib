@@ -2,21 +2,21 @@
 #define LIBMATHC_PAYNE_HANEK_H
 /* MATHLIB_V12A1_PAYNE_HANEK_V6 */
 /*
-* RANGE REDUCTION FOR TRIGONOMETRIC FUNCTIONS
-*
-* Path 1  |x| <= 1e6 : 2-term Cody-Waite with error-free transforms.
-* Path 2  |x| >  1e6 : Payne-Hanek with per-term integer/fractional
-*                       separation and full-table sweep.
-*
-* V5 failed because it accumulated the full product x*(2/pi) in
-* double precision without reducing mod 8, so the integer part
-* (billions) swallowed the fractional part.
-*
-* V6 restores the V3 per-term approach:
-*   - For each table term, extract integer contribution mod 4
-*   - Kahan-accumulate only the fractional parts
-*   - Full-table sweep (k=0..65) so no bits are dropped
-*/
+ * RANGE REDUCTION FOR TRIGONOMETRIC FUNCTIONS
+ *
+ * Path 1  |x| <= 1e6 : 2-term Cody-Waite with error-free transforms.
+ * Path 2  |x| >  1e6 : Payne-Hanek with per-term integer/fractional
+ *                       separation and full-table sweep.
+ *
+ * V5 failed because it accumulated the full product x*(2/pi) in
+ * double precision without reducing mod 8, so the integer part
+ * (billions) swallowed the fractional part.
+ *
+ * V6 restores the V3 per-term approach:
+ *   - For each table term, extract integer contribution mod 4
+ *   - Kahan-accumulate only the fractional parts
+ *   - Full-table sweep (k=0..65) so no bits are dropped
+ */
 #include <string.h>
 #include "ml_core.h"
 #include "internal/error_free.h"
@@ -27,7 +27,7 @@ static const double
     ML_PH_PIO2_LO = 0x1.1a62633145c07p-54;
 
 /* ---- 2/pi table, 24-bit chunks (Cephes / musl) ---- */
-static const int32_t ml_two_over_pi[66] = {
+static const int32_t ml_two_over_pi [66] = {
     0xA2F983, 0x6E4E44, 0x1529FC, 0x2757D1, 0xF534DD, 0xC0DB62,
     0x95993C, 0x439041, 0xFE5163, 0xABDEBB, 0xC561B7, 0x246E3A,
     0x424DD2, 0xE00649, 0x2EEA09, 0xD1921C, 0xFE1DEB, 0x1CB129,
@@ -38,50 +38,47 @@ static const int32_t ml_two_over_pi[66] = {
     0xF17B3D, 0x0739F7, 0x8A5292, 0xEA6BFB, 0x5FB11F, 0x8D5D08,
     0x560330, 0x46FC7B, 0x6BABF0, 0xCFBC20, 0x9AF436, 0x1DA9E3,
     0x91615E, 0xE61B08, 0x659985, 0x5F14A0, 0x68408D, 0xFFD880,
-    0x4D7327, 0x310606, 0x1556CA, 0x73A8C9, 0x60E27B, 0xC08C6B
-};
+    0x4D7327, 0x310606, 0x1556CA, 0x73A8C9, 0x60E27B, 0xC08C6B};
 
 /* pi/2 high / low for reconstruction */
 static const double
     ML_PH_PI2_HI = 0x1.921fb54442d18p+0,
     ML_PH_PI2_LO = 0x1.1a62633145c07p-54;
 static const double ML_PH_TWO_OVER_PI = 0.63661977236758134308;
-
 /*
-* Process one term: prod * 2^shift.
-*
-* prod is an exact integer < 2^53.
-* Extracts integer contribution mod 4 into *n.
-* Kahan-accumulates fractional part into *acc / *comp.
-*/
-static inline void ml_ph_process_term(
-    double prod, int shift, int *n, long double *acc, long double *comp
-) {
+ * Process one term: prod * 2^shift.
+ *
+ * prod is an exact integer < 2^53.
+ * Extracts integer contribution mod 4 into *n.
+ * Kahan-accumulates fractional part into *acc / *comp.
+ */
+static inline void ml_ph_process_term (
+    double prod, int shift, int *n, long double *acc, long double *comp) {
     if (shift >= 2) {
         /* prod * 2^shift is integer divisible by 4. No contribution. */
         return;
     }
     if (shift == 1) {
         /* (prod*2) mod 4 = 2*(prod mod 2) */
-        double fl = (double)((long long)prod & 1LL);
-        *n = (*n + (int)(2.0 * fl)) & 3;
+        double fl = (double) ((long long) prod & 1LL);
+        *n = (*n + (int) (2.0 * fl)) & 3;
         return;
     }
     if (shift == 0) {
         /* prod mod 4 */
-        double fl = (double)((long long)prod & 3LL);
-        *n = (*n + (int)fl) & 3;
+        double fl = (double) ((long long) prod & 3LL);
+        *n = (*n + (int) fl) & 3;
         return;
     }
     /* shift < 0: fractional term */
-    double t = ml_ldexp_pure(prod, shift);
+    double t = ml_ldexp_pure (prod, shift);
     double int_part = 0.0;
     double frac_part;
     if (shift >= -52) {
         /* t may have an integer part */
-        int_part = (double)(long long)t;
+        int_part = (double) (long long) t;
         frac_part = t - int_part;
-        *n = (*n + ((int)(long long)int_part & 3)) & 3;
+        *n = (*n + ((int) (long long) int_part & 3)) & 3;
     } else {
         /* t < 1, purely fractional */
         frac_part = t;
@@ -90,198 +87,203 @@ static inline void ml_ph_process_term(
      * reach ~0.5 while the result is ~0.1, so a double accumulator loses
      * ~1e-16 absolute, which is ~1e2 ULP of the final sin/cos. */
     {
-        long double fp = (long double)frac_part;
+        long double fp = (long double) frac_part;
         long double y_k = fp - *comp;
         long double t_k = *acc + y_k;
         *comp = (t_k - *acc) - y_k;
         *acc = t_k;
     }
 }
-
 /*
-* Payne-Hanek reduction for large arguments (|x| > 1e6).
-*
-* Computes:
-*   *y = x mod (pi/2), in [-pi/4, pi/4]
-*   returns quadrant n in {0, 1, 2, 3}
-*/
-static inline int ml_rem_pio2_large(double x, double *y) {
+ * Payne-Hanek reduction for large arguments (|x| > 1e6).
+ *
+ * Computes:
+ *   *y = x mod (pi/2), in [-pi/4, pi/4]
+ *   returns quadrant n in {0, 1, 2, 3}
+ */
+static inline int ml_rem_pio2_large (double x, double *y) {
     uint64_t bits;
-    double   ax   = ml_fabs(x);
-    int      sign = (x < 0.0);
+    double ax = ml_fabs (x);
+    int sign = (x < 0.0);
 
-    memcpy(&bits, &ax, sizeof(uint64_t));
-    int biased_e = (int)((bits >> 52) & 0x7FF);
+    memcpy (&bits, &ax, sizeof (uint64_t));
+    int biased_e = (int) ((bits >> 52) & 0x7FF);
     /* E: exponent such that ax = m * 2^E (m is 53-bit integer) */
     int E = biased_e - 1075;
     uint64_t m = (bits & 0x000FFFFFFFFFFFFFULL) | (1ULL << 52);
 
     /*
-    * Split m into high 28 bits and low 25 bits.
-    * m_hi has bits 52..25 (28 bits), m_lo has bits 24..0 (25 bits).
-    */
-    double m_hi = (double)(m >> 25);
-    double m_lo = (double)(m & 0x1FFFFFFULL);
+     * Split m into high 28 bits and low 25 bits.
+     * m_hi has bits 52..25 (28 bits), m_lo has bits 24..0 (25 bits).
+     */
+    double m_hi = (double) (m >> 25);
+    double m_lo = (double) (m & 0x1FFFFFFULL);
 
     /*
-    * Full-table sweep.
-    *
-    * The skip logic inside ml_ph_process_term() handles terms that
-    * don't contribute (shift >= 2). Processing all 66 entries
-    * ensures no fractional bits are dropped for any |x|.
-    */
+     * Full-table sweep.
+     *
+     * The skip logic inside ml_ph_process_term() handles terms that
+     * don't contribute (shift >= 2). Processing all 66 entries
+     * ensures no fractional bits are dropped for any |x|.
+     */
     int k_start = 0;
-    int k_end   = 65;
+    int k_end = 65;
 
     /* Accumulate quadrant and fractional part */
-    int    n         = 0;
-    long double frac_acc  = 0.0L;
+    int n = 0;
+    long double frac_acc = 0.0L;
     long double frac_comp = 0.0L;
 
     for (int k = k_start; k <= k_end; k++) {
-        double tk = (double)ml_two_over_pi[k];
+        double tk = (double) ml_two_over_pi [k];
         int base_shift = E - 24 * k - 24;
 
         /* m_hi term: m_hi * tk * 2^(base_shift + 25) */
-        double prod_hi = m_hi * tk;  /* exact: 28+24 = 52 bits */
-        ml_ph_process_term(prod_hi, base_shift + 25,
-                           &n, &frac_acc, &frac_comp);
+        double prod_hi = m_hi * tk; /* exact: 28+24 = 52 bits */
+        ml_ph_process_term (prod_hi, base_shift + 25,
+                            &n, &frac_acc, &frac_comp);
 
         /* m_lo term: m_lo * tk * 2^base_shift */
-        double prod_lo = m_lo * tk;  /* exact: 25+24 = 49 bits */
-        ml_ph_process_term(prod_lo, base_shift,
-                           &n, &frac_acc, &frac_comp);
+        double prod_lo = m_lo * tk; /* exact: 25+24 = 49 bits */
+        ml_ph_process_term (prod_lo, base_shift,
+                            &n, &frac_acc, &frac_comp);
     }
 
     /* Extract integer part from fractional accumulator */
-    int extra = (int)(long long)frac_acc;
+    int extra = (int) (long long) frac_acc;
     n = (n + (extra & 3)) & 3;
-    long double frac = frac_acc - (long double)extra + frac_comp;
+    long double frac = frac_acc - (long double) extra + frac_comp;
 
     /* Center fractional part in [-0.5, 0.5] */
-    if (frac >  0.5L) { frac -= 1.0L; n = (n + 1) & 3; }
-    if (frac < -0.5L) { frac += 1.0L; n = (n + 3) & 3; }
+    if (frac > 0.5L) {
+        frac -= 1.0L;
+        n = (n + 1) & 3;
+    }
+    if (frac < -0.5L) {
+        frac += 1.0L;
+        n = (n + 3) & 3;
+    }
 
     /* Reconstruct: reduced_arg = frac * pi/2, kept in long double so the
      * final rounding to double costs ~ULP(y)/2 rather than ~ULP(1). */
-    long double result = frac * (long double)ML_PH_PI2_HI
-                       + frac * (long double)ML_PH_PI2_LO;
+    long double result = frac * (long double) ML_PH_PI2_HI + frac * (long double) ML_PH_PI2_LO;
 
     if (sign) {
         result = -result;
         n = (4 - n) & 3;
     }
-    *y = (double)result;
+    *y = (double) result;
     return n;
 }
-
 /* ==================================================================
-* UNIFIED ENTRY POINT
-* ================================================================== */
-static inline int ml_rem_pio2(double x, double *y) {
-    if (ml_isnan(x) || ml_isinf(x)) {
-        *y = ml_make_nan();
+ * UNIFIED ENTRY POINT
+ * ================================================================== */
+static inline int ml_rem_pio2 (double x, double *y) {
+    if (ml_isnan (x) || ml_isinf (x)) {
+        *y = ml_make_nan ();
         return 0;
     }
-    double ax = ml_fabs(x);
+    double ax = ml_fabs (x);
 
     /*
-    * Small/medium arguments: fast Cody-Waite.
-    * Accurate to < 1 ULP for |x| <= 1e6.
-    */
+     * Small/medium arguments: fast Cody-Waite.
+     * Accurate to < 1 ULP for |x| <= 1e6.
+     */
     if (ax <= 1.0e6) {
-        double fn = ml_round(x * ML_PH_TWO_OVER_PI);
-        long long n_ll = (long long)fn;
-        int n = (int)(n_ll % 4);
+        double fn = ml_round (x * ML_PH_TWO_OVER_PI);
+        long long n_ll = (long long) fn;
+        int n = (int) (n_ll % 4);
         if (n < 0) n += 4;
 
-        double p     = fn * ML_PH_PIO2_HI;
-        double p_err = ML_FMA(fn, ML_PH_PIO2_HI, -p);
+        double p = fn * ML_PH_PIO2_HI;
+        double p_err = ML_FMA (fn, ML_PH_PIO2_HI, -p);
         double r1, r1_err;
-        r1 = ml_two_sum(x, -p, &r1_err);
+        r1 = ml_two_sum (x, -p, &r1_err);
         double r2 = r1_err - p_err - (fn * ML_PH_PIO2_LO);
         *y = r1 + r2;
         return n;
     }
 
     /*
-    * Large arguments: Payne-Hanek.
-    * Works for the full double range up to ~1.8e308.
-    */
-    return ml_rem_pio2_large(x, y);
+     * Large arguments: Payne-Hanek.
+     * Works for the full double range up to ~1.8e308.
+     */
+    return ml_rem_pio2_large (x, y);
 }
-
 #if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
 /* LD reduction: returns reduced argument in long double (no double rounding
  * of y). Fast path reconstructs in LD; large path returns pre-cast LD.
  * ULP-push: double-y rounding cost ~0.7 ULP at x=10 (y≈0.5, ULP(y)≈1e-16,
  * sin'≈0.8). LD-y + sinl single round removes it. */
-static inline int ml_rem_pio2l_large(double x, long double *yl);
-static inline int ml_rem_pio2l(double x, long double *yl) {
-    if (ml_isnan(x) || ml_isinf(x)) {
-        *yl = (long double)ml_make_nan();
+static inline int ml_rem_pio2l_large (double x, long double *yl);
+static inline int ml_rem_pio2l (double x, long double *yl) {
+    if (ml_isnan (x) || ml_isinf (x)) {
+        *yl = (long double) ml_make_nan ();
         return 0;
     }
     {
-        double ax = ml_fabs(x);
+        double ax = ml_fabs (x);
         if (ax <= 1.0e6) {
-            double fn = ml_round(x * ML_PH_TWO_OVER_PI);
-            long long n_ll = (long long)fn;
-            int n = (int)(n_ll % 4);
+            double fn = ml_round (x * ML_PH_TWO_OVER_PI);
+            long long n_ll = (long long) fn;
+            int n = (int) (n_ll % 4);
             if (n < 0) n += 4;
             {
                 double p = fn * ML_PH_PIO2_HI;
-                double p_err = ML_FMA(fn, ML_PH_PIO2_HI, -p);
+                double p_err = ML_FMA (fn, ML_PH_PIO2_HI, -p);
                 double r1_err = 0.0;
-                double r1 = ml_two_sum(x, -p, &r1_err);
-                (void)r1;
+                double r1 = ml_two_sum (x, -p, &r1_err);
+                (void) r1;
                 {
-                    long double rl = ((long double)x - (long double)p)
-                        + ((long double)r1_err - (long double)p_err
-                           - (long double)fn * (long double)ML_PH_PIO2_LO);
+                    long double rl = ((long double) x - (long double) p) + ((long double) r1_err - (long double) p_err - (long double) fn * (long double) ML_PH_PIO2_LO);
                     *yl = rl;
                     return n;
                 }
             }
         }
     }
-    return ml_rem_pio2l_large(x, yl);
+    return ml_rem_pio2l_large (x, yl);
 }
-static inline int ml_rem_pio2l_large(double x, long double *yl) {
+static inline int ml_rem_pio2l_large (double x, long double *yl) {
     /* Full LD slow path: identical sweep to ml_rem_pio2_large but returns
      * the pre-cast long double result (saves ULP(y)/2 double rounding).
      * Slow-path fractional error still dominates for huge |x|, but the
      * rounding floor is removed. */
     uint64_t bits;
-    double ax = ml_fabs(x);
+    double ax = ml_fabs (x);
     int sign = (x < 0.0);
-    memcpy(&bits, &ax, sizeof(uint64_t));
+    memcpy (&bits, &ax, sizeof (uint64_t));
     {
-        int biased_e = (int)((bits >> 52) & 0x7FF);
+        int biased_e = (int) ((bits >> 52) & 0x7FF);
         int E = biased_e - 1075;
         uint64_t m = (bits & 0x000FFFFFFFFFFFFFULL) | (1ULL << 52);
-        double m_hi = (double)(m >> 25);
-        double m_lo = (double)(m & 0x1FFFFFFULL);
+        double m_hi = (double) (m >> 25);
+        double m_lo = (double) (m & 0x1FFFFFFULL);
         int n = 0;
         long double frac_acc = 0.0L;
         long double frac_comp = 0.0L;
         for (int k = 0; k <= 65; k++) {
-            double tk = (double)ml_two_over_pi[k];
+            double tk = (double) ml_two_over_pi [k];
             int base_shift = E - 24 * k - 24;
             double prod_hi = m_hi * tk;
-            ml_ph_process_term(prod_hi, base_shift + 25, &n, &frac_acc, &frac_comp);
+            ml_ph_process_term (prod_hi, base_shift + 25, &n, &frac_acc, &frac_comp);
             double prod_lo = m_lo * tk;
-            ml_ph_process_term(prod_lo, base_shift, &n, &frac_acc, &frac_comp);
+            ml_ph_process_term (prod_lo, base_shift, &n, &frac_acc, &frac_comp);
         }
         {
-            int extra = (int)(long long)frac_acc;
+            int extra = (int) (long long) frac_acc;
             n = (n + (extra & 3)) & 3;
-            long double frac = frac_acc - (long double)extra + frac_comp;
-            if (frac > 0.5L) { frac -= 1.0L; n = (n + 1) & 3; }
-            if (frac < -0.5L) { frac += 1.0L; n = (n + 3) & 3; }
+            long double frac = frac_acc - (long double) extra + frac_comp;
+            if (frac > 0.5L) {
+                frac -= 1.0L;
+                n = (n + 1) & 3;
+            }
+            if (frac < -0.5L) {
+                frac += 1.0L;
+                n = (n + 3) & 3;
+            }
             {
-                long double result = frac * (long double)ML_PH_PI2_HI
-                                   + frac * (long double)ML_PH_PI2_LO;
+                long double result = frac * (long double) ML_PH_PI2_HI + frac * (long double) ML_PH_PI2_LO;
                 if (sign) {
                     result = -result;
                     n = (4 - n) & 3;

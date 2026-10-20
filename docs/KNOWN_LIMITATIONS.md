@@ -24,7 +24,7 @@ These limitations are design choices, not hidden defects.
 - **A1 closure freeze is lifted for the despot audit.** v12R2 shipped 12
   Batch-1 modules plus kelvin (34 TUs); the freeze document is historical.
   No further silent scope creep: CMake/Makefile/run_all_tests.py/
-  run_edge_tests.sh canonical lists must match (43 TUs).
+  run_edge_tests.sh canonical lists must match (59 TUs in the current tree).
 
 - **Gamma uses Lanczos g=7 n=9.** This coefficient set has ~1e-15
   intrinsic approximation error. Half-integers bypass Lanczos entirely
@@ -53,6 +53,16 @@ These limitations are design choices, not hidden defects.
 ---
 
 ## v12R2 Accuracy Audit
+
+## v12R3 Development Limits
+
+The eleven extension modules added in the current 54-TU v12R3 tree have no oracle-
+tier certification. `ml_special` uses bounded integer orders/degrees and
+fixed-iteration approximations; it is not a general-purpose libm replacement.
+`ml_bigint` is fixed at 4096 bits, and its deterministic xorshift generator,
+modular arithmetic, and Miller-Rabin helper are not suitable for cryptographic
+key generation or secret-dependent computations. `ml_math_extra` documents
+library-specific behavior and does not promise full platform-libm equivalence.
 
 An independent audit (mpmath 50-dps references, ULP-measured) repaired the
 following. `tests/test_edge_accuracy_audit.c` pins the results as a
@@ -178,3 +188,29 @@ arrival, Hurwitz large-guard, `ultimate_fuzzer` CMake target, gate/runner
 worst 0 ULP, god 61473/0 AVX2 (0 failed is the gate), boundary 25/0,
 accuracy_audit 371/0, R4 21/21, R5 42/42, edge 25/25, 3-profile `-Werror` +
 ASan/UBSan clean.
+
+## Round-7 despot (2026-10-19)
+
+See `docs/DESPOT_R7_AUDIT.md`. Fixed general-order Bessel sign/stability,
+Jacobi inversion near m=1, Airy Bi/derivative branches, Dawson's least-term
+handling, Struve H0 oscillatory range, high-order polygamma, and related
+domain/parity cases. `tests/test_edge_despot_r7.c` pins 973 regression
+assertions. Full gate: 48/48 passed; SCIENTIFIC, GRAPHICS, and EMBEDDED builds
+passed, as did strict Clang and the installed CMake package consumer.
+
+These extensions still lack comprehensive oracle-tier certification. General
+Bessel Y/K near-integer and unsafe transition regions, Struve H0 outside
+`|x|<=10000`, and unconverged bounded series return NaN by contract. Actual
+MSVC/Windows and non-x86 runtime behavior were not tested. The GCC analyzer
+has one advisory on a size-checked allocation-size multiplication in
+`src/analytic_nt.c`.
+
+## Exact-foundations increment (2026-10-19)
+
+The current tree adds memory-bounded dynamic integers/rationals, exact
+univariate Q[x], finite prime fields up to 32-bit characteristic, basic
+outward-rounded binary64 intervals, and an exact polynomial-division witness
+verifier. This is the first reusable foundation layer, not a general CAS or
+proof assistant. Polynomial arithmetic is dense and univariate; field
+extensions, multivariate Gröbner bases, symbolic expression DAGs, rigorous
+transcendental intervals, and general proof certificates remain future work.

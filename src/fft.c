@@ -1,31 +1,28 @@
 #include "ml_compiler.h"
 #include "fft.h"
 #include <stddef.h>
-
 /* v11S CLOSURE IP-11: FFT ergonomics + safe size_t loops */
 
-static inline int ml_fft_is_power_of_two_internal(int n) {
+static inline int ml_fft_is_power_of_two_internal (int n) {
     return (n > 0) && ((n & (n - 1)) == 0);
 }
-
-ML_API int ml_fft_is_supported(int n) {
+ML_API int ml_fft_is_supported (int n) {
     /* R6 despot: must agree with ml_fft_execute's enforcement (pow2 AND
      * n <= 2^24). Previously pow2-only, so is_supported(2^25) returned 1
      * for a length execute() silently refuses. */
-    return ml_fft_is_power_of_two_internal(n) && n <= 16777216;
+    return ml_fft_is_power_of_two_internal (n) && n <= 16777216;
 }
-
-ML_API void ml_fft_execute(cplx *x, int n) {
+ML_API void ml_fft_execute (cplx *x, int n) {
     /* Contract: callers must check ml_fft_is_supported(n) first.
      * Unsupported lengths (non-power-of-two, n<=0, n>2^24) and NULL are
      * safe silent no-ops: no UB, no out-of-bounds access, no osv. */
-    if (ML_UNLIKELY(x == NULL)) return;
-    if (!ml_fft_is_power_of_two_internal(n)) return;
+    if (ML_UNLIKELY (x == NULL)) return;
+    if (!ml_fft_is_power_of_two_internal (n)) return;
     /* DoS cap: 2^24 complex (256MB) already absurd for embedded/static;
      * refuse larger rather than attempting O(n log n) billions of ops. */
     if (n > 16777216) return;
 
-    size_t ns = (size_t)n;
+    size_t ns = (size_t) n;
 
     /* Bit-reversal permutation */
     for (size_t i = 1, j = 0; i < ns; i++) {
@@ -38,16 +35,16 @@ ML_API void ml_fft_execute(cplx *x, int n) {
         j ^= bit;
 
         if (i < j) {
-            cplx temp = x[i];
-            x[i] = x[j];
-            x[j] = temp;
+            cplx temp = x [i];
+            x [i] = x [j];
+            x [j] = temp;
         }
     }
 
     /* Cooley-Tukey iterative radix-2 FFT */
     for (size_t len = 2; len <= ns; len <<= 1) {
-        double ang = -2.0 * ML_PI / (double)len;
-        cplx wlen = {ml_cos(ang), ml_sin(ang)};
+        double ang = -2.0 * ML_PI / (double) len;
+        cplx wlen = {ml_cos (ang), ml_sin (ang)};
         size_t half = len >> 1;
 
         for (size_t i = 0; i < ns; i += len) {
@@ -55,17 +52,17 @@ ML_API void ml_fft_execute(cplx *x, int n) {
 
             for (size_t j = 0; j < half; j++) {
                 if ((j & 63) == 0) {
-                    double theta = ang * (double)j;
-                    w = (cplx){ml_cos(theta), ml_sin(theta)};
+                    double theta = ang * (double) j;
+                    w = (cplx) {ml_cos (theta), ml_sin (theta)};
                 }
 
-                cplx u = x[i + j];
-                cplx v = ml_cplx_mul(x[i + j + half], w);
+                cplx u = x [i + j];
+                cplx v = ml_cplx_mul (x [i + j + half], w);
 
-                x[i + j] = ml_cplx_add(u, v);
-                x[i + j + half] = ml_cplx_sub(u, v);
+                x [i + j] = ml_cplx_add (u, v);
+                x [i + j + half] = ml_cplx_sub (u, v);
 
-                w = ml_cplx_mul(w, wlen);
+                w = ml_cplx_mul (w, wlen);
             }
         }
 
@@ -73,26 +70,25 @@ ML_API void ml_fft_execute(cplx *x, int n) {
         if (len > ns / 2) break;
     }
 }
-
-ML_API void ml_ifft_execute(cplx *x, int n) {
+ML_API void ml_ifft_execute (cplx *x, int n) {
     /* Same no-op contract as ml_fft_execute: check ml_fft_is_supported. */
-    if (ML_UNLIKELY(x == NULL)) return;
-    if (!ml_fft_is_power_of_two_internal(n)) return;
+    if (ML_UNLIKELY (x == NULL)) return;
+    if (!ml_fft_is_power_of_two_internal (n)) return;
     if (n > 16777216) return;
 
-    size_t ns = (size_t)n;
+    size_t ns = (size_t) n;
 
     for (size_t i = 0; i < ns; i++) {
-        x[i].imag = -x[i].imag;
+        x [i].imag = -x [i].imag;
     }
 
-    ml_fft_execute(x, n);
+    ml_fft_execute (x, n);
 
-    double inv = 1.0 / (double)ns;
+    double inv = 1.0 / (double) ns;
 
     for (size_t i = 0; i < ns; i++) {
-        x[i].imag = -x[i].imag;
-        x[i].real *= inv;
-        x[i].imag *= inv;
+        x [i].imag = -x [i].imag;
+        x [i].real *= inv;
+        x [i].imag *= inv;
     }
 }

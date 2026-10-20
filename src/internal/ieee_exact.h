@@ -23,24 +23,21 @@
 #include <stdint.h>
 #include <string.h>
 #include "ml_core.h"
-
 /* Classification of IEEE-754 double-precision values */
 typedef enum {
-    ML_FP_ZERO      = 0,
+    ML_FP_ZERO = 0,
     ML_FP_SUBNORMAL = 1,
-    ML_FP_NORMAL    = 2,
-    ML_FP_INF       = 3,
-    ML_FP_NAN       = 4
+    ML_FP_NORMAL = 2,
+    ML_FP_INF = 3,
+    ML_FP_NAN = 4
 } ml_fp_kind_t;
-
 /* Exact decomposition of a double into integer significand + exponent */
 typedef struct {
-    uint64_t       sig;   /* Exact integer significand (53-bit for normals) */
-    int            exp;   /* Unbiased exponent: value = sign * sig * 2^exp */
-    int            sign;  /* 0 = positive, 1 = negative */
-    ml_fp_kind_t   kind;  /* Classification */
+    uint64_t sig;      /* Exact integer significand (53-bit for normals) */
+    int exp;           /* Unbiased exponent: value = sign * sig * 2^exp */
+    int sign;          /* 0 = positive, 1 = negative */
+    ml_fp_kind_t kind; /* Classification */
 } ml_fp_parts_t;
-
 /* ============================================================================
  * DECOMPOSE: double -> (sig, exp, sign, kind)
  *
@@ -52,21 +49,21 @@ typedef struct {
  * ZERO:      sig = 0, exp = 0
  * INF/NAN:   sig = raw mantissa bits, exp = 0, kind distinguishes them
  * ========================================================================== */
-static inline ml_fp_parts_t ml_fp_decompose(double x) {
+static inline ml_fp_parts_t ml_fp_decompose (double x) {
     uint64_t bits;
-    memcpy(&bits, &x, sizeof(uint64_t));
+    memcpy (&bits, &x, sizeof (uint64_t));
 
     ml_fp_parts_t p;
-    p.sign = (int)(bits >> 63);
+    p.sign = (int) (bits >> 63);
 
     uint64_t exp_bits = (bits >> 52) & 0x7FFULL;
-    uint64_t mant     = bits & 0x000FFFFFFFFFFFFFULL;
+    uint64_t mant = bits & 0x000FFFFFFFFFFFFFULL;
 
     /* Special values: exponent field all ones */
     if (exp_bits == 0x7FFULL) {
         p.kind = mant ? ML_FP_NAN : ML_FP_INF;
-        p.sig  = mant;
-        p.exp  = 0;
+        p.sig = mant;
+        p.exp = 0;
         return p;
     }
 
@@ -74,24 +71,23 @@ static inline ml_fp_parts_t ml_fp_decompose(double x) {
     if (exp_bits == 0) {
         if (mant == 0) {
             p.kind = ML_FP_ZERO;
-            p.sig  = 0;
-            p.exp  = 0;
+            p.sig = 0;
+            p.exp = 0;
             return p;
         }
         /* Subnormal: no hidden bit, exponent is fixed at -1074 */
         p.kind = ML_FP_SUBNORMAL;
-        p.sig  = mant;
-        p.exp  = -1074;
+        p.sig = mant;
+        p.exp = -1074;
         return p;
     }
 
     /* Normal: restore hidden bit 52 */
     p.kind = ML_FP_NORMAL;
-    p.sig  = mant | (1ULL << 52);
-    p.exp  = (int)exp_bits - 1023 - 52;
+    p.sig = mant | (1ULL << 52);
+    p.exp = (int) exp_bits - 1023 - 52;
     return p;
 }
-
 /* ============================================================================
  * COMPOSE: (sig, exp, sign) -> double
  *
@@ -108,12 +104,12 @@ static inline ml_fp_parts_t ml_fp_decompose(double x) {
  * This function NEVER flushes subnormals to zero unless the true
  * mathematical result is smaller than the smallest representable subnormal.
  * ========================================================================== */
-static inline double ml_fp_compose(uint64_t sig, int exp, int sign) {
+static inline double ml_fp_compose (uint64_t sig, int exp, int sign) {
     /* Zero significand -> signed zero */
     if (sig == 0) {
         uint64_t bits = sign ? 0x8000000000000000ULL : 0ULL;
         double d;
-        memcpy(&d, &bits, sizeof(double));
+        memcpy (&d, &bits, sizeof (double));
         return d;
     }
 
@@ -125,33 +121,33 @@ static inline double ml_fp_compose(uint64_t sig, int exp, int sign) {
 
     /* Step 2: Check if we have a normal-range result */
     if (sig >= (1ULL << 52)) {
-        int biased = exp + 52 + 1023;  /* Convert to IEEE biased exponent */
+        int biased = exp + 52 + 1023; /* Convert to IEEE biased exponent */
 
         /* Overflow: exponent too large -> signed infinity */
         if (biased >= 0x7FF) {
-            return ml_make_inf(sign);
+            return ml_make_inf (sign);
         }
 
         /* Normal range: biased exponent in [1, 2046] */
         if (biased >= 1) {
             uint64_t bits =
-                ((uint64_t)sign << 63) |
-                ((uint64_t)biased << 52) |
+                ((uint64_t) sign << 63) |
+                ((uint64_t) biased << 52) |
                 (sig & 0x000FFFFFFFFFFFFFULL);
             double d;
-            memcpy(&d, &bits, sizeof(double));
+            memcpy (&d, &bits, sizeof (double));
             return d;
         }
 
         /* Step 3: Subnormal range (biased <= 0) */
         /* We need to shift the significand right to denormalize it */
-        int shift = 1 - biased;  /* Number of bits to shift right */
+        int shift = 1 - biased; /* Number of bits to shift right */
 
         if (shift >= 64) {
             /* Complete underflow -> signed zero */
             uint64_t bits = sign ? 0x8000000000000000ULL : 0ULL;
             double d;
-            memcpy(&d, &bits, sizeof(double));
+            memcpy (&d, &bits, sizeof (double));
             return d;
         }
 
@@ -168,19 +164,19 @@ static inline double ml_fp_compose(uint64_t sig, int exp, int sign) {
                 /* Rounding up may push us back into normal range */
                 if (mant >= (1ULL << 52)) {
                     uint64_t bits =
-                        ((uint64_t)sign << 63) |
-                        (1ULL << 52);  /* biased exp = 1, mantissa = 0 */
+                        ((uint64_t) sign << 63) |
+                        (1ULL << 52); /* biased exp = 1, mantissa = 0 */
                     double d;
-                    memcpy(&d, &bits, sizeof(double));
+                    memcpy (&d, &bits, sizeof (double));
                     return d;
                 }
             }
         }
 
         /* Subnormal: biased exponent field = 0, mantissa = mant */
-        uint64_t bits = ((uint64_t)sign << 63) | mant;
+        uint64_t bits = ((uint64_t) sign << 63) | mant;
         double d;
-        memcpy(&d, &bits, sizeof(double));
+        memcpy (&d, &bits, sizeof (double));
         return d;
     }
 
@@ -192,7 +188,7 @@ static inline double ml_fp_compose(uint64_t sig, int exp, int sign) {
         if (shift >= 64) {
             uint64_t bits = sign ? 0x8000000000000000ULL : 0ULL;
             double d;
-            memcpy(&d, &bits, sizeof(double));
+            memcpy (&d, &bits, sizeof (double));
             return d;
         }
         {
@@ -204,31 +200,30 @@ static inline double ml_fp_compose(uint64_t sig, int exp, int sign) {
                 mant++;
                 if (mant >= (1ULL << 52)) {
                     uint64_t bits =
-                        ((uint64_t)sign << 63) |
+                        ((uint64_t) sign << 63) |
                         (1ULL << 52);
                     double d;
-                    memcpy(&d, &bits, sizeof(double));
+                    memcpy (&d, &bits, sizeof (double));
                     return d;
                 }
             }
             if (mant == 0) {
                 uint64_t bits = sign ? 0x8000000000000000ULL : 0ULL;
                 double d;
-                memcpy(&d, &bits, sizeof(double));
+                memcpy (&d, &bits, sizeof (double));
                 return d;
             }
-            uint64_t bits = ((uint64_t)sign << 63) | mant;
+            uint64_t bits = ((uint64_t) sign << 63) | mant;
             double d;
-            memcpy(&d, &bits, sizeof(double));
+            memcpy (&d, &bits, sizeof (double));
             return d;
         }
     }
 
     /* Subnormal with sig already in position */
-    uint64_t bits = ((uint64_t)sign << 63) | sig;
+    uint64_t bits = ((uint64_t) sign << 63) | sig;
     double d;
-    memcpy(&d, &bits, sizeof(double));
+    memcpy (&d, &bits, sizeof (double));
     return d;
 }
-
 #endif /* ML_IEEE_EXACT_H */

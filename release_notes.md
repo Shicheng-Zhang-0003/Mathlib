@@ -6,6 +6,22 @@
 **Oracle:** 412 passed, 0 failed, worst 0 ULP (26 families: 7 core sin, cos, exp, log, gamma, lgamma, pow + 19 R6 expansion, correctly rounded on the grid vs mpmath 50-dps; gate stays ≤5 ULP, see `docs/PRECISION_CONTRACT.md`)
 **Gate:** Full closure gate passed (build, modular, edge 23 suites, fuzz, boundary, oracle, sanitizers)
 
+## Unreleased v12R3 Development Audit (2026-10-19)
+
+The working tree is now version 12.3.0 with 59 translation units. It adds
+experimental exact/numerical extensions, a pre-university utility module, and audit fixes for integer conversion,
+remainder quotient bits, gamma sign reporting, large negative zeta zeros,
+fixed-capacity bigint arithmetic, and special-function boundary behavior.
+These additions have directed regression coverage but no oracle-tier accuracy
+certification. The v12R2 release measurements below do not apply to them.
+
+The 2026-10-19 core accuracy recheck added 15 atan reference vectors and
+midpoint-tail regressions for `expm1` and `log1p`. The current oracle has 406
+mpmath vectors across 27 families plus 21 large-argument checks; all 427
+checks pass, with a worst reference error of 1 ULP at `gamma(50)`. On a
+deterministic 9,508-input atan sample, the extended-precision `atanl` path
+reduced 1-ULP results from 69 to 3. The accuracy audit now passes 378 checks.
+
 ---
 
 ## What v12R2 Is

@@ -15,7 +15,7 @@
  */
 
 /* sin(x) = x*P(x^2) on [-pi/4,pi/4], deg P = 9, 2 ULP */
-static const double minimax_sin_coeffs[] = {
+static const double minimax_sin_coeffs [] = {
     1.00000000000000000e+00,
     -1.66666666666666130e-01,
     8.33333333321663317e-03,
@@ -25,11 +25,10 @@ static const double minimax_sin_coeffs[] = {
     -1.73566878929622998e-10,
     5.36336157568554792e-10,
     -4.63861711696611084e-10,
-    1.67107618401640791e-10
-};
+    1.67107618401640791e-10};
 
 /* cos(x) = P(x^2) on [-pi/4,pi/4], deg P = 8, 5 ULP */
-static const double minimax_cos_coeffs[] = {
+static const double minimax_cos_coeffs [] = {
     1.00000000000000000e+00,
     -4.99999999999989675e-01,
     4.16666666665971158e-02,
@@ -38,8 +37,7 @@ static const double minimax_cos_coeffs[] = {
     -2.75641035619297387e-07,
     2.23136920321617839e-09,
     -1.60859147292726274e-10,
-    6.13588299421973864e-11
-};
+    6.13588299421973864e-11};
 
 /* exp(x) = P(x) on [-ln2/2,ln2/2], deg = 19, 1 ULP */
 /* NOTE: Taylor-19 coefficients (exact 1/k!, rounded once).
@@ -47,7 +45,7 @@ static const double minimax_cos_coeffs[] = {
  * double FMA Horner: evaluation-noise floor ~8 ULP at degrees
  * 9-14 (noise grows with degree). This Taylor set measures 1 ULP
  * under the same model and is the validated exp kernel. */
-static const double minimax_exp_coeffs[] = {
+static const double minimax_exp_coeffs [] = {
     1.00000000000000000e+00,
     1.00000000000000000e+00,
     5.00000000000000000e-01,
@@ -67,11 +65,10 @@ static const double minimax_exp_coeffs[] = {
     4.77947733238738525e-14,
     2.81145725434552060e-15,
     1.56192069685862253e-16,
-    8.22063524662432950e-18
-};
+    8.22063524662432950e-18};
 
 /* log((1+z)/(1-z)) = z*P(z^2) on [0,1.71572875253809903e-01], deg P = 7, 3 ULP */
-static const double minimax_log_coeffs[] = {
+static const double minimax_log_coeffs [] = {
     2.00000000000000000e+00,
     6.66666666666652197e-01,
     4.00000000057261662e-01,
@@ -79,7 +76,6 @@ static const double minimax_log_coeffs[] = {
     2.22223700534311008e-01,
     1.81749009387218996e-01,
     1.55257574832294437e-01,
-    1.27975987190112134e-01
-};
+    1.27975987190112134e-01};
 
 #endif /* ML_INTERNAL_MINIMAX_COEFFS_H */
