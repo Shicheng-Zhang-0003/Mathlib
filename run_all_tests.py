@@ -4,7 +4,7 @@ run_all_tests.py
 ================
 The Nuclear Option.
 
-Runs EVERY test, fuzzer, oracle, and gauntlet in the v12R2 tree.
+Runs every test, fuzzer, oracle, and gauntlet in the current v12R3 tree.
 No shortcuts. No skips. Everything passes or you know exactly what didn't.
 
 Run from INSIDE the repo root:
@@ -66,7 +66,7 @@ EDGE_TEST_CFLAGS = [
 ]
 
 LIB_SOURCES = [
-    # Canonical TU list: must match MATHLIB_SOURCES in CMakeLists.txt (43 TUs).
+    # Canonical TU list: must match MATHLIB_SOURCES in CMakeLists.txt (59 TUs).
     "src/core.c",
     "src/trig.c",
     "src/exp_log.c",
@@ -110,6 +110,22 @@ LIB_SOURCES = [
     "src/topology.c",
     "src/diffgeom.c",
     "src/algebraic.c",
+    "src/math_extra.c",
+    "src/bigint.c",
+    "src/exact.c",
+    "src/interval.c",
+    "src/polyq.c",
+    "src/gfp.c",
+    "src/special.c",
+    "src/linalg_extra.c",
+    "src/calculus_extra.c",
+    "src/stats_extra.c",
+    "src/graph_extra.c",
+    "src/optim_extra.c",
+    "src/geom_extra.c",
+    "src/complexan.c",
+    "src/ode_extra.c",
+    "src/school.c",
 ]
 
 
@@ -154,7 +170,7 @@ class TestReport:
     def print_summary(self) -> None:
         print()
         print("=" * 72)
-        print("  MATHLIB v12R2: FULL TEST SUITE RESULTS")
+        print("  MATHLIB v12R3: FULL TEST SUITE RESULTS")
         print("=" * 72)
 
         current_phase = ""
@@ -175,7 +191,7 @@ class TestReport:
         print("-" * 72)
 
         if self.failed_count == 0:
-            print("  \U0001f389 ALL TESTS PASSED. v12R2 is clean.")
+            print("  \U0001f389 ALL TESTS PASSED. v12R3 tree is clean.")
         else:
             print("  \u26a0\ufe0f  FAILURES DETECTED:")
             for r in self.results:
@@ -356,15 +372,28 @@ def phase_edge(report: TestReport, verbose: bool, fail_fast: bool) -> None:
     edge_build_dir = os.environ.get("MATHLIB_EDGE_BUILD_DIR", BUILD_DIR)
     os.makedirs(edge_build_dir, exist_ok=True)
     cflags = [c for c in EDGE_TEST_CFLAGS]
-    if os.environ.get("MATHLIB_EDGE_SANITIZERS", "1") != "1":
+    edge_sanitizers = os.environ.get("MATHLIB_EDGE_SANITIZERS", "1") == "1"
+    if not edge_sanitizers:
         cflags = [c for c in cflags if not c.startswith("-fsanitize") and c != "-fno-omit-frame-pointer"]
+
+    # The CMake build already compiles every library TU with the selected
+    # profile and (by default) ASan/UBSan. Reuse that archive for each edge
+    # executable instead of recompiling all 59 TUs once per test. Retain the
+    # direct-source fallback for --no-build trees without the archive and for
+    # unsanitized edge runs, where the CMake archive may be instrumented.
+    library_archive = Path(BUILD_DIR) / "libmathc.a"
+    edge_link_inputs = (
+        [str(library_archive)]
+        if edge_sanitizers and library_archive.is_file()
+        else LIB_SOURCES
+    )
 
     for src in edge_sources:
         name = Path(src).stem
         binary = Path(edge_build_dir) / name
 
         # Compile
-        compile_cmd = [cc] + cflags + ["-o", str(binary), src] + LIB_SOURCES + ["-lm"]
+        compile_cmd = [cc] + cflags + ["-o", str(binary), src] + edge_link_inputs + ["-lm"]
         t0 = time.time()
         rc, stdout, stderr = run_cmd(compile_cmd, timeout=120)
         compile_time = time.time() - t0
@@ -552,7 +581,8 @@ def phase_python_runner(report: TestReport, verbose: bool, fail_fast: bool) -> N
     print("  PHASE 8: PYTHON TEST RUNNER (run_tests.py)")
     print("=" * 72)
 
-    runner = Path("tests/run_tests.py")
+    repo_root = Path(__file__).resolve().parent
+    runner = repo_root / "tests" / "run_tests.py"
     if not runner.exists():
         print("  \u26a0\ufe0f  tests/run_tests.py not found, skipping.")
         return
@@ -562,7 +592,7 @@ def phase_python_runner(report: TestReport, verbose: bool, fail_fast: bool) -> N
         report,
         "run_tests.py (modular runner)",
         "Python Runner",
-        [sys.executable, os.path.join("..", "tests", "run_tests.py")],
+        [sys.executable, str(runner)],
         cwd=Path(BUILD_DIR),
         timeout=120,
         verbose=verbose,
@@ -571,12 +601,68 @@ def phase_python_runner(report: TestReport, verbose: bool, fail_fast: bool) -> N
 
 
 # ---------------------------------------------------------------------------
+# Phase 9: Installed CMake package consumer
+# ---------------------------------------------------------------------------
+
+def phase_package_consumer(report: TestReport, verbose: bool, fail_fast: bool) -> None:
+    print("\n" + "=" * 72)
+    print("  PHASE 9: INSTALLED CMAKE PACKAGE CONSUMER")
+    print("=" * 72)
+
+    build_root = Path(BUILD_DIR).resolve()
+    install_prefix = build_root / "package-install"
+    consumer_build = build_root / "package-consumer"
+    exe_name = "mathlib_package_consumer.exe" if os.name == "nt" else "mathlib_package_consumer"
+    executable = consumer_build / exe_name
+    commands = [
+        ["cmake", "--install", str(build_root), "--prefix", str(install_prefix)],
+        ["cmake", "-S", "tests/package_consumer", "-B", str(consumer_build),
+         f"-DCMAKE_PREFIX_PATH={install_prefix}"],
+        ["cmake", "--build", str(consumer_build), "--target", "mathlib_package_consumer"],
+        [str(executable)],
+    ]
+
+    t0 = time.time()
+    logs = []
+    error = ""
+    passed = True
+    for cmd in commands:
+        rc, stdout, stderr = run_cmd(cmd, timeout=120)
+        if verbose and stdout:
+            logs.append(stdout)
+        if rc != 0:
+            passed = False
+            error = stderr or stdout or f"Command failed ({rc}): {' '.join(cmd)}"
+            break
+
+    result = TestResult(
+        "installed CMake package consumer",
+        "Package Consumer",
+        passed,
+        time.time() - t0,
+        output="\n".join(logs),
+        error=error,
+    )
+    report.add(result)
+    if verbose or not passed:
+        icon = "\u2705" if passed else "\u274c"
+        print(f"  {icon} {result.name} ({result.duration:.2f}s)")
+        if not passed:
+            for line in error.strip().splitlines()[-12:]:
+                print(f"     {line}")
+    if not passed and fail_fast:
+        print(f"\n  \u274c FAIL-FAST: Stopping at {result.name}")
+        report.print_summary()
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="MathLib v12R2: Run every test in the tree.",
+        description="MathLib v12R3: Run every test in the tree.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -605,7 +691,7 @@ def main() -> int:
         return 2
 
     print("=" * 72)
-    print("  MATHLIB v12R2: FULL TEST SUITE (THE NUCLEAR OPTION)")
+    print("  MATHLIB v12R3: FULL TEST SUITE (THE NUCLEAR OPTION)")
     print("=" * 72)
     print(f"  Seed:       {args.seed}")
     print(f"  Soak:       {'YES (' + str(args.soak_n) + ' iters)' if args.soak else 'NO'}")
@@ -650,6 +736,9 @@ def main() -> int:
 
     # Phase 8: Python runner
     phase_python_runner(report, args.verbose, args.fail_fast)
+
+    # Phase 9: installed package consumer
+    phase_package_consumer(report, args.verbose, args.fail_fast)
 
     # Summary
     total_time = time.time() - t_start

@@ -25,111 +25,110 @@ extern "C" {
 
 /* 1. Compiler Identity */
 #if defined(_MSC_VER)
-#  define ML_COMPILER_MSVC 1
+#define ML_COMPILER_MSVC 1
 #elif defined(__clang__)
-#  define ML_COMPILER_CLANG 1
+#define ML_COMPILER_CLANG 1
 #elif defined(__GNUC__)
-#  define ML_COMPILER_GNUC 1
+#define ML_COMPILER_GNUC 1
 #else
-#  define ML_COMPILER_UNKNOWN 1
+#define ML_COMPILER_UNKNOWN 1
 #endif
 
 /* 2. Inline & Alignment Abstraction */
 #if defined(ML_COMPILER_MSVC)
-#  define ML_INLINE static __forceinline
-#  define ML_NOINLINE __declspec(noinline)
-#  define ML_ALIGN(n) __declspec(align(n))
+#define ML_INLINE static __forceinline
+#define ML_NOINLINE __declspec (noinline)
+#define ML_ALIGN(n) __declspec (align (n))
 #else
-#  define ML_INLINE static inline __attribute__((always_inline))
-#  define ML_NOINLINE __attribute__((noinline))
-#  define ML_ALIGN(n) __attribute__((aligned(n)))
+#define ML_INLINE static inline __attribute__ ((always_inline))
+#define ML_NOINLINE __attribute__ ((noinline))
+#define ML_ALIGN(n) __attribute__ ((aligned (n)))
 #endif
 
 /* 3. API Export (Harmless for static libs, required for future DLLs) */
 #if defined(ML_COMPILER_MSVC)
-#  if defined(MATHLIB_BUILD_SHARED)
-#    define ML_API __declspec(dllexport)
-#  elif defined(MATHLIB_USE_SHARED)
-#    define ML_API __declspec(dllimport)
-#  else
-#    define ML_API
-#  endif
-#elif defined(ML_COMPILER_GNUC) || defined(ML_COMPILER_CLANG)
-#  define ML_API __attribute__((visibility("default")))
+#if defined(MATHLIB_BUILD_SHARED)
+#define ML_API __declspec (dllexport)
+#elif defined(MATHLIB_USE_SHARED)
+#define ML_API __declspec (dllimport)
 #else
-#  define ML_API
+#define ML_API
+#endif
+#elif defined(ML_COMPILER_GNUC) || defined(ML_COMPILER_CLANG)
+#define ML_API __attribute__ ((visibility ("default")))
+#else
+#define ML_API
 #endif
 
 /* 4. Branch Prediction Hints */
 #if defined(ML_COMPILER_GNUC) || defined(ML_COMPILER_CLANG)
-#  define ML_LIKELY(x) __builtin_expect(!!(x), 1)
-#  define ML_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#define ML_LIKELY(x) __builtin_expect (!!(x), 1)
+#define ML_UNLIKELY(x) __builtin_expect (!!(x), 0)
 #else
-#  define ML_LIKELY(x) (x)
-#  define ML_UNLIKELY(x) (x)
+#define ML_LIKELY(x) (x)
+#define ML_UNLIKELY(x) (x)
 #endif
 
 /* 5. Restrict Pointer (C99 / MSVC) */
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
-#  define ML_RESTRICT restrict
+#define ML_RESTRICT restrict
 #elif defined(ML_COMPILER_MSVC)
-#  define ML_RESTRICT __restrict
+#define ML_RESTRICT __restrict
 #else
-#  define ML_RESTRICT
+#define ML_RESTRICT
 #endif
 
 /* 6. Target Attributes (for AVX2/FMA routing) */
 #if defined(ML_COMPILER_GNUC) || defined(ML_COMPILER_CLANG)
-#  define ML_TARGET_AVX2 __attribute__((target("avx2,fma")))
+#define ML_TARGET_AVX2 __attribute__ ((target ("avx2,fma")))
 #else
-#  define ML_TARGET_AVX2 /* MSVC uses /arch:AVX2 globally or pragmas */
+#define ML_TARGET_AVX2 /* MSVC uses /arch:AVX2 globally or pragmas */
 #endif
 
 /* 7. Constructor (Library auto-init) */
 #if defined(ML_COMPILER_GNUC) || defined(ML_COMPILER_CLANG)
-#  define ML_CTOR __attribute__((constructor))
+#define ML_CTOR __attribute__ ((constructor))
 #else
-#  define ML_CTOR /* MSVC requires #pragma init_seg or DllMain */
+#define ML_CTOR /* MSVC requires #pragma init_seg or DllMain */
 #endif
 
 /* 8. Deprecation Warnings */
 #if defined(ML_COMPILER_GNUC) || defined(ML_COMPILER_CLANG)
-#  define ML_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#define ML_DEPRECATED(msg) __attribute__ ((deprecated (msg)))
 #elif defined(ML_COMPILER_MSVC)
-#  define ML_DEPRECATED(msg) __declspec(deprecated(msg))
+#define ML_DEPRECATED(msg) __declspec (deprecated (msg))
 #else
-#  define ML_DEPRECATED(msg)
+#define ML_DEPRECATED(msg)
 #endif
 
 /* 9. Compile-time Feature Detection */
 #if defined(__AVX2__) && (defined(__x86_64__) || defined(__i386__))
-#  define ML_COMPILE_TIME_AVX2 1
+#define ML_COMPILE_TIME_AVX2 1
 #else
-#  define ML_COMPILE_TIME_AVX2 0
+#define ML_COMPILE_TIME_AVX2 0
 #endif
-
 
 /* 10. Hardware FMA (Fused Multiply-Add) Abstraction */
 #if defined(__GNUC__) || defined(__clang__)
-#  define ML_FMA(a, b, c) __builtin_fma((double)(a), (double)(b), (double)(c))
+#define ML_FMA(a, b, c) __builtin_fma ((double) (a), (double) (b), (double) (c))
 #elif defined(_MSC_VER)
-#  include <math.h>
-#  define ML_FMA(a, b, c) fma((double)(a), (double)(b), (double)(c))
+#include <math.h>
+#define ML_FMA(a, b, c) fma ((double) (a), (double) (b), (double) (c))
 #else
 /* Software FMA emulation using Dekker's Two-Product + Two-Sum.
  * This provides single-rounding semantics (approximately) on platforms without FMA.
  * For production use, hardware FMA is strongly recommended. */
-static inline double ml_fma_soft_impl(double a, double b, double c) {
+static inline double ml_fma_soft_impl (double a, double b, double c) {
     /* IEEE specials must bypass Dekker splitting (which yields NaN for
      * Inf inputs). Fall back to separate roundings, which are IEEE-correct. */
     uint64_t abits, bbits, cbits;
-    memcpy(&abits, &a, sizeof(uint64_t));
-    memcpy(&bbits, &b, sizeof(uint64_t));
-    memcpy(&cbits, &c, sizeof(uint64_t));
+    memcpy (&abits, &a, sizeof (uint64_t));
+    memcpy (&bbits, &b, sizeof (uint64_t));
+    memcpy (&cbits, &c, sizeof (uint64_t));
     {
-        int aexp = (int)((abits >> 52) & 0x7FFULL);
-        int bexp = (int)((bbits >> 52) & 0x7FFULL);
-        int cexp = (int)((cbits >> 52) & 0x7FFULL);
+        int aexp = (int) ((abits >> 52) & 0x7FFULL);
+        int bexp = (int) ((bbits >> 52) & 0x7FFULL);
+        int cexp = (int) ((cbits >> 52) & 0x7FFULL);
         if (aexp == 0x7FF || bexp == 0x7FF || cexp == 0x7FF) {
             return (a * b) + c;
         }
@@ -144,8 +143,14 @@ static inline double ml_fma_soft_impl(double a, double b, double c) {
     {
         int ka = 0, kb = 0, kk;
         double p, perr, s, v, aerr, r, prod;
-        if (fabs(a) > 0x1p500) { ka = ilogb(a) - 500; a = ldexp(a, -ka); }
-        if (fabs(b) > 0x1p500) { kb = ilogb(b) - 500; b = ldexp(b, -kb); }
+        if (fabs (a) > 0x1p500) {
+            ka = ilogb (a) - 500;
+            a = ldexp (a, -ka);
+        }
+        if (fabs (b) > 0x1p500) {
+            kb = ilogb (b) - 500;
+            b = ldexp (b, -kb);
+        }
         kk = ka + kb; /* <= 0, so the rescaled product never overflows here */
         /* Two-Product: p = fl(a*b) on the scaled operands, perr = residual */
         p = a * b;
@@ -158,63 +163,128 @@ static inline double ml_fma_soft_impl(double a, double b, double c) {
             double b_lo = b - b_hi;
             perr = ((a_hi * b_hi - p) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
         }
-        prod = (kk != 0) ? ldexp(p, kk) : p;
+        prod = (kk != 0) ? ldexp (p, kk) : p;
         /* Two-Sum: s = fl(prod + c), aerr = prod + c - s */
         s = prod + c;
-        if (!isfinite(s)) {
+        if (!isfinite (s)) {
             /* prod+c genuinely overflows; the exact residual is below one
              * ulp of prod and cannot bring it back into range. */
             return s;
         }
         v = s - prod;
         aerr = (prod - (s - v)) + (c - v);
-        r = s + (((kk != 0) ? ldexp(perr, kk) : perr) + aerr);
+        r = s + (((kk != 0) ? ldexp (perr, kk) : perr) + aerr);
         return r;
     }
 }
-#  define ML_FMA(a, b, c) ml_fma_soft_impl((double)(a), (double)(b), (double)(c))
+#define ML_FMA(a, b, c) ml_fma_soft_impl ((double) (a), (double) (b), (double) (c))
 #endif
 
-/* 11. R5 despot: long-double builtin portability.
- * The tree uses __builtin_sqrtl/cosl/sinl/expl/logl/powl/fabsl/sqrt/log/
- * cos/exp unconditionally (GCC/Clang). MSVC has no __builtin_* family;
- * map the used subset to the standard C library so the tree at least
- * compiles there (precision then follows MSVC long double == double,
- * documented in KNOWN_LIMITATIONS; K/Airy quadrature stays exact). */
+/* 11. R5 despot: GCC/Clang builtin portability.
+ * MSVC has no __builtin_* family. Its long double has double precision, so
+ * map the math subset used by the sources to the corresponding C functions.
+ * Overflow checks below are portable int64_t helpers. */
 #if defined(_MSC_VER) && !defined(__clang__)
-#  ifndef __builtin_sqrt
-#    define __builtin_sqrt sqrt
-#  endif
-#  ifndef __builtin_log
-#    define __builtin_log log
-#  endif
-#  ifndef __builtin_cos
-#    define __builtin_cos cos
-#  endif
-#  ifndef __builtin_exp
-#    define __builtin_exp exp
-#  endif
-#  ifndef __builtin_sqrtl
-#    define __builtin_sqrtl sqrtl
-#  endif
-#  ifndef __builtin_cosl
-#    define __builtin_cosl cosl
-#  endif
-#  ifndef __builtin_sinl
-#    define __builtin_sinl sinl
-#  endif
-#  ifndef __builtin_expl
-#    define __builtin_expl expl
-#  endif
-#  ifndef __builtin_logl
-#    define __builtin_logl logl
-#  endif
-#  ifndef __builtin_powl
-#    define __builtin_powl powl
-#  endif
-#  ifndef __builtin_fabsl
-#    define __builtin_fabsl fabsl
-#  endif
+#ifndef __builtin_acosl
+#define __builtin_acosl acos
+#endif
+#ifndef __builtin_asinl
+#define __builtin_asinl asin
+#endif
+#ifndef __builtin_atan2l
+#define __builtin_atan2l atan2
+#endif
+#ifndef __builtin_atanl
+#define __builtin_atanl atan
+#endif
+#ifndef __builtin_cbrt
+#define __builtin_cbrt cbrt
+#endif
+#ifndef __builtin_cbrtl
+#define __builtin_cbrtl cbrt
+#endif
+#ifndef __builtin_coshl
+#define __builtin_coshl cosh
+#endif
+#ifndef __builtin_exp2l
+#define __builtin_exp2l exp2
+#endif
+#ifndef __builtin_hypot
+#define __builtin_hypot hypot
+#endif
+#ifndef __builtin_lgammal
+#define __builtin_lgammal lgamma
+#endif
+#ifndef __builtin_log1pl
+#define __builtin_log1pl log1p
+#endif
+#ifndef __builtin_pow
+#define __builtin_pow pow
+#endif
+#ifndef __builtin_sqrt
+#define __builtin_sqrt sqrt
+#endif
+#ifndef __builtin_log
+#define __builtin_log log
+#endif
+#ifndef __builtin_cos
+#define __builtin_cos cos
+#endif
+#ifndef __builtin_exp
+#define __builtin_exp exp
+#endif
+#ifndef __builtin_sqrtl
+#define __builtin_sqrtl sqrt
+#endif
+#ifndef __builtin_cosl
+#define __builtin_cosl cos
+#endif
+#ifndef __builtin_sinl
+#define __builtin_sinl sin
+#endif
+#ifndef __builtin_expl
+#define __builtin_expl exp
+#endif
+#ifndef __builtin_logl
+#define __builtin_logl log
+#endif
+#ifndef __builtin_powl
+#define __builtin_powl pow
+#endif
+#ifndef __builtin_fabsl
+#define __builtin_fabsl fabs
+#endif
+#ifndef __builtin_sinhl
+#define __builtin_sinhl sinh
+#endif
+#ifndef __builtin_huge_vall
+#define __builtin_huge_vall HUGE_VAL
+#endif
+static inline int ml_msvc_mul_overflow_i64 (int64_t a, int64_t b, int64_t *out) {
+    if (a == 0 || b == 0) {
+        *out = 0;
+        return 0;
+    }
+    if ((a == INT64_MIN && b == -1) || (b == INT64_MIN && a == -1)) return 1;
+    if (a > 0) {
+        if ((b > 0 && a > INT64_MAX / b) || (b < 0 && b < INT64_MIN / a)) return 1;
+    } else {
+        if ((b > 0 && a < INT64_MIN / b) || (b < 0 && a < INT64_MAX / b)) return 1;
+    }
+    *out = a * b;
+    return 0;
+}
+static inline int ml_msvc_sub_overflow_i64 (int64_t a, int64_t b, int64_t *out) {
+    if ((b > 0 && a < INT64_MIN + b) || (b < 0 && a > INT64_MAX + b)) return 1;
+    *out = a - b;
+    return 0;
+}
+#ifndef __builtin_mul_overflow
+#define __builtin_mul_overflow(a, b, out) ml_msvc_mul_overflow_i64 ((int64_t) (a), (int64_t) (b), (out))
+#endif
+#ifndef __builtin_sub_overflow
+#define __builtin_sub_overflow(a, b, out) ml_msvc_sub_overflow_i64 ((int64_t) (a), (int64_t) (b), (out))
+#endif
 #endif
 
 #ifdef __cplusplus

@@ -1,4 +1,4 @@
-# API Guide (v12R2 / V1.2-RC2, 34 TUs)
+# API Guide (v12R3 development, 59 TUs)
 
 Public headers are grouped by subsystem (all carry `extern "C"` guards):
 
@@ -35,6 +35,31 @@ linear algebra
 - matrix and vector operations (LU/Cholesky/QR, Jacobi SINGULAR on
   non-convergence, determinant finite guard)
 
+exact and certified foundations
+- dynamically sized integers and canonical rationals, including exact finite
+  decimal parsing (`ml_exact.h`)
+- exact univariate polynomials over Q and polynomial division certificates
+  (`ml_polyq.h`)
+- prime-field arithmetic, Legendre symbols, and modular square roots
+  (`ml_gfp.h`)
+- outward-rounded binary64 intervals for basic arithmetic (`ml_interval.h`;
+  requires supported IEEE binary64 and round-to-nearest runtime mode)
+
+school / pre-university formulas and conversions (`ml_school.h`)
+- length, area, mass, time, liquid/solid volume, and temperature conversions
+- percentages, explicit decimal tie rules, significant figures,
+  arithmetic/geometric sequences, and simple/compound growth
+- linear equations and inequality interval sets, slope/intersection, and
+  common planar/solid measurements
+
 Consumers should include only required subsystem headers.
 Status per header: `docs/API_STATUS.md`. Accuracy tiers: `docs/PRECISION_CONTRACT.md`.
 Measured ULP push: `docs/ULP_PUSH.md`. Gate evidence: `docs/GATE_V12R2.md`.
+Exact arithmetic ownership, domains, and certificate semantics:
+`docs/EXACT_FOUNDATIONS.md`. Subject-by-subject coverage and the development
+sequence: `docs/MATH_COVERAGE.md`.
+Pre-university topic coverage and gaps: `docs/PREUNIVERSITY_COVERAGE.md`.
+
+The current tree also adds experimental `ml_bigint`, `ml_math_extra`,
+`ml_special`, and eight `*_extra` subsystem headers. They are not covered by
+the historical v12R2 oracle measurements.

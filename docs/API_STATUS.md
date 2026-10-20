@@ -1,9 +1,10 @@
-# MathLib v12R2 API Status (Despot Audit)
-<!-- v12R2 despot audit 2026-09-30: 34 TUs, kelvin integrated, error codes extended -->
+# MathLib v12R3 API Status (Despot Audit)
+<!-- v12R3 audit: 59 TUs; R2 release rows below remain historical -->
 
-This document defines the public interface status for MathLib `12.2.0` (v12R2 despot refinement).
+This document defines the interface status for the unreleased MathLib `12.3.0` working tree.
 
-**No new features or signature changes are permitted beyond the v11S closure boundary.**
+The v12R2 API descriptions below retain their previous status. New v12R3
+headers are experimental and have no oracle-tier accuracy certification.
 
 ---
 
@@ -57,7 +58,7 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 | `ml_numbertheory.h` | **EXPERIMENTAL** | Exact u64; mobius 2=UNRESOLVED sentinel; mult_order exact; crt2 generalized; Round-2 prime_pi odd fix (pi(3)=2) + catalan C0..C36 exact via recurrence (C37+ MAX) |
 | `ml_transforms.h` | **EXPERIMENTAL** | Unscaled DCT-II/III pair; `ml_dst2` implements DST-I (`ml_dst1` alias); `ml_parseval_energy` is time-domain energy; O(n^2) n<=256 |
 | `ml_kelvin.h` | **EXPERIMENTAL** | ber/bei/ker/kei series + DLMF 10.67.3-4 full least-term asymptotic sums (Round-3; ~1e-13 relative at 20, was 2-term ~0.5%); ber/bei(Inf)=NaN, ker/kei(Inf)=0; ker/kei(x<=0)=NaN |
-| `ml_contest.h` | **EXPERIMENTAL** | 41 contest functions (recreational, figurate/parity/recurrences/Bell/Stirling/Eulerian/Lah/Motzkin/Schroder/Narayana/partitions/Goldbach/SG/LL/Tonelli/tau/sigma/Frobenius/series/Wythoff/Grundy/Schur/AMGM/Vieta); u64 exact-or-MAX, no oracle vectors; see `docs/CONTEST_GUIDE.md` |
+| `ml_contest.h` | **EXPERIMENTAL** | 42 contest functions (recreational, figurate/parity/recurrences/Bell/Stirling/Eulerian/Lah/Motzkin/Schroder/Narayana/partitions/Goldbach/SG/LL/Tonelli/tau/sigma/Frobenius/series/Wythoff/Grundy/Schur/AMGM/Vieta); u64 exact-or-MAX, no oracle vectors; see `docs/CONTEST_GUIDE.md` |
 | `ml_geometry.h` | **EXPERIMENTAL** | Triangle centers (Euler-vector orthocenter), R=abc/4K, r=K/s (reuse staged Heron), Euler-line + nine-point verifiers, LD predicates (shoelace, seg-intersect, point-in-poly, monotone-chain hull), clock, solids; no oracle vectors |
 | `ml_graph.h` | **EXPERIMENTAL** | DSU + BFS/DFS/bipartite/components/Kahn-DAG/Dijkstra-O(n^2)/Kruskal on edge lists (n<=4096, m<=262144, nonneg weights; Bellman-Ford deferred); Kruskal SINGULAR when disconnected |
 | `ml_modeling.h` | **EXPERIMENTAL** | Markov stationary (power iteration, CONVERGENCE-loud), SIR R0/final-size/peak, Leslie step + growth, M/M/1 closed forms, Beta-Binomial/Gamma-Poisson conjugates + beta credible via staged beta_inv, logistic Lyapunov |
@@ -68,6 +69,27 @@ This document defines the public interface status for MathLib `12.2.0` (v12R2 de
 | `ml_algebraic.h` | **EXPERIMENTAL** | Sylvester resultants + discriminants (staged Bareiss, exact), Sturm isolation (LD tier), Descartes (exact), hook/S_n sizes (exact), Rodrigues so(3); Ei/li/psi in `ml_analytic_nt.h` (PNT pinned) |
 
 > NOTE: all shipped TUs now have status rows (despot audit closed the orthogonal/numbertheory/transforms gap).
+
+## Current v12R3 and extension modules
+
+| Module / Header | Status | Notes |
+| :--- | :--- | :--- |
+| `ml_bigint.h` | **EXPERIMENTAL** | Fixed-capacity 4096-bit signed integers; overflow is explicit. RNG and probable-prime bases are deterministic xorshift and are not cryptographic. |
+| `ml_math_extra.h` | **EXPERIMENTAL** | Supplementary IEEE/libm-shaped functions; documented contracts are narrower than a complete platform libm replacement. |
+| `ml_special.h` | **EXPERIMENTAL** | Extended special functions with bounded integer orders/degrees and fixed-iteration series; no general accuracy guarantee. |
+| `ml_calculus_extra.h` | **EXPERIMENTAL** | No oracle-tier accuracy certification. |
+| `ml_complexan.h` | **EXPERIMENTAL** | No oracle-tier accuracy certification. |
+| `ml_geom_extra.h` | **EXPERIMENTAL** | No oracle-tier accuracy certification. |
+| `ml_graph_extra.h` | **EXPERIMENTAL** | No oracle-tier accuracy certification. |
+| `ml_linalg_extra.h` | **EXPERIMENTAL** | No oracle-tier accuracy certification. |
+| `ml_ode_extra.h` | **EXPERIMENTAL** | No oracle-tier accuracy certification. |
+| `ml_optim_extra.h` | **EXPERIMENTAL** | No oracle-tier accuracy certification. |
+| `ml_stats_extra.h` | **EXPERIMENTAL** | No oracle-tier accuracy certification. |
+| `ml_exact.h` | **EXPERIMENTAL** | Dynamic base-2^32 exact integers and canonical rationals with bounded exact finite-decimal parsing; resource-bounded by address space; division uses bitwise long division; rational-to-binary64 interval enclosure is exact on supported IEEE binary64 hosts. |
+| `ml_interval.h` | **EXPERIMENTAL** | Outward-rounded add/subtract/multiply/divide only; requires IEEE binary64 and round-to-nearest; finite endpoint representation; no transcendental enclosure functions yet. |
+| `ml_polyq.h` | **EXPERIMENTAL** | Exact univariate Q[x] arithmetic, Euclidean division/gcd, and a verifier for quotient/remainder identity and degree bound; memory/time limited by available resources. |
+| `ml_gfp.h` | **EXPERIMENTAL** | Prime fields F_p for 32-bit prime p; trial-division modulus validation, exact modular arithmetic, Euler criterion and Tonelli-Shanks square roots; no extension fields or constant-time claim. |
+| `ml_school.h` | **EXPERIMENTAL** | School-level length/area/mass/time/volume/temperature conversions, explicit rounding modes, percentages/sequences/growth, linear/quadratic inequality sets, coordinate helpers, and common measurement formulas; binary64 results and approximate inequality roots, no exact-money or curriculum/pedagogy claim. |
 
 ---
 

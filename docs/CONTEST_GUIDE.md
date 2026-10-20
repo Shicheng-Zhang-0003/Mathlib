@@ -1,4 +1,4 @@
-# Contest Guide (`ml_contest.h`, 36 functions)
+# Contest Guide (`ml_contest.h`, 42 functions)
 
 Extravagant contest mathematics, tiered low -> high. Extends the existing
 contest core (combinatorics, numbertheory, arith/geom sums, Nim, Karamata,

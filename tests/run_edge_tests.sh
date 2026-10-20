@@ -12,7 +12,11 @@ if [ "${MATHLIB_EDGE_SANITIZERS:-0}" = "1" ]; then
     CFLAGS="$CFLAGS -fsanitize=address,undefined -fno-omit-frame-pointer"
 fi
 
-# Canonical TU list: must match MATHLIB_SOURCES in CMakeLists.txt (43 TUs).
+EDGE_SANITIZERS="${MATHLIB_EDGE_SANITIZERS:-0}"
+LIBRARY_BUILD_DIR="${MATHLIB_BUILD_DIR:-build}"
+LIBRARY_ARCHIVE="$LIBRARY_BUILD_DIR/libmathc.a"
+
+# Canonical TU list: must match MATHLIB_SOURCES in CMakeLists.txt (59 TUs).
 SRC="
 src/core.c
 src/trig.c
@@ -57,6 +61,22 @@ src/funcanal.c
 src/topology.c
 src/diffgeom.c
 src/algebraic.c
+src/math_extra.c
+src/bigint.c
+src/exact.c
+src/interval.c
+src/polyq.c
+src/gfp.c
+src/special.c
+src/linalg_extra.c
+src/calculus_extra.c
+src/stats_extra.c
+src/graph_extra.c
+src/optim_extra.c
+src/geom_extra.c
+src/complexan.c
+src/ode_extra.c
+src/school.c
 "
 
 mkdir -p "${MATHLIB_EDGE_BUILD_DIR:-build}"
@@ -67,7 +87,15 @@ for t in tests/test_edge_*.c; do
     name=$(basename "$t" .c)
     echo "--- $name ---"
 
-    if ! $CC $CFLAGS -o "${MATHLIB_EDGE_BUILD_DIR:-build}/$name" "$t" $SRC -lm; then
+    # Reuse the sanitizer-built CMake archive when available. The fallback
+    # keeps this script usable on its own and for unsanitized source builds.
+    if [ "$EDGE_SANITIZERS" = "1" ] && [ -f "$LIBRARY_ARCHIVE" ]; then
+        LINK_INPUTS="$LIBRARY_ARCHIVE"
+    else
+        LINK_INPUTS="$SRC"
+    fi
+
+    if ! $CC $CFLAGS -o "${MATHLIB_EDGE_BUILD_DIR:-build}/$name" "$t" $LINK_INPUTS -lm; then
         echo "❌ BUILD FAILED: $name"
         FAILED=1
         continue

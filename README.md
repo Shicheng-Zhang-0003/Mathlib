@@ -1,10 +1,15 @@
-# MathLib v12R2 Development Tree
+# MathLib v12R3 Development Tree
 
-v12R2 is the refinement cycle following the v12A1 architectural evolution.
+This unreleased working tree is version 12.3.0 and contains 59 C translation
+units. The v12R2 release notes below remain historical. The v12R3 tree adds
+experimental exact/numerical extensions and a pre-university utility module.
 
-v12A1 proved the architecture. v12R2 fixes critical bugs, improves numerical accuracy, and adds 12 new Batch-1 modules + kelvin (34 TUs), plus the contest extravaganza module (35 TUs), geometry, graph, and modeling kits (38 TUs), plus the doctorate slice: measure, funcanal, topology, diffgeom, algebraic (43 TUs).
+v12R2 followed the v12A1 architectural evolution. Its 43-translation-unit
+history is summarized below.
 
 <!-- MATHLIB_V12A1_DOCS_ALIGNMENT -->
+## v12R2 refinement summary (historical)
+
 v12R2 key fixes:
 - **Removed x86 inline asm** — portable `__builtin_sqrt` with correct rounding
 - **Fixed fmod** — proper IEEE-754 `x - trunc(x/y)*y` with error-free multiplication
@@ -37,8 +42,9 @@ New Batch-1 modules (v12R2):
 - `ml_analytic_nt` — Hurwitz zeta (stub for s≤1,a≠1), Dirichlet eta, theta3, partition p, complex zeta
 - `ml_control` — 2x2 LQR (Newton-Kleinman), 1D Kalman, Lyapunov trace margin
 - `ml_kelvin` — ber/bei/ker/kei series + asymptotic (XMAX=20)
-- `ml_contest` — contest extravaganza, 41 functions Tier-0→high (recreational, figurate, Bell/Stirling/Eulerian/Lah/Motzkin/Schroder/Narayana, partitions, Goldbach, Tonelli, Faulhaber, Wythoff, Grundy, Schur, Vieta; see `docs/CONTEST_GUIDE.md`)
+- `ml_contest` — contest extravaganza, 42 functions Tier-0→high (recreational, figurate, Bell/Stirling/Eulerian/Lah/Motzkin/Schroder/Narayana, partitions, Goldbach, Tonelli, Faulhaber, Wythoff, Grundy, Schur, Vieta; see `docs/CONTEST_GUIDE.md`)
 - `ml_geometry` — triangle centers, R/r, Euler-line + nine-point, shoelace, seg-intersect, point-in-poly, convex hull, clock, solids
+- `ml_school` — pre-university unit conversions, rounding modes, percentages, sequences, linear-coordinate helpers, and common measurement formulas
 - `ml_graph` — DSU, BFS/DFS, bipartite, components, Kahn topo, Dijkstra, Kruskal
 - `ml_modeling` — Markov chains, SIR, Leslie, M/M/1, conjugate Bayes, logistic Lyapunov
 - `ml_measure` — Lebesgue Dirichlet, simple sums, Lp, Hölder/Minkowski/Markov verifiers
@@ -68,15 +74,23 @@ cmake --build build
 python3 run_all_tests.py
 ```
 
-## Status
+## Current status
 <!-- MATHLIB_V12A1_README_STATUS_V2 -->
 <!-- MATHLIB_V12A1_A1_FREEZE -->
-A1 closure is **complete** with R2 refinements.
 
-- Oracle validation: **412 passed, 0 failed, worst 0 ULP** (26 families correctly rounded on the grid vs mpmath 50-dps exact-binary truth: 7 core + 19 R6 expansion; gate stays ≤5 ULP, see `docs/PRECISION_CONTRACT.md` and `docs/ULP_PUSH.md`)
-- Full test gauntlet: modular, smoke, edge (35/35 suites incl. `test_edge_despot_r4` 21 pins + `test_edge_despot_r5` 42 pins + `test_edge_contest` 96 pins + geometry 45 + olympiad-nt 39 + graph 29 + modeling 40 + measure 16 + funcanal 16 + topology 21 + diffgeom 18 + algebraic 32), fuzz, oracle, boundary — all passing (oracle 412/0 worst 0, god-mode 113073/0 `--seed 123456789` = 61473 Part-1 + 51600 fixed Part-2, boundary 63/0, ultimate 89462/0, accuracy_audit 371/0, R4 21/21, R5 42/42)
-- Closure gate: **PASSED** (see `docs/GATE_V12R2.md`; Round-4 re-audit `docs/DESPOT_R4_AUDIT.md` holds the same gate on the current tree; Round-5 `docs/DESPOT_R5_AUDIT.md` holds 25/25 + 42/42 on the current tree; contest module adds the 26th suite, 96/96; geometry/graph/modeling/olympiad-nt add four more, 30/30; doctorate measure/funcanal/topology/diffgeom/algebraic add five more, 35/35)
-- Thread-safety: **verified** — no per-call mutable static state in any TU (grep + build + 8-thread smoke; no TSan/helgrind evidence claimed)
+The v12R3 code and audit findings are recorded in [`docs/DESPOT_R7_AUDIT.md`](docs/DESPOT_R7_AUDIT.md).
+Subject coverage and the current implementation sequence are in
+[`docs/MATH_COVERAGE.md`](docs/MATH_COVERAGE.md); exact-arithmetic and
+certificate contracts are in [`docs/EXACT_FOUNDATIONS.md`](docs/EXACT_FOUNDATIONS.md).
+The elementary-through-advanced-secondary scope is mapped in
+[`docs/PREUNIVERSITY_COVERAGE.md`](docs/PREUNIVERSITY_COVERAGE.md).
+The exact-foundations step adds dynamic integers/rationals with finite-decimal
+parsing, outward-rounded basic intervals, exact Q[x] operations with a
+division-certificate verifier, and prime-field arithmetic. The broader v12R3 extension modules have directed
+regression coverage but no oracle-tier accuracy certification. Do not treat
+the historical v12R2 accuracy measurements as validation of those additions.
 
 See `docs/V12A1_ROADMAP.md` for the work plan.
 See `release_notes.md` for the v12R2 refinement summary.
+See `docs/API_STATUS.md` for current module status and `docs/BUILD_AND_INSTALL.md`
+for installation details.
