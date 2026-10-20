@@ -10,17 +10,17 @@ Validation layers (tiers are non-interchangeable, see `PRECISION_CONTRACT.md`):
    + `test_edge_modeling` 40 pins + `test_edge_measure` 16 pins
    + `test_edge_funcanal` 16 pins + `test_edge_topology` 21 pins
    + `test_edge_diffgeom` 18 pins + `test_edge_algebraic` 32 pins)
-3. Oracle comparison (412/412 at 0 ULP measured vs mpmath 50-dps
-   exact-binary truth: 212 core + 200 R6 expansion over 19 more families;
-   gate stays ≤5 ULP — measurement, not proof)
-4. Wide grids (pow 100 cases, sin/cos 25 benign + 2000 random, gamma 11-point;
-   exact-binary truth; all core 0 ULP except large-x trig near-zero
-   absolute-tiny and vs-sys residual 1)
+3. Oracle comparison (406 mpmath reference vectors across 27 families plus
+   21 large-argument domain checks; 427/427 checks pass, maximum reference
+   error 1 ULP at `gamma(50)`; gate stays ≤5 ULP — measurement, not proof)
+4. Historical wide grids (pow 100 cases, sin/cos 25 benign + 2000 random,
+   gamma 11-point; exact-binary truth). Newer focused exact-binary sweeps are
+   recorded separately in `ULP_PUSH.md`; they expose a few 1-ULP hard cases.
 5. Boundary fuzzing (63/0) + god-mode fuzz (0 failed, `--seed 123456789`:
    113073/0 = 61473 Part-1 + 51600 Part-2 fixed; Part-2 total is
    seed/host-stable by construction, Part-1 varies by seed as before)
 6. Long-running soak (`--soak`, 10k iterations, off by default)
-7. Regression checks (`accuracy_audit` 371 pins, R4 21 + R5 42 pins,
+7. Regression checks (`accuracy_audit` 378 pins, R4 21 + R5 42 pins,
    `oracle_ulp1` 0-ULP scan; historical `despot_check` 17 now pinned in-repo)
 8. Sanitizers (ASan+UBSan oracle+core clean) + 3-profile `-Werror` builds
 

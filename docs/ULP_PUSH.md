@@ -1,4 +1,4 @@
-# ULP Push toward <0.5 (Correct Rounding) — Status R6
+# ULP Push toward <0.5 (Correct Rounding) — Status R7, 2026-10-19
 
 `<0.5 ULP` means correctly rounded (single rounding error). Proving it for
 ALL binary64 inputs is the Table Maker's Dilemma (100+ bit + Ziv + Lefèvre
@@ -6,13 +6,15 @@ worst-case search, millions of CPU hours; CORE-MATH took years). Below is
 measurement, not proof — except where stated, guarantees stay at the ≤5 ULP
 gate. All LD paths are x86-64 only (`long double==double` collapses to DD).
 
-## Measured 0 ULP (dense 2000-pt + coarse + edge grids, mpmath 80-dps)
+## Core ULP measurements (mpmath exact-binary truth)
 
-Oracle families (412 vectors, gate ≤5 ULP, measured worst 0):
+The current oracle has 406 reference vectors across 27 families and 21
+large-argument domain checks. All 427 checks pass the ≤5 ULP gate; the worst
+reference error is 1 ULP at `gamma(50)`. These are measurements, not a proof.
 
 | Family | Grid worst | Fix that closed it (R6 unless noted) |
 |---|---|---|
-| sin, cos, exp, log, gamma, lgamma, pow | 0 (212-vector grid, prior work) | Payne-Hanek, LD split, Lanczos (v12R2/R5) |
+| sin, cos, exp, log, gamma, lgamma, pow | ≤1 ULP in the current oracle; `gamma(50)` is 1 ULP | Payne-Hanek, LD split, Lanczos (v12R2/R5) |
 | asin, acos | 0 (was 2 mid-range) | LD whole-formula + atanl source |
 | asinh, acosh, atanh | 0 (was 1-2) | LD log1p forms, single rounding |
 | log10 | 0 (was 2) | exact hex split (LO sign was flipped) |
@@ -24,33 +26,44 @@ Oracle families (412 vectors, gate ≤5 ULP, measured worst 0):
 | tan | 0 (was 1, 10% rate) | LD sincos + LD quotient |
 | exp2 | 0 (was 1) | direct LD exp2l kernel, single rounding |
 | bessel_i0, bessel_i1 | 0 | exact (all-positive series, LD) |
-| atan | 0 on 3966/4000 (was 200 fails) | LD identity tree + compensated Horner |
+| bessel_j0, bessel_j1 | 0 | DD ascending series for 0.5<=x<17 (R7) |
+| bessel_y0, bessel_y1 | 0 away from zeros | DD ascending series for 0<x<17 (R7) |
+| atan | 9505/9508 correctly rounded in the R7 deterministic sample; the other 3 are 1 ULP | `atanl` when `long double` has ≥64 significand bits; custom compensated fallback otherwise |
 
-Bessel J0/J1: bit-exact away from zeros (|truth|>0.3); crossings are an
-absolute-error regime (~1e-14, intrinsic ascending-series cancellation —
-same class as large-x trig, documented not defective).
+Bessel J0/J1/Y0/Y1: bit-exact away from zeros. The ascending series carries a
+DD (double-double) low word for the harmonic/constant terms; the earlier
+long-double assembly was limited to double accuracy by forming `1/(k+1)-2γ`
+and `1/m` in plain double, which exposed it as a ~1e-12 hole through the
+cancellation at the x~10-16 least-term/ascending overlap (up to ~2e4 ULP). The
+near-zero crossings are an absolute-error regime (~1e-16, intrinsic
+oscillation — same class as large-x trig, documented not defective).
 
 ## Residual 1 ULP (all ≤ gate; boundary proximity in ULP from truth to
 rounding boundary — smaller means harder/deferred)
 
 | Function | Worst point (exact double) | Proximity | Cause class |
 |---|---|---|---|
-| exp10 | 9.7501 | 0.0001 | LD noise floor; needs 106-bit product |
-| expm1 | 5.89501 | 0.0002 | LD expl source noise |
+| exp10 | -155.59866666666667 | 0.500067 | LD exp2l noise floor; 1/7140 exploratory inputs |
+| expm1 | -10.76 | 0.500196 | LD source noise; 6/12172 exploratory inputs after midpoint fix |
 | cosh | -2.69 | 0.0001 | Table-Maker (truth on boundary) |
 | erfc (CF) | -2.142 | 0.0005 | CF truncation at noise floor |
-| atan | 4.035 + 22 cataloged | 0.0001–0.05 | compensated Horner limit |
+| atan | -7.58, 2.768, 7.58 | 0.500001–0.500054 | 3/9508 exploratory inputs; hard cases remain 1 ULP |
 | digamma | 1.445 | 0.042 | 200x recurrence cancellation → needs 106-bit end-to-end |
 | erfc (series) | 3 pts ≤0.17 | 0.017–0.17 | LD-Kahan noise floor |
-| log1p | 65 pts | ≤5 gate | TwoSum path composes 0.5+0.5 |
-| Y0/Y1 benign | scattered | — | log-singularity + cancellation; ≤2 ULP |
+| log1p | 6.044125 | 0.500244 | 2/11237 exploratory inputs after midpoint fix |
 | Kelvin/Airy/K | transition bands | — | documented limits (1e-15..1e-13 rel) |
 
-Boundary catalog (exact doubles that need 100+ bit arithmetic to decide;
-future Ziv work starts here): exp10(9.7501e0), expm1(5.89501e0),
-cosh(-2.69e0), erfc(-2.142e0), atan(4.035e0 + 22 pts in test logs),
-digamma(1.445e0). Reproduce: `python3 scripts/oracles/generate_oracles_ext.py`
-plus the sweep harness in `/tmp/opencode/ulp` (method documented above).
+The exploratory samples are deterministic exact-binary sweeps, not a
+certification over all inputs. The `atan` sample uses 8,001 evenly spaced
+inputs in [-8,8], selected edge values, and 1,500 seeded finite bit patterns.
+The foundational `sqrt`/`hypot` spot check used seed 50419 and 180-decimal
+mpmath references: `sqrt` matched 2,946 finite nonnegative encodings plus
+selected edge values (including signed zero), and `hypot` matched 6,005 pairs;
+both had zero ULP mismatches in that sample. This is also exploratory, not a
+correct-rounding proof over the full binary64 domain.
+The corrected midpoint inputs `expm1(2^-52)` and `log1p(-2^-52)` are pinned
+in `tests/test_edge_accuracy_audit.c`; atan references are generated by
+`scripts/oracles/generate_oracles_ext.py` and run through `test_oracle`.
 
 ## Law (unchanged)
 
@@ -66,8 +79,9 @@ evaluation attains 0 ULP, and only away from Table-Maker boundaries.
    (the catalog above is the exact target set).
 2. Baart/Lefèvre worst-case search over full binary64 (millions of hours).
 3. Slow-trig exact fractionals; general gamma TD; short-LD platform QD.
-4. Bessel Y/Kelvin/Airy transition bands (documented, ~1e-13 rel).
+4. Bessel K/Kelvin/Airy transition bands (documented, ~1e-13 rel).
 5. DD digamma end-to-end; DD erfc-Kahan; log1p TwoSum-path audit.
 
-Do not ship `<0.5 ULP` as a guarantee. Honest claim: **0 ULP measured on
-the oracle 412 + wide grids (x86-64, 26 families); gate ≤5 ULP proven.**
+Do not ship `<0.5 ULP` as a guarantee. Honest claim: **the 406-vector oracle
+corpus passes its ≤5 ULP gate with a measured worst case of 1 ULP; the
+exploratory atan sweep has three 1-ULP boundary cases.**

@@ -34,8 +34,6 @@
 #define ML_HALF_EXP_709 4.10920373077748619240510342721567e+307
 #endif
 
-
-
 /* MATHLIB_V12A1_LOG_COMPENSATED_RECONSTRUCT */
 /*
  * Split ln(2) into high and low parts for compensated reconstruction.
@@ -55,10 +53,10 @@
 #endif
 /* v11S CLOSURE IP-4: overflow-safe hyperbolics */
 
-ML_API double ml_exp(double x) {
+ML_API double ml_exp (double x) {
     /* MATHLIB_CLOSURE_P2_P0_3_EXP_FUNC */
-    if (ml_isnan(x)) return x;
-    if (ml_isinf(x)) return (x > 0.0) ? ml_make_inf(0) : 0.0;
+    if (ml_isnan (x)) return x;
+    if (ml_isinf (x)) return (x > 0.0) ? ml_make_inf (0) : 0.0;
     if (x == 0.0) return 1.0;
 
     /*
@@ -72,23 +70,23 @@ ML_API double ml_exp(double x) {
      * Those thresholds were too conservative.
      */
     if (x > ML_LOG_DBL_MAX) {
-        return ml_make_inf(0);
+        return ml_make_inf (0);
     }
 
     if (x < ML_LOG_UNDERFLOW) {
         return 0.0;
     }
 
-    double n = ml_round(x / ML_LN2);
+    double n = ml_round (x / ML_LN2);
     /* R6 ULP: TRUE double-double Cody-Waite reduction (was two FMA
      * roundings collapsing to single-double r with ~2e-17 absolute
      * error = 0.4 ULP of r, composing to measured 1 ULP on ~3% of
      * inputs). p1 = -n*HI is EXACT (27+11 bits); both TwoSums are
      * exact pairs; only n*LO rounds (~1e-23 abs, negligible). */
     double p1 = -n * ML_LN2_HI;
-    double e1 = 0.0, s1 = ml_two_sum(x, p1, &e1);
+    double e1 = 0.0, s1 = ml_two_sum (x, p1, &e1);
     double p2 = -n * ML_LN2_LO;
-    double e2 = 0.0, s2 = ml_two_sum(s1, p2, &e2);
+    double e2 = 0.0, s2 = ml_two_sum (s1, p2, &e2);
 
     /* R6 ULP: long-double Horner with runtime-exact coefficients
      * (1.0L/k! computed in LD; k! <= 19! exact as integers), single final
@@ -96,42 +94,41 @@ ML_API double ml_exp(double x) {
      * on the coefficient, composing to 1 ULP on ~3% of [0,1]).
      * Residual rl is the DD pair (s2, e1+e2) above (~1e-32). */
     {
-        long double rl = (long double)s2 + (long double)(e1 + e2);
+        long double rl = (long double) s2 + (long double) (e1 + e2);
         long double fact = 1.0L;
         long double acc = 1.0L;
         long double pw = 1.0L;
         int k;
         for (k = 1; k <= 19; k++) {
-            fact *= (long double)k;
+            fact *= (long double) k;
             pw *= rl;
             acc += pw / fact;
         }
         {
-            double p = (double)acc;
-            int ni = (int)n;
+            double p = (double) acc;
+            int ni = (int) n;
             /* n==1024 at x~709.78: ldexp(p,1024)=Inf though true
              * exp(x)<=DBL_MAX. Split exponent to avoid spurious overflow. */
             if (ni > 1023) {
-                return ml_ldexp_pure(p, 1023) * ml_ldexp_pure(1.0, ni - 1023);
+                return ml_ldexp_pure (p, 1023) * ml_ldexp_pure (1.0, ni - 1023);
             }
-            return ml_ldexp_pure(p, ni);
+            return ml_ldexp_pure (p, ni);
         }
     }
 }
-
-ML_API double ml_log(double x) {
+ML_API double ml_log (double x) {
     /* MATHLIB_CLOSURE_P0_LOG_GUARD.
      * ULP-push: single source of truth is ml_log_split (LD-enhanced).
      * Previous duplicate DD polynomial drifted from split (1 ULP vs 0.08).
      * Now hi+lo rounded once: <0.5 ULP typical, <1 ULP worst (empirical). */
-    if (ml_isnan(x)) return x;
-    if (x == 0.0) return -ml_make_inf(0);
-    if (x < 0.0) return ml_make_nan();
-    if (ml_isinf(x)) return x;
+    if (ml_isnan (x)) return x;
+    if (x == 0.0) return -ml_make_inf (0);
+    if (x < 0.0) return ml_make_nan ();
+    if (ml_isinf (x)) return x;
     if (x == 1.0) return 0.0;
     {
         double hi, lo;
-        ml_log_split(x, &hi, &lo);
+        ml_log_split (x, &hi, &lo);
         return hi + lo;
     }
 }
@@ -146,13 +143,13 @@ ML_API double ml_log(double x) {
  * This is used by ml_lgamma_positive and ml_gamma_new to avoid
  * the (z+0.5)*log(t) amplification error.
  */
-ML_API void ml_log_split(double x, double *log_hi, double *log_lo) {
-    if (ml_isnan(x) || x <= 0.0) {
-        *log_hi = ml_make_nan();
+ML_API void ml_log_split (double x, double *log_hi, double *log_lo) {
+    if (ml_isnan (x) || x <= 0.0) {
+        *log_hi = ml_make_nan ();
         *log_lo = 0.0;
         return;
     }
-    if (ml_isinf(x)) {
+    if (ml_isinf (x)) {
         *log_hi = x;
         *log_lo = 0.0;
         return;
@@ -169,15 +166,15 @@ ML_API void ml_log_split(double x, double *log_hi, double *log_lo) {
      * Falls through to DD polynomial when logl is non-finite (should not
      * happen for finite x>0) or on short-long-double platforms. */
     {
-        long double Ll = __builtin_logl((long double)x);
-        if (ml_isfinite((double)Ll) || Ll == 0.0L) {
-            double hi = (double)Ll;
-            double lo = (double)(Ll - (long double)hi);
+        long double Ll = __builtin_logl ((long double) x);
+        if (ml_isfinite ((double) Ll) || Ll == 0.0L) {
+            double hi = (double) Ll;
+            double lo = (double) (Ll - (long double) hi);
             /* Renorm so |lo| <= 0.5 ULP(hi) (TwoSum-style). */
             {
                 double s = hi + lo;
                 double e = (hi - s) + lo;
-                ml_ddx_t r = ml_ddx_renorm(s, e);
+                ml_ddx_t r = ml_ddx_renorm (s, e);
                 *log_hi = r.hi;
                 *log_lo = r.lo;
                 return;
@@ -186,307 +183,304 @@ ML_API void ml_log_split(double x, double *log_hi, double *log_lo) {
     }
 #endif
     int e;
-    double m = ml_frexp_pure(x, &e);
+    double m = ml_frexp_pure (x, &e);
     int adjust = (m < 0.7071067811865475);
     m *= (1.0 + adjust);
     e -= adjust;
     double z = (m - 1.0) / (m + 1.0);
     double z2 = z * z;
     /* Hex-exact 2/(2k+1) (see ml_log above). */
-    static const double lc[] = {
+    static const double lc [] = {
         0x1.0000000000000p+1, 0x1.5555555555555p-1, 0x1.999999999999ap-2,
         0x1.2492492492492p-2, 0x1.c71c71c71c71cp-3, 0x1.745d1745d1746p-3,
         0x1.3b13b13b13b14p-3, 0x1.1111111111111p-3, 0x1.e1e1e1e1e1e1ep-4,
-        0x1.af286bca1af28p-4, 0x1.8618618618618p-4
-    };
-    ml_ddx_t acc = ml_ddx_from_d(lc[10]);
+        0x1.af286bca1af28p-4, 0x1.8618618618618p-4};
+    ml_ddx_t acc = ml_ddx_from_d (lc [10]);
     for (int i = 9; i >= 0; i--) {
-        acc = ml_ddx_mul_d(acc, z2);
-        acc = ml_ddx_add_d(acc, lc[i]);
+        acc = ml_ddx_mul_d (acc, z2);
+        acc = ml_ddx_add_d (acc, lc [i]);
     }
     {
-        ml_ddx_t zp = ml_ddx_mul_d(acc, z);
-        double ed = (double)e;
+        ml_ddx_t zp = ml_ddx_mul_d (acc, z);
+        double ed = (double) e;
         double ehi = ed * ML_LN2_HI;
-        double elo = ML_FMA(ed, ML_LN2_HI, -ehi) + ed * ML_LN2_LO;
-        ml_ddx_t eln2 = ml_ddx_renorm(ehi, elo);
+        double elo = ML_FMA (ed, ML_LN2_HI, -ehi) + ed * ML_LN2_LO;
+        ml_ddx_t eln2 = ml_ddx_renorm (ehi, elo);
         double s, e1;
-        s = ml_two_sum(eln2.hi, zp.hi, &e1);
+        s = ml_two_sum (eln2.hi, zp.hi, &e1);
         e1 += eln2.lo + zp.lo;
         {
-            ml_ddx_t r = ml_ddx_renorm(s, e1);
+            ml_ddx_t r = ml_ddx_renorm (s, e1);
             *log_hi = r.hi;
             *log_lo = r.lo;
         }
     }
 }
+ML_API double ml_pow (double x, double y) {
+    /* MATHLIB_V12A1_POW_EXTENDED */
 
-
-ML_API double ml_pow(double x, double y) {
-/* MATHLIB_V12A1_POW_EXTENDED */
-
-/* --- Special cases (unchanged from v11S) --- */
-if (ml_isnan(y)) {
+    /* --- Special cases (unchanged from v11S) --- */
+    if (ml_isnan (y)) {
+        if (x == 1.0) return 1.0;
+        return ml_make_nan ();
+    }
+    if (y == 0.0) return 1.0;
+    if (ml_isnan (x)) return ml_make_nan ();
     if (x == 1.0) return 1.0;
-    return ml_make_nan();
-}
-if (y == 0.0) return 1.0;
-if (ml_isnan(x)) return ml_make_nan();
-if (x == 1.0) return 1.0;
 
-if (x == 0.0) {
-    if (ml_isinf(y)) {
-        return (y > 0.0) ? 0.0 : ml_make_inf(0);
-    }
-    if (y > 0.0) {
-        if (ml_signbit(x) && ml_is_odd_integer_double(y)) {
-            return ml_copysign(0.0, -1.0);
+    if (x == 0.0) {
+        if (ml_isinf (y)) {
+            return (y > 0.0) ? 0.0 : ml_make_inf (0);
         }
-        return 0.0;
-    }
-    if (ml_signbit(x) && ml_is_odd_integer_double(y)) {
-        return -ml_make_inf(0);
-    }
-    return ml_make_inf(0);
-}
-
-if (ml_isinf(y)) {
-    double ax = ml_fabs(x);
-    if (ax == 1.0) return 1.0;
-    if (y > 0.0) return (ax > 1.0) ? ml_make_inf(0) : 0.0;
-    return (ax > 1.0) ? 0.0 : ml_make_inf(0);
-}
-
-if (ml_isinf(x)) {
-    if (x > 0.0) {
-        return (y > 0.0) ? ml_make_inf(0) : 0.0;
-    }
-    if (!ml_is_integer_double(y)) return ml_make_nan();
-    if (y > 0.0) {
-        return ml_is_odd_integer_double(y)
-             ? -ml_make_inf(0) : ml_make_inf(0);
-    }
-    return ml_is_odd_integer_double(y)
-         ? ml_copysign(0.0, -1.0) : 0.0;
-}
-
-/* --- Integer exponent fast path ---
- * ULP-push (despot): binary exponentiation in double accumulates O(|y|)
- * roundings for inexact bases (pow(0.1,100) was 41 ULP). When 80-bit long
- * double exists, accumulate in long double (64-bit mantissa) then round
- * once: error ~|y|*2^-65, <0.05 ULP even for |y|=1023. Exact cases
- * (pow(2,10)=1024) stay exact. Falls back to double when no LD. */
- if (ml_is_integer_double(y) && ml_fabs(y) <= 1023.0) {
-     int n = (int)y;
-     int an = n < 0 ? -n : n;
-#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
-     {
-         long double base = (long double)x;
-         long double result = 1.0L;
-         int aa = an;
-         while (aa > 0) {
-             if (aa & 1) result *= base;
-             aa >>= 1;
-             if (aa > 0) base *= base;
-         }
-         {
-             long double rr = (n < 0) ? 1.0L / result : result;
-             double o = (double)rr;
-             /* Overflow/underflow: LD range exceeds double; gate on double. */
-             if (!ml_isfinite(o) || o == 0.0) {
-                 /* Let the general path decide Inf vs 0 with correct gates. */
-                 if (ml_isfinite((double)rr) || rr == 0.0L) return o;
-             } else {
-                 return o;
-             }
-         }
-     }
-#endif
-     {
-         double base = x;
-         double result = 1.0;
-         while (an > 0) {
-             if (an & 1) result *= base;
-             an >>= 1;
-             if (an > 0) base *= base;
-         }
-         return n < 0 ? 1.0 / result : result;
-     }
- }
-
-/* --- Negative base, integer exponent (any magnitude) --- */
-/* Integer-valued y with negative x is defined: sign = (-1)^y.
- * The |y|<=1023 fast path above is exact; for larger |y| use
- * exp(y*log|x|) for magnitude then apply odd/even sign.
- * This fixes pow(-2,2000)=+Inf and pow(-1,1e308)=1, which
- * previously fell through to NaN. */
-if (x < 0.0) {
-    if (ml_is_integer_double(y)) {
-        double mag = ml_pow(-x, y);
-        if (ml_isnan(mag)) return ml_make_nan();
-        if (ml_is_odd_integer_double(y)) mag = -mag;
-        /* Preserve signed-zero semantics: (-0)^odd etc. handled
-         * by the x==0 path above; here x<0 and finite nonzero. */
-        return mag;
-    }
-    return ml_make_nan();
-}
-
-/* --- General case: extended-precision exp(y * log(x)) ---
- * Error law: pow error ~= |y| * log_error + exp_error.
- * DD log (0.38 ULP) amplified by |y|=100 gives ~40 ULP (e.g. pow(0.1,100)).
- * ULP-push: when 80-bit long double is available (64-bit mantissa),
- * compute L = y*logl(x) in long double (~1e-19) then expl + round once.
- * This gives <0.5 ULP on benign + amplified cases (verified 0.026 ULP on
- * pow(0.1,100) vs 41 ULP before). Falls back to DD path where
- * LDBL_MANT_DIG<64 (MSVC/ARM) or non-finite. Overflow/underflow gates on L.
- * Proven <0.5 for ALL inputs still requires Ziv + worst-case search
- * (Table Maker's Dilemma); this path is best-effort <1 ULP, typically 0. */
-{
-#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
-    {
-        long double Ll = (long double)y * __builtin_logl((long double)x);
-        if (!ml_isfinite((double)Ll) && ml_isfinite((double)(long double)y) && x > 0.0) {
-            /* Ll overflow in long double domain: true result overflows. */
-            if (Ll > 0) return ml_make_inf(0);
+        if (y > 0.0) {
+            if (ml_signbit (x) && ml_is_odd_integer_double (y)) {
+                return ml_copysign (0.0, -1.0);
+            }
             return 0.0;
         }
-        if (Ll > (long double)709.782712893384) return ml_make_inf(0);
-        if (Ll < (long double)(-745.133219101941)) return 0.0;
-        {
-            long double lr = __builtin_expl(Ll);
-            double r = (double)lr;
-            /* Ziv guard: if lr is within 2^-70 of a rounding boundary
-             * (mantissa near half-ULP), the double rounding could be off
-             * by 1. Fall back to DD path which uses a different rounding
-             * chain; if both agree we are safe, else return the LD result
-             * (documented <1 ULP, typically 0). Full proof needs MPFR. */
-            if (ml_isfinite(r) && r != 0.0) {
-                long double err = __builtin_fabsl(lr - (long double)r) / __builtin_fabsl((long double)r);
-                if (err < 1e-19L) {
-                    /* Far from boundary relative to LD precision: correctly
-                     * rounded with overwhelming probability. */
-                    return r;
-                }
-                /* Near boundary: compute DD candidate and prefer the one
-                 * closer to the LD high-precision value. */
-                {
-                    double log_hi2, log_lo2;
-                    ml_log_split(x, &log_hi2, &log_lo2);
-                    double p2 = y * log_hi2;
-                    double e2 = ML_FMA(y, log_hi2, -p2) + y * log_lo2;
-                    ml_ddx_t PE2 = ml_ddx_renorm(p2, e2);
-                    double g2 = ml_exp(PE2.hi);
-                    double dd_r = r;
-                    if (ml_isfinite(g2) && g2 != 0.0) {
-                        double elo2 = ML_FMA(PE2.lo, PE2.lo * 0.5, PE2.lo) + 1.0;
-                        dd_r = ML_FMA(g2, elo2, 0.0);
-                    }
-                    {
-                        long double d_ld = __builtin_fabsl(lr - (long double)r);
-                        long double d_dd = __builtin_fabsl(lr - (long double)dd_r);
-                        return (d_dd < d_ld) ? dd_r : r;
-                    }
-                }
-            }
-            return r;
+        if (ml_signbit (x) && ml_is_odd_integer_double (y)) {
+            return -ml_make_inf (0);
         }
+        return ml_make_inf (0);
     }
-#else
-    double log_hi, log_lo;
-    ml_log_split(x, &log_hi, &log_lo);
-    double p = y * log_hi;
-    double e = ML_FMA(y, log_hi, -p) + y * log_lo;
-    {
-        ml_ddx_t PE = ml_ddx_renorm(p, e);
-        if (PE.hi > 709.782712893384) return ml_make_inf(0);
-        if (PE.hi < -745.133219101941) return 0.0;
-        {
-            double g = ml_exp(PE.hi);
-            if (!ml_isfinite(g) || g == 0.0) return g;
-            {
-                double elo = ML_FMA(PE.lo, PE.lo * 0.5, PE.lo) + 1.0;
-                return ML_FMA(g, elo, 0.0);
-            }
-        }
-    }
-#endif
-}
-}
 
-ML_API double ml_logb(double x, double b) {
+    if (ml_isinf (y)) {
+        double ax = ml_fabs (x);
+        if (ax == 1.0) return 1.0;
+        if (y > 0.0) return (ax > 1.0) ? ml_make_inf (0) : 0.0;
+        return (ax > 1.0) ? 0.0 : ml_make_inf (0);
+    }
+
+    if (ml_isinf (x)) {
+        if (x > 0.0) {
+            return (y > 0.0) ? ml_make_inf (0) : 0.0;
+        }
+        if (!ml_is_integer_double (y)) return ml_make_nan ();
+        if (y > 0.0) {
+            return ml_is_odd_integer_double (y)
+                       ? -ml_make_inf (0)
+                       : ml_make_inf (0);
+        }
+        return ml_is_odd_integer_double (y)
+                   ? ml_copysign (0.0, -1.0)
+                   : 0.0;
+    }
+
+    /* --- Integer exponent fast path ---
+     * ULP-push (despot): binary exponentiation in double accumulates O(|y|)
+     * roundings for inexact bases (pow(0.1,100) was 41 ULP). When 80-bit long
+     * double exists, accumulate in long double (64-bit mantissa) then round
+     * once: error ~|y|*2^-65, <0.05 ULP even for |y|=1023. Exact cases
+     * (pow(2,10)=1024) stay exact. Falls back to double when no LD. */
+    if (ml_is_integer_double (y) && ml_fabs (y) <= 1023.0) {
+        int n = (int) y;
+        int an = n < 0 ? -n : n;
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+        {
+            long double base = (long double) x;
+            long double result = 1.0L;
+            int aa = an;
+            while (aa > 0) {
+                if (aa & 1) result *= base;
+                aa >>= 1;
+                if (aa > 0) base *= base;
+            }
+            {
+                long double rr = (n < 0) ? 1.0L / result : result;
+                double o = (double) rr;
+                /* Overflow/underflow: LD range exceeds double; gate on double. */
+                if (!ml_isfinite (o) || o == 0.0) {
+                    /* Let the general path decide Inf vs 0 with correct gates. */
+                    if (ml_isfinite ((double) rr) || rr == 0.0L) return o;
+                } else {
+                    return o;
+                }
+            }
+        }
+#endif
+        {
+            double base = x;
+            double result = 1.0;
+            while (an > 0) {
+                if (an & 1) result *= base;
+                an >>= 1;
+                if (an > 0) base *= base;
+            }
+            return n < 0 ? 1.0 / result : result;
+        }
+    }
+
+    /* --- Negative base, integer exponent (any magnitude) --- */
+    /* Integer-valued y with negative x is defined: sign = (-1)^y.
+     * The |y|<=1023 fast path above is exact; for larger |y| use
+     * exp(y*log|x|) for magnitude then apply odd/even sign.
+     * This fixes pow(-2,2000)=+Inf and pow(-1,1e308)=1, which
+     * previously fell through to NaN. */
+    if (x < 0.0) {
+        if (ml_is_integer_double (y)) {
+            double mag = ml_pow (-x, y);
+            if (ml_isnan (mag)) return ml_make_nan ();
+            if (ml_is_odd_integer_double (y)) mag = -mag;
+            /* Preserve signed-zero semantics: (-0)^odd etc. handled
+             * by the x==0 path above; here x<0 and finite nonzero. */
+            return mag;
+        }
+        return ml_make_nan ();
+    }
+
+    /* --- General case: extended-precision exp(y * log(x)) ---
+     * Error law: pow error ~= |y| * log_error + exp_error.
+     * DD log (0.38 ULP) amplified by |y|=100 gives ~40 ULP (e.g. pow(0.1,100)).
+     * ULP-push: when 80-bit long double is available (64-bit mantissa),
+     * compute L = y*logl(x) in long double (~1e-19) then expl + round once.
+     * This gives <0.5 ULP on benign + amplified cases (verified 0.026 ULP on
+     * pow(0.1,100) vs 41 ULP before). Falls back to DD path where
+     * LDBL_MANT_DIG<64 (MSVC/ARM) or non-finite. Overflow/underflow gates on L.
+     * Proven <0.5 for ALL inputs still requires Ziv + worst-case search
+     * (Table Maker's Dilemma); this path is best-effort <1 ULP, typically 0. */
+    {
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+        {
+            long double Ll = (long double) y * __builtin_logl ((long double) x);
+            if (!ml_isfinite ((double) Ll) && ml_isfinite ((double) (long double) y) && x > 0.0) {
+                /* Ll overflow in long double domain: true result overflows. */
+                if (Ll > 0) return ml_make_inf (0);
+                return 0.0;
+            }
+            if (Ll > (long double) 709.782712893384) return ml_make_inf (0);
+            if (Ll < (long double) (-745.133219101941)) return 0.0;
+            {
+                long double lr = __builtin_expl (Ll);
+                double r = (double) lr;
+                /* Ziv guard: if lr is within 2^-70 of a rounding boundary
+                 * (mantissa near half-ULP), the double rounding could be off
+                 * by 1. Fall back to DD path which uses a different rounding
+                 * chain; if both agree we are safe, else return the LD result
+                 * (documented <1 ULP, typically 0). Full proof needs MPFR. */
+                if (ml_isfinite (r) && r != 0.0) {
+                    long double err = __builtin_fabsl (lr - (long double) r) / __builtin_fabsl ((long double) r);
+                    if (err < 1e-19L) {
+                        /* Far from boundary relative to LD precision: correctly
+                         * rounded with overwhelming probability. */
+                        return r;
+                    }
+                    /* Near boundary: compute DD candidate and prefer the one
+                     * closer to the LD high-precision value. */
+                    {
+                        double log_hi2, log_lo2;
+                        ml_log_split (x, &log_hi2, &log_lo2);
+                        double p2 = y * log_hi2;
+                        double e2 = ML_FMA (y, log_hi2, -p2) + y * log_lo2;
+                        ml_ddx_t PE2 = ml_ddx_renorm (p2, e2);
+                        double g2 = ml_exp (PE2.hi);
+                        double dd_r = r;
+                        if (ml_isfinite (g2) && g2 != 0.0) {
+                            double elo2 = ML_FMA (PE2.lo, PE2.lo * 0.5, PE2.lo) + 1.0;
+                            dd_r = ML_FMA (g2, elo2, 0.0);
+                        }
+                        {
+                            long double d_ld = __builtin_fabsl (lr - (long double) r);
+                            long double d_dd = __builtin_fabsl (lr - (long double) dd_r);
+                            return (d_dd < d_ld) ? dd_r : r;
+                        }
+                    }
+                }
+                return r;
+            }
+        }
+#else
+        double log_hi, log_lo;
+        ml_log_split (x, &log_hi, &log_lo);
+        double p = y * log_hi;
+        double e = ML_FMA (y, log_hi, -p) + y * log_lo;
+        {
+            ml_ddx_t PE = ml_ddx_renorm (p, e);
+            if (PE.hi > 709.782712893384) return ml_make_inf (0);
+            if (PE.hi < -745.133219101941) return 0.0;
+            {
+                double g = ml_exp (PE.hi);
+                if (!ml_isfinite (g) || g == 0.0) return g;
+                {
+                    double elo = ML_FMA (PE.lo, PE.lo * 0.5, PE.lo) + 1.0;
+                    return ML_FMA (g, elo, 0.0);
+                }
+            }
+        }
+#endif
+    }
+}
+ML_API double ml_logb (double x, double b) {
     /* log_b(x) undefined for b==1 (division by log(1)=0), b<=0,
      * x<=0 (except IEEE edge handling already in ml_log). */
-    if (ml_isnan(x) || ml_isnan(b)) return ml_make_nan();
-    if (b == 1.0) return ml_make_nan();
-    if (b <= 0.0) return ml_make_nan();
-    return ml_log(x) / ml_log(b);
+    if (ml_isnan (x) || ml_isnan (b)) return ml_make_nan ();
+    if (b == 1.0) return ml_make_nan ();
+    if (b <= 0.0) return ml_make_nan ();
+    return ml_log (x) / ml_log (b);
 }
-
-ML_API double ml_sinh(double x) {
-/* MATHLIB_CLOSURE_P2_P0_4_HYPERBOLIC_SHIFT */
-/* MATHLIB_V12A1_ACCURACY_FIXES: Taylor series for small x */
-if (ml_isnan(x)) return x;
-if (ml_isinf(x)) return x;
-double ax = ml_fabs(x);
-if (ax == 0.0) return x;
-/*
-* For |x| < 1e-8, sinh(x) = x to within 1 ULP.
-* (x^3/6 < 1 ULP of x when x < ~2.6e-8)
-*/
-if (ax < 1e-8) return x;
-/*
-* For |x| < 0.5, use Taylor series to avoid catastrophic
-* cancellation in 0.5*(exp(x) - exp(-x)).
-*
-* sinh(x) = x + x^3/3! + x^5/5! + ... + x^19/19!
-* At x = 0.5, truncation error < 0.001 ULP.
-*/
-if (ax < 0.5) {
-    /* R6 ULP: ascending long-double Taylor, single rounding (was naive
-     * double accumulation with decimal 1/k! literals). */
-    long double xl = (long double)x;
-    long double x2 = xl * xl;
-    long double term = xl;
-    long double result = xl;
-    int k;
-    for (k = 1; k <= 9; k++) {
-        term *= x2 / ((long double)(2 * k) * (long double)(2 * k + 1));
-        result += term;
+ML_API double ml_sinh (double x) {
+    /* MATHLIB_CLOSURE_P2_P0_4_HYPERBOLIC_SHIFT */
+    /* MATHLIB_V12A1_ACCURACY_FIXES: Taylor series for small x */
+    if (ml_isnan (x)) return x;
+    if (ml_isinf (x)) return x;
+    double ax = ml_fabs (x);
+    if (ax == 0.0) return x;
+    /*
+     * For |x| < 1e-8, sinh(x) = x to within 1 ULP.
+     * (x^3/6 < 1 ULP of x when x < ~2.6e-8)
+     */
+    if (ax < 1e-8) return x;
+    /*
+     * For |x| < 0.5, use Taylor series to avoid catastrophic
+     * cancellation in 0.5*(exp(x) - exp(-x)).
+     *
+     * sinh(x) = x + x^3/3! + x^5/5! + ... + x^19/19!
+     * At x = 0.5, truncation error < 0.001 ULP.
+     */
+    if (ax < 0.5) {
+        /* R6 ULP: ascending long-double Taylor, single rounding (was naive
+         * double accumulation with decimal 1/k! literals). */
+        long double xl = (long double) x;
+        long double x2 = xl * xl;
+        long double term = xl;
+        long double result = xl;
+        int k;
+        for (k = 1; k <= 9; k++) {
+            term *= x2 / ((long double) (2 * k) * (long double) (2 * k + 1));
+            result += term;
+        }
+        {
+            double r = (double) result;
+            return ml_isfinite (r) ? r : ml_make_nan ();
+        }
     }
-    {
-        double r = (double)result;
-        return ml_isfinite(r) ? r : ml_make_nan();
+    /*
+     * For |x| >= 0.5, the exp-based formula has no significant
+     * cancellation (both exp(x) and exp(-x) differ by > 2x).
+     */
+    if (ax > ML_LOG_HYP_OVERFLOW) {
+        return ml_make_inf (x < 0.0);
     }
-}
-/*
-* For |x| >= 0.5, the exp-based formula has no significant
-* cancellation (both exp(x) and exp(-x) differ by > 2x).
-*/
-if (ax > ML_LOG_HYP_OVERFLOW) {
-    return ml_make_inf(x < 0.0);
-}
     if (ax > 700.0) {
         /*
-        * exp(-2*ax) < exp(-1400) < 2^-2000 here, so the -exp(-ax) half of
-        * sinh is far below the last bit: sinh(ax) == 0.5*exp(ax) exactly.
-        *
-        * The shifted form exp(ax - ln2) that used to be used here is
-        * 1e-2 wrong in the *argument* alone: at ax ~ 707 the subtraction
-        * ax - ln2 rounds at ulp(707) = 1.1e-13, which ml_exp turns
-        * straight into ~256 ULP (measured: 451 ULP at x = -707.6).
-        * Splitting at 709 instead keeps the argument below 1.5, where
-        * the residual is exact by Sterbenz's lemma.
-        */
+         * exp(-2*ax) < exp(-1400) < 2^-2000 here, so the -exp(-ax) half of
+         * sinh is far below the last bit: sinh(ax) == 0.5*exp(ax) exactly.
+         *
+         * The shifted form exp(ax - ln2) that used to be used here is
+         * 1e-2 wrong in the *argument* alone: at ax ~ 707 the subtraction
+         * ax - ln2 rounds at ulp(707) = 1.1e-13, which ml_exp turns
+         * straight into ~256 ULP (measured: 451 ULP at x = -707.6).
+         * Splitting at 709 instead keeps the argument below 1.5, where
+         * the residual is exact by Sterbenz's lemma.
+         */
         if (ax <= ML_LOG_DBL_MAX) {
-            return (x < 0.0) ? -0.5 * ml_exp(ax) : 0.5 * ml_exp(ax);
+            return (x < 0.0) ? -0.5 * ml_exp (ax) : 0.5 * ml_exp (ax);
         }
         /* exp(ax) overflows but sinh(ax) does not (|ax| <= log(2*DBL_MAX)
          * was already rejected above). 0.5*exp(709) is a compile-time
          * constant, so this costs one extra rounding, not an argument
          * reduction error. */
         {
-            double r = ml_exp(ax - 709.0) * ML_HALF_EXP_709;
+            double r = ml_exp (ax - 709.0) * ML_HALF_EXP_709;
             return (x < 0.0) ? -r : r;
         }
     }
@@ -494,19 +488,19 @@ if (ax > ML_LOG_HYP_OVERFLOW) {
      * doubles still compose to 1 ULP (each carries <=0.5 ULP absolute at
      * scale E ~= result scale); LD expl source is ~1e-19. */
     {
-        long double ex = __builtin_expl((long double)ax);
-        long double emx = __builtin_expl(-(long double)ax);
-        double r = (double)(0.5L * (ex - emx));
-        if (!ml_isfinite(r)) return ml_make_nan();
+        long double ex = __builtin_expl ((long double) ax);
+        long double emx = __builtin_expl (-(long double) ax);
+        double r = (double) (0.5L * (ex - emx));
+        if (!ml_isfinite (r)) return ml_make_nan ();
         return (x < 0.0) ? -r : r;
     }
 }
-ML_API double ml_cosh(double x) {
+ML_API double ml_cosh (double x) {
     /* MATHLIB_CLOSURE_P2_P0_4_HYPERBOLIC_SHIFT */
-    if (ml_isnan(x)) return x;
-    if (ml_isinf(x)) return ml_make_inf(0);
+    if (ml_isnan (x)) return x;
+    if (ml_isinf (x)) return ml_make_inf (0);
 
-    double ax = ml_fabs(x);
+    double ax = ml_fabs (x);
 
     /*
      * cosh(x) is approximately:
@@ -520,7 +514,7 @@ ML_API double ml_cosh(double x) {
      *   log(DBL_MAX) + log(2)
      */
     if (ax > ML_LOG_HYP_OVERFLOW) {
-        return ml_make_inf(0);
+        return ml_make_inf (0);
     }
 
     /*
@@ -530,30 +524,29 @@ ML_API double ml_cosh(double x) {
      */
     if (ax > 700.0) {
         if (ax <= ML_LOG_DBL_MAX) {
-            return 0.5 * ml_exp(ax);
+            return 0.5 * ml_exp (ax);
         }
-        return ml_exp(ax - 709.0) * ML_HALF_EXP_709;
+        return ml_exp (ax - 709.0) * ML_HALF_EXP_709;
     }
 
     /* R6 ULP: compose in long double, single final rounding (same
      * composed-0-ULP argument as sinh). */
     {
-        long double ex = __builtin_expl((long double)ax);
-        long double emx = __builtin_expl(-(long double)ax);
-        double r = (double)(0.5L * (ex + emx));
-        if (!ml_isfinite(r)) return ml_make_nan();
+        long double ex = __builtin_expl ((long double) ax);
+        long double emx = __builtin_expl (-(long double) ax);
+        double r = (double) (0.5L * (ex + emx));
+        if (!ml_isfinite (r)) return ml_make_nan ();
         return r;
     }
 }
+ML_API double ml_tanh (double x) {
+    if (ml_isnan (x)) return x;
+    if (ml_isinf (x)) return ml_copysign (1.0, x);
 
-ML_API double ml_tanh(double x) {
-    if (ml_isnan(x)) return x;
-    if (ml_isinf(x)) return ml_copysign(1.0, x);
-
-    double ax = ml_fabs(x);
+    double ax = ml_fabs (x);
 
     if (ax == 0.0) return x;
-    if (ax > 20.0) return ml_copysign(1.0, x);
+    if (ax > 20.0) return ml_copysign (1.0, x);
     if (ax < 1.5e-8) return x;
 
     /* Small ax: expm1 form (cancellation-free down to 0; LD quotient
@@ -564,45 +557,44 @@ ML_API double ml_tanh(double x) {
         /* R6 ULP: direct LD Taylor of expm1(2ax)/(expm1(2ax)+2), single
          * rounding with NO intermediate double (calling ml_expm1 leaves
          * 0.5 ULP in t, composing to 1 ULP at ax~0.005). */
-        long double u = 2.0L * (long double)ax;
+        long double u = 2.0L * (long double) ax;
         long double term = u;
         long double t = u;
         int i;
         for (i = 1; i <= 20; i++) {
-            term *= u / (long double)(i + 1);
+            term *= u / (long double) (i + 1);
             t += term;
         }
         {
-            double r = (double)(t / (t + 2.0L));
-            if (!ml_isfinite(r)) return ml_make_nan();
-            return ml_copysign(r, x);
+            double r = (double) (t / (t + 2.0L));
+            if (!ml_isfinite (r)) return ml_make_nan ();
+            return ml_copysign (r, x);
         }
     }
     /* R6 ULP: LD quotient of LD differences, single rounding (was three
      * double roundings composed: expm1, +2, divide). */
     {
-        long double ex = __builtin_expl((long double)ax);
-        long double emx = __builtin_expl(-(long double)ax);
+        long double ex = __builtin_expl ((long double) ax);
+        long double emx = __builtin_expl (-(long double) ax);
         long double num = ex - emx;
         long double den = ex + emx;
         double r;
-        if (!(den > 0.0L) || !ml_isfinite((double)den)) return ml_copysign(1.0, x);
-        r = (double)(num / den);
-        if (!ml_isfinite(r)) return ml_copysign(1.0, x);
-        return ml_copysign(r, x);
+        if (!(den > 0.0L) || !ml_isfinite ((double) den)) return ml_copysign (1.0, x);
+        r = (double) (num / den);
+        if (!ml_isfinite (r)) return ml_copysign (1.0, x);
+        return ml_copysign (r, x);
     }
 }
-
-ML_API double ml_asinh(double x) {
+ML_API double ml_asinh (double x) {
     /* MATHLIB_CLOSURE_P0_ASINH_LARGE */
-    if (ml_isnan(x) || ml_isinf(x)) return x;
+    if (ml_isnan (x) || ml_isinf (x)) return x;
 
-    double ax = ml_fabs(x);
+    double ax = ml_fabs (x);
     if (ax == 0.0) return x;
     if (ax < 1.5e-8) return x;
 
     if (ax > 1e150) {
-        double r = ml_log(2.0) + ml_log(ax);
+        double r = ml_log (2.0) + ml_log (ax);
         return (x < 0.0) ? -r : r;
     }
 
@@ -617,71 +609,71 @@ ML_API double ml_asinh(double x) {
     /* R6 ULP: log1p form in long double, single rounding (was double
      * argument + double log1p: ~1 ULP composed). */
     if (ax <= 1.0) {
-        long double a = (long double)ax;
+        long double a = (long double) ax;
         long double x2 = a * a;
-        long double t = a + x2 / (1.0L + __builtin_sqrtl(1.0L + x2));
-        double r = (double)__builtin_log1pl(t);
-        if (!ml_isfinite(r)) return ml_make_nan();
+        long double t = a + x2 / (1.0L + __builtin_sqrtl (1.0L + x2));
+        double r = (double) __builtin_log1pl (t);
+        if (!ml_isfinite (r)) return ml_make_nan ();
         return (x < 0.0) ? -r : r;
     }
 
     {
-        long double a = (long double)ax;
-        double r = (double)__builtin_logl(a + __builtin_sqrtl(a * a + 1.0L));
-        if (!ml_isfinite(r)) return ml_make_nan();
+        long double a = (long double) ax;
+        double r = (double) __builtin_logl (a + __builtin_sqrtl (a * a + 1.0L));
+        if (!ml_isfinite (r)) return ml_make_nan ();
         return (x < 0.0) ? -r : r;
     }
 }
-
-ML_API double ml_acosh(double x) {
-    if (ml_isnan(x)) return x;
-    if (x < 1.0) return ml_make_nan();
+ML_API double ml_acosh (double x) {
+    if (ml_isnan (x)) return x;
+    if (x < 1.0) return ml_make_nan ();
     if (x == 1.0) return 0.0;
-    if (ml_isinf(x)) return x;
+    if (ml_isinf (x)) return x;
 
     if (x > 1e150) {
-        return ml_log(2.0) + ml_log(x);
+        return ml_log (2.0) + ml_log (x);
     }
 
     /* R6 ULP: log1p form in long double, single rounding (was double
      * argument + double log1p: ~1 ULP composed). */
     {
-        long double a = (long double)x;
+        long double a = (long double) x;
         long double d = a - 1.0L;
-        long double t = d + __builtin_sqrtl(d * (a + 1.0L));
-        double r = (double)__builtin_log1pl(t);
-        if (!ml_isfinite(r)) return ml_make_nan();
+        long double t = d + __builtin_sqrtl (d * (a + 1.0L));
+        double r = (double) __builtin_log1pl (t);
+        if (!ml_isfinite (r)) return ml_make_nan ();
         return r;
     }
 }
-
-ML_API double ml_atanh(double x) {
-    if (ml_isnan(x)) return x;
-    if (x == 1.0) return ml_make_inf(0);
-    if (x == -1.0) return ml_make_inf(1);
-    if (x < -1.0 || x > 1.0) return ml_make_nan();
-    if (ml_fabs(x) < 1.5e-8) return x;
+ML_API double ml_atanh (double x) {
+    if (ml_isnan (x)) return x;
+    if (x == 1.0) return ml_make_inf (0);
+    if (x == -1.0) return ml_make_inf (1);
+    if (x < -1.0 || x > 1.0) return ml_make_nan ();
+    if (ml_fabs (x) < 1.5e-8) return x;
 
     /* R6 ULP: entire formula in long double, single final rounding (was
      * double argument (2 roundings) feeding double log1p (0.5 more)).
      * 1-|x| is exact by Sterbenz for |x| > 0.5; LD holds the rest. */
     {
-        double ax = ml_fabs(x);
-        long double a = (long double)ax;
+        double ax = ml_fabs (x);
+        long double a = (long double) ax;
         long double t = 2.0L * a / (1.0L - a);
-        double r = (double)(0.5L * __builtin_log1pl(t));
-        if (!ml_isfinite(r)) return ml_make_nan();
-        return ml_copysign(r, x);
+        double r = (double) (0.5L * __builtin_log1pl (t));
+        if (!ml_isfinite (r)) return ml_make_nan ();
+        return ml_copysign (r, x);
     }
 }
-
 /* ---- libm completion: expm1/log1p/exp2/log2/log10/cbrt/erf ---- */
 
-ML_API double ml_expm1(double x) {
-    if (ml_isnan(x)) return x;
-    if (ml_isinf(x)) return (x > 0.0) ? ml_make_inf(0) : -1.0;
+ML_API double ml_expm1 (double x) {
+    if (ml_isnan (x)) return x;
+    if (ml_isinf (x)) return (x > 0.0) ? ml_make_inf (0) : -1.0;
     if (x == 0.0) return x;
-    double ax = ml_fabs(x);
+    /* At x=2^-52, x^2/2 is exactly half an ULP above x. The positive
+     * cubic tail breaks the tie upward; 64-bit-mantissa LD loses that tail. */
+    if (x == 0x1p-52) return 0x1.0000000000001p-52;
+    double ax = ml_fabs (x);
     /* Return-x threshold is QUADRATIC (x^2/2): |x|<eps/2 for <0.5 ULP.
      * (1.5e-8 is the CUBIC threshold for sinh/tanh, NOT valid here —
      *  it cost 2.4M ULP at x=1e-9.) */
@@ -691,17 +683,17 @@ ML_API double ml_expm1(double x) {
          * (was double Kahan: term accumulation alone carries ~0.5 ULP at
          * x~0.27, composing to measured 1 ULP). 20 terms: truncation <4e-25;
          * LD accumulation ~1e-19. */
-        long double xl = (long double)x;
+        long double xl = (long double) x;
         long double term = xl;
         long double result = xl;
         int i;
         for (i = 1; i <= 20; i++) {
-            term *= xl / (long double)(i + 1);
+            term *= xl / (long double) (i + 1);
             result += term;
         }
         {
-            double r = (double)result;
-            return ml_isfinite(r) ? r : ml_make_nan();
+            double r = (double) result;
+            return ml_isfinite (r) ? r : ml_make_nan ();
         }
     }
     /* R6 ULP: LD expl source, single rounding (was ml_exp(x)-1.0: the
@@ -710,20 +702,22 @@ ML_API double ml_expm1(double x) {
      * x >= 0.5. LD expl error ~1e-19; x-709 underflow impossible in LD;
      * double overflow converts to +Inf correctly. */
     {
-        long double r = __builtin_expl((long double)x) - 1.0L;
-        double o = (double)r;
-        if (!ml_isfinite(o)) return (o > 0.0 || r > 0.0L) ? ml_make_inf(0) : -1.0;
+        long double r = __builtin_expl ((long double) x) - 1.0L;
+        double o = (double) r;
+        if (!ml_isfinite (o)) return (o > 0.0 || r > 0.0L) ? ml_make_inf (0) : -1.0;
         return o;
     }
 }
-
-ML_API double ml_log1p(double x) {
-    if (ml_isnan(x)) return x;
+ML_API double ml_log1p (double x) {
+    if (ml_isnan (x)) return x;
     if (x == 0.0) return x;
-    if (x < -1.0) return ml_make_nan();
-    if (x == -1.0) return -ml_make_inf(0);
-    if (ml_isinf(x)) return x;
-    double ax = ml_fabs(x);
+    if (x < -1.0) return ml_make_nan ();
+    if (x == -1.0) return -ml_make_inf (0);
+    if (ml_isinf (x)) return x;
+    /* At x=-2^-52, -x^2/2 is exactly half an ULP below x. The negative
+     * cubic tail breaks the tie toward -infinity; LD loses that tail. */
+    if (x == -0x1p-52) return -0x1.0000000000001p-52;
+    double ax = ml_fabs (x);
     /* Quadratic error x^2/2: same eps/2 threshold as expm1. */
     if (ax < 1.11e-16) return x;
     if (ax < 0.5) {
@@ -732,14 +726,14 @@ ML_API double ml_log1p(double x) {
          * literals, each ~0.5 ULP off on the coefficient ~ 1 ULP on the
          * result at x~0.1). LD Horner ~1e-19 + single final rounding.
          * |z| < 0.2 needs 17 coefficients: 2|z|^35/35 < 2e-26. */
-        long double z = (long double)x / (2.0L + (long double)x);
+        long double z = (long double) x / (2.0L + (long double) x);
         long double z2 = z * z;
         long double acc = 1.0L / 33.0L;
         int k;
-        for (k = 15; k >= 0; k--) acc = acc * z2 + 1.0L / (long double)(2 * k + 1);
+        for (k = 15; k >= 0; k--) acc = acc * z2 + 1.0L / (long double) (2 * k + 1);
         {
-            double r = (double)(2.0L * acc * z);
-            return ml_isfinite(r) ? r : ml_make_nan();
+            double r = (double) (2.0L * acc * z);
+            return ml_isfinite (r) ? r : ml_make_nan ();
         }
     }
     /*
@@ -750,17 +744,25 @@ ML_API double ml_log1p(double x) {
      * directly leaves up to half an ulp of the sum uncorrected.
      */
     {
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+        /* R7 ULP: single-rounding LD source. The TwoSum path below adds two
+         * 0.5-ULP roundings (ml_log + ml_log1p), which measured 1 ULP on
+         * ~5.6% of |x| >= 0.5 inputs. log1pl(x) in 64-bit-mantissa LD followed
+         * by one round to double is correctly rounded away from boundaries. */
+        long double r = __builtin_log1pl ((long double) x);
+        double d = (double) r;
+        if (ml_isfinite (d)) return d;
+#endif
         double s, e;
-        s = ml_two_sum(1.0, x, &e);
-        return ml_log(s) + ml_log1p(e / s);
+        s = ml_two_sum (1.0, x, &e);
+        return ml_log (s) + ml_log1p (e / s);
     }
 }
-
-ML_API double ml_exp2(double x) {
-    if (ml_isnan(x)) return x;
-    if (ml_isinf(x)) return (x > 0.0) ? ml_make_inf(0) : 0.0;
+ML_API double ml_exp2 (double x) {
+    if (ml_isnan (x)) return x;
+    if (ml_isinf (x)) return (x > 0.0) ? ml_make_inf (0) : 0.0;
     if (x == 0.0) return 1.0;
-    if (x >= 1024.0) return ml_make_inf(0);
+    if (x >= 1024.0) return ml_make_inf (0);
     /* DESPOT-AUDIT: subnormal edge. 2^x for x in (-1075,-1074) rounds to
      * DBL_TRUE_MIN (2^-1074), not zero. Only x < -1075.0 flushes to zero
      * under round-to-nearest. Previous cutoff <-1074.0 lost min subnormal. */
@@ -769,28 +771,27 @@ ML_API double ml_exp2(double x) {
         /* R6 ULP: 2^t in long double, single final rounding. f = x-fl is
          * exact (Sterbenz-ish trunc fix); expl source ~1e-19; ldexp exact.
          * (Was DD product + ml_exp + FMA compose: ~1 ULP composed.) */
-        double fl = (x >= 0.0) ? ml_trunc(x) : (ml_trunc(x) - ((x == ml_trunc(x)) ? 0.0 : 1.0));
+        double fl = (x >= 0.0) ? ml_trunc (x) : (ml_trunc (x) - ((x == ml_trunc (x)) ? 0.0 : 1.0));
         double f = x - fl;
         double p;
         if (f == 0.0) {
             p = 1.0;
         } else {
-            long double t = (long double)f;
-            double e = (double)__builtin_exp2l(t);
-            if (!ml_isfinite(e)) return ml_make_nan();
+            long double t = (long double) f;
+            double e = (double) __builtin_exp2l (t);
+            if (!ml_isfinite (e)) return ml_make_nan ();
             p = e;
         }
-        return ml_ldexp_pure(p, (int)fl);
+        return ml_ldexp_pure (p, (int) fl);
     }
 }
-
-ML_API double ml_log2(double x) {
-    if (ml_isnan(x)) return x;
+ML_API double ml_log2 (double x) {
+    if (ml_isnan (x)) return x;
     if (x <= 0.0) {
-        if (x == 0.0) return -ml_make_inf(0);
-        return ml_make_nan();
+        if (x == 0.0) return -ml_make_inf (0);
+        return ml_make_nan ();
     }
-    if (ml_isinf(x)) return x;
+    if (ml_isinf (x)) return x;
     if (x == 1.0) return 0.0;
     {
         /* R6 ULP: exact hex split of ln2 (fl rounds DOWN, residual is
@@ -800,39 +801,37 @@ ML_API double ml_log2(double x) {
         static const double L2H = 0x1.62e42fefa39efp-1;
         static const double L2L = 0x1.abc9e3b39803fp-56;
         double hi, lo;
-        ml_log_split(x, &hi, &lo);
+        ml_log_split (x, &hi, &lo);
         /* DD division by ln2: q=hi/L, q+=(FMA(-q,L,hi)+lo-q*l)/L. */
         double q = hi / L2H;
-        double r = ML_FMA(-q, L2H, hi) + lo - q * L2L;
+        double r = ML_FMA (-q, L2H, hi) + lo - q * L2L;
         q += r / L2H;
         return q;
     }
 }
-
-ML_API double ml_log10(double x) {
+ML_API double ml_log10 (double x) {
     /* R6 ULP: exact hex split of ln10. The old decimal LO (+2.17e-16) had
      * the WRONG SIGN (true residual is -2.17e-16: fl(ln10) rounds up),
      * baking ~1 ULP into every result (measured 2 ULP at large x). */
     static const double LN10_HI = 0x1.26bb1bbb55516p+1;
     static const double LN10_LO = -0x1.f48ad494ea3e9p-53;
-    if (ml_isnan(x)) return x;
+    if (ml_isnan (x)) return x;
     if (x <= 0.0) {
-        if (x == 0.0) return -ml_make_inf(0);
-        return ml_make_nan();
+        if (x == 0.0) return -ml_make_inf (0);
+        return ml_make_nan ();
     }
-    if (ml_isinf(x)) return x;
+    if (ml_isinf (x)) return x;
     if (x == 1.0) return 0.0;
     {
         double hi, lo;
-        ml_log_split(x, &hi, &lo);
+        ml_log_split (x, &hi, &lo);
         double q = hi / LN10_HI;
-        double r = ML_FMA(-q, LN10_HI, hi) + lo - q * LN10_LO;
+        double r = ML_FMA (-q, LN10_HI, hi) + lo - q * LN10_LO;
         q += r / LN10_HI;
         return q;
     }
 }
-
-ML_API double ml_cbrt(double x) {
+ML_API double ml_cbrt (double x) {
     /* Builtin + one Newton refinement + long-double neighbor correction.
      * The Newton step alone can refine a correctly-rounded builtin result
      * AWAY by 1 ULP (measured at x~100); the FMA-residual accept test
@@ -840,28 +839,28 @@ ML_API double ml_cbrt(double x) {
      * correction compares |c^3-x| for {prev,nr,next} with ~1e-19
      * discrimination vs ~1e-14 neighbor gaps: decisive except true
      * Table-Maker proximity (documented residual risk). */
-    if (ml_isnan(x) || x == 0.0 || ml_isinf(x)) return x;
+    if (ml_isnan (x) || x == 0.0 || ml_isinf (x)) return x;
     {
-        double r = __builtin_cbrt(x);
-        if (ml_isfinite(r) && r != 0.0) {
+        double r = __builtin_cbrt (x);
+        if (ml_isfinite (r) && r != 0.0) {
             double r2 = r * r;
             double q = x / r2;
             double nr = (2.0 * r + q) / 3.0;
-            if (ml_isfinite(nr) && nr != 0.0) {
-                double cand[3] = {nextafter(nr, -ml_make_inf(0)), nr, nextafter(nr, ml_make_inf(0))};
-                long double ax = (long double)x;
+            if (ml_isfinite (nr) && nr != 0.0) {
+                double cand [3] = {nextafter (nr, -ml_make_inf (0)), nr, nextafter (nr, ml_make_inf (0))};
+                long double ax = (long double) x;
                 long double best_e = -1.0L;
                 double best = nr;
                 int i;
-                if (!ml_isfinite(cand[0])) cand[0] = nr;
-                if (!ml_isfinite(cand[2])) cand[2] = nr;
+                if (!ml_isfinite (cand [0])) cand [0] = nr;
+                if (!ml_isfinite (cand [2])) cand [2] = nr;
                 for (i = 0; i < 3; i++) {
-                    long double c = (long double)cand[i];
+                    long double c = (long double) cand [i];
                     long double e = c * c * c - ax;
                     if (e < 0.0L) e = -e;
                     if (best_e < 0.0L || e < best_e) {
                         best_e = e;
-                        best = cand[i];
+                        best = cand [i];
                     }
                 }
                 r = best;
@@ -870,22 +869,21 @@ ML_API double ml_cbrt(double x) {
         return r;
     }
 }
-
 /* erf/erfc: Taylor(|x|<=1, Kahan, ~1 ULP) + erf(1)+quad integral(1<|x|<=4)
  * + asymptotic(|x|>4). No external tables; no change to existing kernels. */
-static double ml_erf_taylor(double x) {
+static double ml_erf_taylor (double x) {
     /* R6 ULP: ascending long-double Taylor with runtime LD 2/sqrt(pi),
      * single final rounding (was double Kahan + decimal C literal +
      * final multiply: ~1.5 ULP composed, 175 fails on [-1,1]). */
-    long double xl = (long double)x;
+    long double xl = (long double) x;
     long double x2 = xl * xl;
     long double term = xl;
     long double sum = xl;
     int n;
     for (n = 1; n < 60; n++) {
         long double w;
-        term *= -x2 / (long double)n;
-        w = term / (long double)(2 * n + 1);
+        term *= -x2 / (long double) n;
+        w = term / (long double) (2 * n + 1);
         sum += w;
         if (w < 0.0L) w = -w;
         {
@@ -896,11 +894,10 @@ static double ml_erf_taylor(double x) {
     }
     {
         long double r = 1.12837916709551257389615890312154517L * sum;
-        double o = (double)r;
-        return ml_isfinite(o) ? o : ml_make_nan();
+        double o = (double) r;
+        return ml_isfinite (o) ? o : ml_make_nan ();
     }
 }
-
 /* erfc for x>1.  Two long-double routes, both far better conditioned than
  * routing through Q(1/2,x^2), whose incomplete-gamma asymptotics cost ~1e2
  * ULP once x^2 gets large.
@@ -911,44 +908,41 @@ static double ml_erf_taylor(double x) {
  *                relative error survives all the way down to underflow:
  *                erfc = e^-x^2 / (sqrt(pi) (x + 1/2/(x + 1/(x + 3/2/(x+.)))))
  */
-static long double ml_erfc_series_ld(double x) {
+static long double ml_erfc_series_ld (double x) {
     static const long double SQRT_PI =
         1.7724538509055160272981674833411451828L;
-    long double xx = (long double)x;
+    long double xx = (long double) x;
     long double z = xx * xx;
     long double t = 1.0L, s = 1.0L, c = 0.0L;
     int n;
     for (n = 1; n < 500; n++) {
         long double w, tt;
-        t *= z / ((long double)n + 0.5L);
+        t *= z / ((long double) n + 0.5L);
         w = t - c;
         tt = s + w;
         c = (tt - s) - w;
         s = tt;
         if (t < 1e-22L * s) break;
     }
-    return 1.0L - 2.0L * __builtin_expl(-z) * xx * s / SQRT_PI;
+    return 1.0L - 2.0L * __builtin_expl (-z) * xx * s / SQRT_PI;
 }
-
-static double ml_erfc_series(double x) {
-    long double r = ml_erfc_series_ld(x);
-    double o = (double)r;
-    return ml_isfinite(o) ? o : ml_make_nan();
+static double ml_erfc_series (double x) {
+    long double r = ml_erfc_series_ld (x);
+    double o = (double) r;
+    return ml_isfinite (o) ? o : ml_make_nan ();
 }
-
-static double ml_erfc_cf(double x) {
+static double ml_erfc_cf (double x) {
     static const long double SQRT_PI =
         1.7724538509055160272981674833411451828L;
-    long double xx = (long double)x;
+    long double xx = (long double) x;
     long double b = xx;
     int k;
-    for (k = 60; k >= 1; k--) b = xx + (long double)k * 0.5L / b;
-    return (double)(__builtin_expl(-xx * xx) / (SQRT_PI * b));
+    for (k = 60; k >= 1; k--) b = xx + (long double) k * 0.5L / b;
+    return (double) (__builtin_expl (-xx * xx) / (SQRT_PI * b));
 }
-
-ML_API double ml_erfc(double x) {
-    if (ml_isnan(x)) return x;
-    if (ml_isinf(x)) return (x > 0.0) ? 0.0 : 2.0;
+ML_API double ml_erfc (double x) {
+    if (ml_isnan (x)) return x;
+    if (ml_isinf (x)) return (x > 0.0) ? 0.0 : 2.0;
     if (x == 0.0) return 1.0;
     /* R6 ULP: complements in long double, single rounding. 2-E and 1-E
      * in double round at ULP(1..2) ~ 2e-16, dwarfing E's own ULP when E
@@ -960,104 +954,99 @@ ML_API double ml_erfc(double x) {
          * for ax <= 2 (at ax=20 the 1-X form cancels 176 digits, far past
          * LD; CF owns that region). */
         double ax = -x;
-        long double e = (ax <= 2.0) ? ml_erfc_series_ld(ax) : (long double)ml_erfc_cf(ax);
-        double r = (double)(2.0L - e);
-        return ml_isfinite(r) ? r : ml_make_nan();
+        long double e = (ax <= 2.0) ? ml_erfc_series_ld (ax) : (long double) ml_erfc_cf (ax);
+        double r = (double) (2.0L - e);
+        return ml_isfinite (r) ? r : ml_make_nan ();
     }
     /* x > 0 from here. */
-    if (x <= 2.0) return ml_erfc_series(x);
-    return ml_erfc_cf(x);
+    if (x <= 2.0) return ml_erfc_series (x);
+    return ml_erfc_cf (x);
 }
-
-ML_API double ml_erf(double x) {
-    if (ml_isnan(x) || x == 0.0 || ml_isinf(x)) {
-        if (ml_isnan(x)) return x;
+ML_API double ml_erf (double x) {
+    if (ml_isnan (x) || x == 0.0 || ml_isinf (x)) {
+        if (ml_isnan (x)) return x;
         if (x == 0.0) return x;
         return (x > 0.0) ? 1.0 : -1.0;
     }
     {
-        double ax = ml_fabs(x);
-        if (ax <= 1.0) return ml_erf_taylor(x);
+        double ax = ml_fabs (x);
+        if (ax <= 1.0) return ml_erf_taylor (x);
         /* R6 ULP: 1-erfc in long double, single rounding (matches the
          * erfc complement treatment; double 1-E rounds at ULP(1)).
          * Series for ax<=2, CF beyond (validated split). */
         if (ax <= 2.0) {
-            long double e = ml_erfc_series_ld(ax);
-            double r = (double)(1.0L - e);
-            if (!ml_isfinite(r)) return (x > 0.0) ? 1.0 : -1.0;
+            long double e = ml_erfc_series_ld (ax);
+            double r = (double) (1.0L - e);
+            if (!ml_isfinite (r)) return (x > 0.0) ? 1.0 : -1.0;
             return (x > 0.0) ? r : -r;
         } else {
-            long double e = (long double)ml_erfc_cf(ax);
-            double r = (double)(1.0L - e);
-            if (!ml_isfinite(r)) return (x > 0.0) ? 1.0 : -1.0;
+            long double e = (long double) ml_erfc_cf (ax);
+            double r = (double) (1.0L - e);
+            if (!ml_isfinite (r)) return (x > 0.0) ? 1.0 : -1.0;
             return (x > 0.0) ? r : -r;
         }
     }
 }
-
-static double ml_lambert_iter(double x, double w) {
+static double ml_lambert_iter (double x, double w) {
     /* One Fritsch/Halley step: w -= 2(we^w-x)/(...). Caller loops. */
-    double ew = ml_exp(w);
+    double ew = ml_exp (w);
     double f = w * ew - x;
     double denom = ew * (w + 1.0) - (w + 2.0) * f / (2.0 * w + 2.0);
-    if (denom == 0.0 || !ml_isfinite(denom)) return ml_make_nan();
+    if (denom == 0.0 || !ml_isfinite (denom)) return ml_make_nan ();
     return w - f / denom;
 }
-
-ML_API double ml_lambert_w0(double x) {
+ML_API double ml_lambert_w0 (double x) {
     static const double INV_E = 0.36787944117144232160;
-    if (ml_isnan(x)) return x;
+    if (ml_isnan (x)) return x;
     if (x == 0.0) return x;
-    if (ml_isinf(x)) return (x > 0.0) ? x : ml_make_nan();
-    if (x < -INV_E) return ml_make_nan();
+    if (ml_isinf (x)) return (x > 0.0) ? x : ml_make_nan ();
+    if (x < -INV_E) return ml_make_nan ();
     if (x == -INV_E) return -1.0;
     {
         double w;
         if (x < 3.0) {
             /* log1p-based start: w≈ln(1+x) within 0.2 of root for x<3,
              * avoids L1=0 singularity at x=1 in L1-L2 form. */
-            w = ml_log1p(x);
-            if (!ml_isfinite(w)) w = 0.5;
+            w = ml_log1p (x);
+            if (!ml_isfinite (w)) w = 0.5;
         } else {
-            double L1 = ml_log(x), L2 = ml_log(L1);
+            double L1 = ml_log (x), L2 = ml_log (L1);
             w = L1 - L2 + L2 / L1;
         }
         for (int i = 0; i < 20; i++) {
-            double nw = ml_lambert_iter(x, w);
-            if (!ml_isfinite(nw)) return ml_make_nan();
-            if (ml_fabs(nw - w) < 1e-16 * (1.0 + ml_fabs(nw))) return nw;
+            double nw = ml_lambert_iter (x, w);
+            if (!ml_isfinite (nw)) return ml_make_nan ();
+            if (ml_fabs (nw - w) < 1e-16 * (1.0 + ml_fabs (nw))) return nw;
             w = nw;
         }
         return w;
     }
 }
-
-ML_API double ml_lambert_wm1(double x) {
+ML_API double ml_lambert_wm1 (double x) {
     static const double INV_E = 0.36787944117144232160;
-    if (ml_isnan(x) || x >= 0.0) {
-        if (ml_isnan(x)) return x;
-        return ml_make_nan();
+    if (ml_isnan (x) || x >= 0.0) {
+        if (ml_isnan (x)) return x;
+        return ml_make_nan ();
     }
-    if (x < -INV_E) return ml_make_nan();
+    if (x < -INV_E) return ml_make_nan ();
     if (x == -INV_E) return -1.0;
     {
-        double L1 = ml_log(-x), L2 = ml_log(-L1);
+        double L1 = ml_log (-x), L2 = ml_log (-L1);
         double w = L1 - L2 + L2 / L1;
         for (int i = 0; i < 30; i++) {
-            double nw = ml_lambert_iter(x, w);
-            if (!ml_isfinite(nw)) return ml_make_nan();
-            if (ml_fabs(nw - w) < 1e-16 * (1.0 + ml_fabs(nw))) return nw;
+            double nw = ml_lambert_iter (x, w);
+            if (!ml_isfinite (nw)) return ml_make_nan ();
+            if (ml_fabs (nw - w) < 1e-16 * (1.0 + ml_fabs (nw))) return nw;
             w = nw;
         }
         return w;
     }
 }
-
-ML_API double ml_exp10(double x) {
-    if (ml_isnan(x)) return x;
-    if (ml_isinf(x)) return (x > 0.0) ? ml_make_inf(0) : 0.0;
+ML_API double ml_exp10 (double x) {
+    if (ml_isnan (x)) return x;
+    if (ml_isinf (x)) return (x > 0.0) ? ml_make_inf (0) : 0.0;
     if (x == 0.0) return 1.0;
-    if (x >= 309.0) return ml_make_inf(0);
+    if (x >= 309.0) return ml_make_inf (0);
     /* 10^-323 ~ 9.9e-324 is a finite subnormal (min ~4.9e-324 = 10^-323.3);
      * old -323.0 cutoff flushed it to 0. Route via exp2/ldexp instead. */
     if (x < -324.0) return 0.0;
@@ -1072,25 +1061,24 @@ ML_API double ml_exp10(double x) {
         static const double L2H = 3.3219280948873623478703194294893901760;
         static const double L2L = 1.66161751697359212856814996188e-16;
         double yh = x * L2H;
-        double yl = ML_FMA(x, L2H, -yh) + x * L2L;
-        double n = ml_round(yh);
-        long double t = ((long double)yh - (long double)n) + (long double)yl;
-        long double p = __builtin_exp2l(t);
-        double pd = (double)p;
-        return ml_ldexp_pure(pd, (int)n);
+        double yl = ML_FMA (x, L2H, -yh) + x * L2L;
+        double n = ml_round (yh);
+        long double t = ((long double) yh - (long double) n) + (long double) yl;
+        long double p = __builtin_exp2l (t);
+        double pd = (double) p;
+        return ml_ldexp_pure (pd, (int) n);
     }
 }
-
-ML_API double ml_erfinv(double p) {
+ML_API double ml_erfinv (double p) {
     /* Acklam rational starter (via normal_inv relation
      * erfinv(p) = inv_cdf((p+1)/2)/sqrt(2)) + 5 Newton steps via erf.
      * Contract: p in (-1,1); p = +/-1 returns NaN (limit is +/-Inf).
      * NaN is the fail-loud choice: callers must handle tails explicitly
      * rather than receive a silent Inf that overflows downstream. */
-    if (ml_isnan(p)) return p;
+    if (ml_isnan (p)) return p;
     if (p <= -1.0 || p >= 1.0) {
         if (p == 0.0) return p;
-        return ml_make_nan();
+        return ml_make_nan ();
     }
     if (p == 0.0) return p;
     {
@@ -1099,15 +1087,15 @@ ML_API double ml_erfinv(double p) {
          * erfinv(p) = inv_cdf((p+1)/2)/sqrt(2). Reuse rational below. */
         {
             double q = (p + 1.0) * 0.5;
-            double s = ml_sqrt(2.0);
+            double s = ml_sqrt (2.0);
             /* Use ml_normal_inv equivalent without mu/sigma dependency:
              * inline Acklam to avoid header cycle (statistics includes us). */
             double z;
             if (q < 0.02425) {
-                double qq = ml_sqrt(-2.0 * ml_log(q));
+                double qq = ml_sqrt (-2.0 * ml_log (q));
                 z = (((((-7.784894002430293e-03 * qq - 0.3223964580411365) * qq - 2.400758277161838) * qq - 2.549732539343734) * qq + 4.374664141464968) * qq + 2.938163982698783) / ((((7.784695709041462e-03 * qq + 0.3224671290700398) * qq + 2.445134137142996) * qq + 3.754408661907416) * qq + 1.0);
             } else if (q > 0.97575) {
-                double qq = ml_sqrt(-2.0 * ml_log(1.0 - q));
+                double qq = ml_sqrt (-2.0 * ml_log (1.0 - q));
                 z = -(((((-7.784894002430293e-03 * qq - 0.3223964580411365) * qq - 2.400758277161838) * qq - 2.549732539343734) * qq + 4.374664141464968) * qq + 2.938163982698783) / ((((7.784695709041462e-03 * qq + 0.3224671290700398) * qq + 2.445134137142996) * qq + 3.754408661907416) * qq + 1.0);
             } else {
                 double qq = q - 0.5, rr = qq * qq;
@@ -1116,126 +1104,120 @@ ML_API double ml_erfinv(double p) {
             x = z / s;
         }
         for (int i = 0; i < 5; i++) {
-            double e = ml_erf(x) - p;
-            double d = ml_exp(-x * x) * 1.12837916709551257390;
-            if (d == 0.0 || !ml_isfinite(d)) break;
+            double e = ml_erf (x) - p;
+            double d = ml_exp (-x * x) * 1.12837916709551257390;
+            if (d == 0.0 || !ml_isfinite (d)) break;
             {
                 double dx = e / d;
                 x -= dx;
-                if (ml_fabs(dx) < 1e-16 * (1.0 + ml_fabs(x))) break;
+                if (ml_fabs (dx) < 1e-16 * (1.0 + ml_fabs (x))) break;
             }
         }
         return x;
     }
 }
-
-ML_API double ml_sech(double x) {
-    if (ml_isnan(x)) return x;
-    if (ml_isinf(x)) return 0.0;
+ML_API double ml_sech (double x) {
+    if (ml_isnan (x)) return x;
+    if (ml_isinf (x)) return 0.0;
     {
         /*
-        * sech(x) = 2*exp(-|x|) / (1 + exp(-2|x|))
-        *
-        * The removed early-out `if (ml_exp(|x|) is Inf) return 0.0` was
-        * plain wrong: exp(|x|) overflows for |x| > 709.78, but sech stays
-        * representable down to |x| ~ 745.5. sech(710) is 5.58e-309, a
-        * perfectly ordinary subnormal, and the old code returned 0.0
-        * (1.1e15 ULP). The formula below never overflows because the
-        * exponent is always negative.
-        */
-        double ax = ml_fabs(x);
-        return 2.0 * ml_exp(-ax) / (1.0 + ml_exp(-2.0 * ax));
+         * sech(x) = 2*exp(-|x|) / (1 + exp(-2|x|))
+         *
+         * The removed early-out `if (ml_exp(|x|) is Inf) return 0.0` was
+         * plain wrong: exp(|x|) overflows for |x| > 709.78, but sech stays
+         * representable down to |x| ~ 745.5. sech(710) is 5.58e-309, a
+         * perfectly ordinary subnormal, and the old code returned 0.0
+         * (1.1e15 ULP). The formula below never overflows because the
+         * exponent is always negative.
+         */
+        double ax = ml_fabs (x);
+        return 2.0 * ml_exp (-ax) / (1.0 + ml_exp (-2.0 * ax));
     }
 }
-
-ML_API double ml_csch(double x) {
-    if (ml_isnan(x)) return x;
-    if (x == 0.0) return ml_copysign(ml_make_inf(0), x);
-    if (ml_isinf(x)) return ml_copysign(0.0, x);
+ML_API double ml_csch (double x) {
+    if (ml_isnan (x)) return x;
+    if (x == 0.0) return ml_copysign (ml_make_inf (0), x);
+    if (ml_isinf (x)) return ml_copysign (0.0, x);
     {
-        double ax = ml_fabs(x);
+        double ax = ml_fabs (x);
         /*
-        * For |x| > 20, expm1(2|x|) is 1 within 2^-40 relative, so
-        * csch = 2*exp(-|x|) to the last bit. Evaluating it the other way
-        * round (2*exp(|x|)/expm1(2|x|)) overflows for |x| > 709.78 and
-        * used to collapse to a signed zero, although csch(710) is the
-        * perfectly representable subnormal 8.9e-309.
-        */
+         * For |x| > 20, expm1(2|x|) is 1 within 2^-40 relative, so
+         * csch = 2*exp(-|x|) to the last bit. Evaluating it the other way
+         * round (2*exp(|x|)/expm1(2|x|)) overflows for |x| > 709.78 and
+         * used to collapse to a signed zero, although csch(710) is the
+         * perfectly representable subnormal 8.9e-309.
+         */
         if (ax > 20.0) {
-            return ml_copysign(2.0 * ml_exp(-ax), x);
+            return ml_copysign (2.0 * ml_exp (-ax), x);
         }
-        double e = ml_expm1(2.0 * ax);
-        if (!ml_isfinite(e)) return ml_copysign(0.0, x);
+        double e = ml_expm1 (2.0 * ax);
+        if (!ml_isfinite (e)) return ml_copysign (0.0, x);
         if (e == 0.0) {
             /* ax subnormal-small: 1-exp(-2ax) would round to 0.
              * csch(ax)~1/ax via expm1 path. */
-            return ml_copysign(1.0 / ax - ax / 6.0, x);
+            return ml_copysign (1.0 / ax - ax / 6.0, x);
         }
         /* 2*exp(-ax)/(1-exp(-2ax)) = 2*exp(ax)/expm1(2ax): uses the
          * accurate expm1 instead of the rounded 1-exp(-2ax). */
-        double r = 2.0 * ml_exp(ax) / e;
-        return ml_copysign(r, x);
+        double r = 2.0 * ml_exp (ax) / e;
+        return ml_copysign (r, x);
     }
 }
-
-ML_API double ml_coth(double x) {
-    if (ml_isnan(x)) return x;
-    if (x == 0.0) return ml_copysign(ml_make_inf(0), x);
-    if (ml_isinf(x)) return ml_copysign(1.0, x);
+ML_API double ml_coth (double x) {
+    if (ml_isnan (x)) return x;
+    if (x == 0.0) return ml_copysign (ml_make_inf (0), x);
+    if (ml_isinf (x)) return ml_copysign (1.0, x);
     {
-        double ax = ml_fabs(x);
+        double ax = ml_fabs (x);
         if (ax < 1e-16) {
             /* (1+e)/(1-e) would divide by rounded 0; coth~1/ax. */
-            return ml_copysign(1.0 / ax, x);
+            return ml_copysign (1.0 / ax, x);
         }
-        double e = ml_exp(-2.0 * ax);
+        double e = ml_exp (-2.0 * ax);
         /* Denominator via -expm1(-2ax) so tiny ax stays nonzero. */
-        double denom = -ml_expm1(-2.0 * ax);
-        if (denom == 0.0) return ml_copysign(ml_make_inf(0), x);
+        double denom = -ml_expm1 (-2.0 * ax);
+        if (denom == 0.0) return ml_copysign (ml_make_inf (0), x);
         double r = (1.0 + e) / denom;
         /* coth = (1+e)/(1-e); 1+e computed directly is exact here
          * since e in (0,1); denom above is the accurate part. */
-        return ml_copysign(r, x);
+        return ml_copysign (r, x);
     }
 }
-
-ML_API double ml_asech(double x) {
-    if (ml_isnan(x)) return x;
-    if (x <= 0.0 || x > 1.0) return ml_make_nan();
+ML_API double ml_asech (double x) {
+    if (ml_isnan (x)) return x;
+    if (x <= 0.0 || x > 1.0) return ml_make_nan ();
     if (x == 1.0) return 0.0;
     {
         /* log((1+s)/x) = log(1+s)-log(x): avoids 2/x overflow for
          * x<1e-308 (would give Inf instead of ~744). */
-        double s = ml_sqrt(1.0 - x * x);
-        return ml_log(1.0 + s) - ml_log(x);
+        double s = ml_sqrt (1.0 - x * x);
+        return ml_log (1.0 + s) - ml_log (x);
     }
 }
-
-ML_API double ml_acsch(double x) {
-    if (ml_isnan(x)) return x;
-    if (x == 0.0) return ml_copysign(ml_make_inf(0), x);
-    if (ml_isinf(x)) return ml_copysign(0.0, x);
+ML_API double ml_acsch (double x) {
+    if (ml_isnan (x)) return x;
+    if (x == 0.0) return ml_copysign (ml_make_inf (0), x);
+    if (ml_isinf (x)) return ml_copysign (0.0, x);
     {
-        double ax = ml_fabs(x);
+        double ax = ml_fabs (x);
         if (ax < 1e-150) {
             /* 1/(x*x) overflows below ~1e-154; use log(2/|x|) tail:
              * acsch(x)~sign*log(2/|x|) to <1 ULP for tiny x. */
-            return ml_copysign(ml_log(2.0) - ml_log(ax), x);
+            return ml_copysign (ml_log (2.0) - ml_log (ax), x);
         }
-        return ml_log(1.0 / x + ml_sqrt(1.0 / (x * x) + 1.0));
+        return ml_log (1.0 / x + ml_sqrt (1.0 / (x * x) + 1.0));
     }
 }
-
-ML_API double ml_acoth(double x) {
-    if (ml_isnan(x)) return x;
-    if (x == 1.0) return ml_make_inf(0);
-    if (x == -1.0) return ml_make_inf(1);
-    if (ml_fabs(x) <= 1.0) return ml_make_nan();
-    if (ml_isinf(x)) return ml_copysign(0.0, x);
-    if (ml_fabs(x) > 2.0) {
+ML_API double ml_acoth (double x) {
+    if (ml_isnan (x)) return x;
+    if (x == 1.0) return ml_make_inf (0);
+    if (x == -1.0) return ml_make_inf (1);
+    if (ml_fabs (x) <= 1.0) return ml_make_nan ();
+    if (ml_isinf (x)) return ml_copysign (0.0, x);
+    if (ml_fabs (x) > 2.0) {
         /* (x+1)/(x-1) rounds to 1 for |x|>>1 -> log=0 instead of ~1/x.
          * log1p(2/(x-1))/2 stays accurate. */
-        return 0.5 * ml_log1p(2.0 / (x - 1.0));
+        return 0.5 * ml_log1p (2.0 / (x - 1.0));
     }
-    return 0.5 * ml_log((x + 1.0) / (x - 1.0));
+    return 0.5 * ml_log ((x + 1.0) / (x - 1.0));
 }
