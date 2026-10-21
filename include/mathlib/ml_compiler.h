@@ -279,11 +279,17 @@ static inline int ml_msvc_sub_overflow_i64 (int64_t a, int64_t b, int64_t *out) 
     *out = a - b;
     return 0;
 }
+static inline int ml_msvc_mul_overflow_generic (int64_t a, int64_t b, int64_t *out) {
+    return ml_msvc_mul_overflow_i64 (a, b, out);
+}
+static inline int ml_msvc_sub_overflow_generic (int64_t a, int64_t b, int64_t *out) {
+    return ml_msvc_sub_overflow_i64 (a, b, out);
+}
 #ifndef __builtin_mul_overflow
-#define __builtin_mul_overflow(a, b, out) ml_msvc_mul_overflow_i64 ((int64_t) (a), (int64_t) (b), (out))
+#define __builtin_mul_overflow(a, b, out) ml_msvc_mul_overflow_generic ((a), (b), (out))
 #endif
 #ifndef __builtin_sub_overflow
-#define __builtin_sub_overflow(a, b, out) ml_msvc_sub_overflow_i64 ((int64_t) (a), (int64_t) (b), (out))
+#define __builtin_sub_overflow(a, b, out) ml_msvc_sub_overflow_generic ((a), (b), (out))
 #endif
 #endif
 
