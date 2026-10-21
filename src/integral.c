@@ -778,7 +778,7 @@ ML_API double ml_digamma (double x) {
         {
             long double inv = 1.0L / xx;
             long double inv2 = inv * inv;
-            long double s = __builtin_logl (xx) - 0.5L * inv - inv2 * (1.0L / 12.0L - inv2 * (1.0L / 120.0L - inv2 * (1.0L / 252.0L - inv2 * (1.0L / 240.0L - inv2 * (1.0L / 132.0L - inv2 * (691.0L / 32760.0L))))));
+            long double s = __builtin_logl (xx) - 0.5L * inv - inv2 * (1.0L / 12.0L - inv2 * (1.0L / 120.0L - inv2 * (1.0L / 252.0L - inv2 * (1.0L / 240.0L - inv2 * (1.0L / 132.0L - inv2 * (691.0L / 32760.0L - inv2 * (1.0L / 12.0L - inv2 * (3617.0L / 8160.0L))))))));
             long double res = r + s;
             double rr = (double) res;
             return ml_isfinite (rr) ? rr : (double) r + ml_log ((double) xx);
