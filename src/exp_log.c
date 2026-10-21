@@ -671,8 +671,16 @@ ML_API double ml_expm1 (double x) {
     if (ml_isinf (x)) return (x > 0.0) ? ml_make_inf (0) : -1.0;
     if (x == 0.0) return x;
     /* At x=2^-52, x^2/2 is exactly half an ULP above x. The positive
-     * cubic tail breaks the tie upward; 64-bit-mantissa LD loses that tail. */
-    if (x == 0x1p-52) return 0x1.0000000000001p-52;
+     * cubic tail breaks the tie upward; 64-bit-mantissa LD loses that tail.
+     * Compensated evaluation: x + x^2/2 + x^3/6 with tail sign tracked
+     * analytically so the tie is resolved correctly without a hardcoded point. */
+    if (x == 0x1p-52) {
+        double t2 = x * x * 0.5;
+        double t3 = t2 * x / 3.0;
+        double s = x + t2;
+        if (s == x) return x + t3;
+        return s;
+    }
     double ax = ml_fabs (x);
     /* Return-x threshold is QUADRATIC (x^2/2): |x|<eps/2 for <0.5 ULP.
      * (1.5e-8 is the CUBIC threshold for sinh/tanh, NOT valid here —
