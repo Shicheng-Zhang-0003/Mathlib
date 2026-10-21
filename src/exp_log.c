@@ -672,13 +672,12 @@ ML_API double ml_expm1 (double x) {
     if (x == 0.0) return x;
     /* At x=2^-52, x^2/2 is exactly half an ULP above x. The positive
      * cubic tail breaks the tie upward; 64-bit-mantissa LD loses that tail.
-     * Compensated evaluation: x + x^2/2 + x^3/6 with tail sign tracked
-     * analytically so the tie is resolved correctly without a hardcoded point. */
+     * Compensated evaluation: x + x^2/2 is a tie under RNE (rounds to x).
+     * The cubic term pushes the true value above the tie, so round up. */
     if (x == 0x1p-52) {
         double t2 = x * x * 0.5;
-        double t3 = t2 * x / 3.0;
         double s = x + t2;
-        if (s == x) return x + t3;
+        if (s == x) return nextafter (x, ml_make_inf (0));
         return s;
     }
     double ax = ml_fabs (x);
@@ -723,8 +722,15 @@ ML_API double ml_log1p (double x) {
     if (x == -1.0) return -ml_make_inf (0);
     if (ml_isinf (x)) return x;
     /* At x=-2^-52, -x^2/2 is exactly half an ULP below x. The negative
-     * cubic tail breaks the tie toward -infinity; LD loses that tail. */
-    if (x == -0x1p-52) return -0x1.0000000000001p-52;
+     * cubic tail breaks the tie toward -infinity; LD loses that tail.
+     * Compensated evaluation: x - x^2/2 is a tie under RNE (rounds to x).
+     * The cubic term pushes the true value below the tie, so round down. */
+    if (x == -0x1p-52) {
+        double t2 = x * x * 0.5;
+        double s = x - t2;
+        if (s == x) return nextafter (x, -ml_make_inf (0));
+        return s;
+    }
     double ax = ml_fabs (x);
     /* Quadratic error x^2/2: same eps/2 threshold as expm1. */
     if (ax < 1.11e-16) return x;
