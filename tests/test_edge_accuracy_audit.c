@@ -514,874 +514,874 @@ int main (void) {
     {
         double g = ml_digamma (0.5);
         double r = -1.9635100260214235;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(0.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(0.5)");
     }
     {
         double g = ml_digamma (1.0);
         double r = -0.5772156649015329;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(1.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(1.0)");
     }
     {
         double g = ml_digamma (2.0);
         double r = 0.42278433509846713;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(2.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(2.0)");
     }
     {
         double g = ml_digamma (3.0);
         double r = 0.9227843350984671;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(3.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(3.0)");
     }
     {
         double g = ml_digamma (5.0);
         double r = 1.5061176684318005;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(5.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(5.0)");
     }
     {
         double g = ml_digamma (10.0);
         double r = 2.251752589066721;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(10.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(10.0)");
     }
     {
         double g = ml_digamma (50.0);
         double r = 3.901989673427892;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(50.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(50.0)");
     }
     {
         double g = ml_digamma (100.5);
         double r = 4.605174352581845;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(100.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(100.5)");
     }
     {
         double g = ml_digamma (-0.5);
         double r = 0.03648997397857652;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(-0.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(-0.5)");
     }
     {
         double g = ml_digamma (-1.5);
         double r = 0.7031566406452432;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(-1.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(-1.5)");
     }
     {
         double g = ml_digamma (-2.5);
         double r = 1.103156640645243;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(-2.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(-2.5)");
     }
     {
         double g = ml_digamma (-10.5);
         double r = 2.3982391295357814;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(-10.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(-10.5)");
     }
     {
         double g = ml_digamma (1000.0);
         double r = 6.907255195648812;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(1000.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(1000.0)");
     }
     {
         double g = ml_digamma (1000000.0);
         double r = 13.815510057964191;
-        CHECK_ULP (&ctx, g, r, 12, "digamma(1000000.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "digamma(1000000.0)");
     }
     {
         double g = ml_bessel_j0 (0.5);
         double r = 0.9384698072408129;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(0.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(0.5)");
     }
     {
         double g = ml_bessel_j0 (1.0);
         double r = 0.7651976865579666;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(1.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(1.0)");
     }
     {
         double g = ml_bessel_j0 (2.0);
         double r = 0.22389077914123567;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(2.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(2.0)");
     }
     {
         double g = ml_bessel_j0 (4.0);
         double r = -0.39714980986384735;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(4.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(4.0)");
     }
     {
         double g = ml_bessel_j0 (6.0);
         double r = 0.15064525725099692;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(6.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(6.0)");
     }
     {
         double g = ml_bessel_j0 (8.0);
         double r = 0.1716508071375539;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(8.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(8.0)");
     }
     {
         double g = ml_bessel_j0 (9.0);
         double r = -0.09033361118287614;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(9.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(9.0)");
     }
     {
         double g = ml_bessel_j0 (10.0);
         double r = -0.24593576445134835;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(10.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(10.0)");
     }
     {
         double g = ml_bessel_j0 (12.0);
         double r = 0.047689310796833535;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(12.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(12.0)");
     }
     {
         double g = ml_bessel_j0 (14.0);
         double r = 0.17107347611045867;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(14.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(14.0)");
     }
     {
         double g = ml_bessel_j0 (15.0);
         double r = -0.014224472826780772;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(15.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(15.0)");
     }
     {
         double g = ml_bessel_j0 (20.0);
         double r = 0.16702466434058316;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(20.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(20.0)");
     }
     {
         double g = ml_bessel_j0 (30.0);
         double r = -0.08636798358104021;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(30.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(30.0)");
     }
     {
         double g = ml_bessel_j0 (64.0);
         double r = 0.09259001221604811;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(64.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(64.0)");
     }
     {
         double g = ml_bessel_j0 (128.5);
         double r = -0.0324482931665692;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(128.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(128.5)");
     }
     {
         double g = ml_bessel_j0 (257.75);
         double r = 0.03966950347460478;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j0(257.75)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j0(257.75)");
     }
     {
         double g = ml_bessel_j1 (0.5);
         double r = 0.2422684576748739;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(0.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(0.5)");
     }
     {
         double g = ml_bessel_j1 (1.0);
         double r = 0.4400505857449335;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(1.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(1.0)");
     }
     {
         double g = ml_bessel_j1 (2.0);
         double r = 0.5767248077568734;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(2.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(2.0)");
     }
     {
         double g = ml_bessel_j1 (4.0);
         double r = -0.06604332802354913;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(4.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(4.0)");
     }
     {
         double g = ml_bessel_j1 (6.0);
         double r = -0.27668385812756563;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(6.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(6.0)");
     }
     {
         double g = ml_bessel_j1 (8.0);
         double r = 0.23463634685391463;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(8.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(8.0)");
     }
     {
         double g = ml_bessel_j1 (9.0);
         double r = 0.24531178657332528;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(9.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(9.0)");
     }
     {
         double g = ml_bessel_j1 (10.0);
         double r = 0.04347274616886144;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(10.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(10.0)");
     }
     {
         double g = ml_bessel_j1 (12.0);
         double r = -0.2234471044906276;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(12.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(12.0)");
     }
     {
         double g = ml_bessel_j1 (14.0);
         double r = 0.13337515469879324;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(14.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(14.0)");
     }
     {
         double g = ml_bessel_j1 (15.0);
         double r = 0.20510403861352275;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(15.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(15.0)");
     }
     {
         double g = ml_bessel_j1 (20.0);
         double r = 0.06683312417585005;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(20.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(20.0)");
     }
     {
         double g = ml_bessel_j1 (30.0);
         double r = -0.11875106261662294;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(30.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(30.0)");
     }
     {
         double g = ml_bessel_j1 (64.0);
         double r = 0.037791549354396374;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(64.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(64.0)");
     }
     {
         double g = ml_bessel_j1 (128.5);
         double r = 0.06233468619992681;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(128.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(128.5)");
     }
     {
         double g = ml_bessel_j1 (257.75);
         double r = -0.029860331994660184;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_j1(257.75)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_j1(257.75)");
     }
     {
         double g = ml_bessel_y0 (0.5);
         double r = -0.44451873350670656;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(0.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(0.5)");
     }
     {
         double g = ml_bessel_y0 (1.0);
         double r = 0.08825696421567696;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(1.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(1.0)");
     }
     {
         double g = ml_bessel_y0 (2.0);
         double r = 0.5103756726497451;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(2.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(2.0)");
     }
     {
         double g = ml_bessel_y0 (4.0);
         double r = -0.016940739325064992;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(4.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(4.0)");
     }
     {
         double g = ml_bessel_y0 (6.0);
         double r = -0.28819468398157916;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(6.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(6.0)");
     }
     {
         double g = ml_bessel_y0 (8.0);
         double r = 0.22352148938756622;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(8.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(8.0)");
     }
     {
         double g = ml_bessel_y0 (9.0);
         double r = 0.24993669828502468;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(9.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(9.0)");
     }
     {
         double g = ml_bessel_y0 (10.0);
         double r = 0.055671167283599395;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(10.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(10.0)");
     }
     {
         double g = ml_bessel_y0 (12.0);
         double r = -0.22523731263436145;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(12.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(12.0)");
     }
     {
         double g = ml_bessel_y0 (14.0);
         double r = 0.1271925685821837;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(14.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(14.0)");
     }
     {
         double g = ml_bessel_y0 (15.0);
         double r = 0.20546429603891828;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(15.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(15.0)");
     }
     {
         double g = ml_bessel_y0 (20.0);
         double r = 0.06264059680938383;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(20.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(20.0)");
     }
     {
         double g = ml_bessel_y0 (30.0);
         double r = -0.11729573168666403;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(30.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(30.0)");
     }
     {
         double g = ml_bessel_y0 (64.0);
         double r = 0.03706710323208833;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(64.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(64.0)");
     }
     {
         double g = ml_bessel_y0 (128.5);
         double r = 0.06246046944918459;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(128.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(128.5)");
     }
     {
         double g = ml_bessel_y0 (257.75);
         double r = -0.02993722882842579;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y0(257.75)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y0(257.75)");
     }
     {
         double g = ml_bessel_y1 (0.5);
         double r = -1.471472392670243;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(0.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(0.5)");
     }
     {
         double g = ml_bessel_y1 (1.0);
         double r = -0.7812128213002887;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(1.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(1.0)");
     }
     {
         double g = ml_bessel_y1 (2.0);
         double r = -0.10703243154093754;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(2.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(2.0)");
     }
     {
         double g = ml_bessel_y1 (4.0);
         double r = 0.3979257105571;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(4.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(4.0)");
     }
     {
         double g = ml_bessel_y1 (6.0);
         double r = -0.17501034430039825;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(6.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(6.0)");
     }
     {
         double g = ml_bessel_y1 (8.0);
         double r = -0.1580604617312475;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(8.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(8.0)");
     }
     {
         double g = ml_bessel_y1 (9.0);
         double r = 0.10431457519671589;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(9.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(9.0)");
     }
     {
         double g = ml_bessel_y1 (10.0);
         double r = 0.24901542420695388;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(10.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(10.0)");
     }
     {
         double g = ml_bessel_y1 (12.0);
         double r = -0.05709921826089652;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(12.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(12.0)");
     }
     {
         double g = ml_bessel_y1 (14.0);
         double r = -0.16664484185617226;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(14.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(14.0)");
     }
     {
         double g = ml_bessel_y1 (15.0);
         double r = 0.02107362803687351;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(15.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(15.0)");
     }
     {
         double g = ml_bessel_y1 (20.0);
         double r = -0.1655116143625213;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(20.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(20.0)");
     }
     {
         double g = ml_bessel_y1 (30.0);
         double r = 0.08442557066174723;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(30.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(30.0)");
     }
     {
         double g = ml_bessel_y1 (64.0);
         double r = -0.09230326767947217;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(64.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(64.0)");
     }
     {
         double g = ml_bessel_y1 (128.5);
         double r = 0.03269157194855304;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(128.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(128.5)");
     }
     {
         double g = ml_bessel_y1 (257.75);
         double r = -0.0397276520526806;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_y1(257.75)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_y1(257.75)");
     }
     {
         double g = ml_bessel_i0 (0.5);
         double r = 1.0634833707413236;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(0.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(0.5)");
     }
     {
         double g = ml_bessel_i0 (1.0);
         double r = 1.2660658777520084;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(1.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(1.0)");
     }
     {
         double g = ml_bessel_i0 (2.0);
         double r = 2.2795853023360673;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(2.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(2.0)");
     }
     {
         double g = ml_bessel_i0 (4.0);
         double r = 11.30192195213633;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(4.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(4.0)");
     }
     {
         double g = ml_bessel_i0 (6.0);
         double r = 67.23440697647797;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(6.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(6.0)");
     }
     {
         double g = ml_bessel_i0 (8.0);
         double r = 427.5641157218048;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(8.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(8.0)");
     }
     {
         double g = ml_bessel_i0 (9.0);
         double r = 1093.5883545113747;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(9.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(9.0)");
     }
     {
         double g = ml_bessel_i0 (10.0);
         double r = 2815.7166284662544;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(10.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(10.0)");
     }
     {
         double g = ml_bessel_i0 (12.0);
         double r = 18948.925349296307;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(12.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(12.0)");
     }
     {
         double g = ml_bessel_i0 (14.0);
         double r = 129418.56270064856;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(14.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(14.0)");
     }
     {
         double g = ml_bessel_i0 (15.0);
         double r = 339649.3732979139;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(15.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(15.0)");
     }
     {
         double g = ml_bessel_i0 (20.0);
         double r = 43558282.559553534;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(20.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(20.0)");
     }
     {
         double g = ml_bessel_i0 (30.0);
         double r = 781672297823.9775;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(30.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(30.0)");
     }
     {
         double g = ml_bessel_i0 (64.0);
         double r = 3.115457918187898e+26;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(64.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(64.0)");
     }
     {
         double g = ml_bessel_i0 (128.5);
         double r = 2.2579979813444746e+54;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(128.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(128.5)");
     }
     {
         double g = ml_bessel_i0 (257.75);
         double r = 2.16234241749817e+110;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i0(257.75)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i0(257.75)");
     }
     {
         double g = ml_bessel_i1 (0.5);
         double r = 0.2578943053908963;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(0.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(0.5)");
     }
     {
         double g = ml_bessel_i1 (1.0);
         double r = 0.565159103992485;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(1.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(1.0)");
     }
     {
         double g = ml_bessel_i1 (2.0);
         double r = 1.590636854637329;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(2.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(2.0)");
     }
     {
         double g = ml_bessel_i1 (4.0);
         double r = 9.75946515370445;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(4.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(4.0)");
     }
     {
         double g = ml_bessel_i1 (6.0);
         double r = 61.341936777640235;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(6.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(6.0)");
     }
     {
         double g = ml_bessel_i1 (8.0);
         double r = 399.8731367825601;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(8.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(8.0)");
     }
     {
         double g = ml_bessel_i1 (9.0);
         double r = 1030.9147225169565;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(9.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(9.0)");
     }
     {
         double g = ml_bessel_i1 (10.0);
         double r = 2670.9883037012546;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(10.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(10.0)");
     }
     {
         double g = ml_bessel_i1 (12.0);
         double r = 18141.348781638833;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(12.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(12.0)");
     }
     {
         double g = ml_bessel_i1 (14.0);
         double r = 124707.25914906985;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(14.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(14.0)");
     }
     {
         double g = ml_bessel_i1 (15.0);
         double r = 328124.9219702064;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(15.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(15.0)");
     }
     {
         double g = ml_bessel_i1 (20.0);
         double r = 42454973.38512777;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(20.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(20.0)");
     }
     {
         double g = ml_bessel_i1 (30.0);
         double r = 768532038938.957;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(30.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(30.0)");
     }
     {
         double g = ml_bessel_i1 (64.0);
         double r = 3.0910218039081837e+26;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(64.0)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(64.0)");
     }
     {
         double g = ml_bessel_i1 (128.5);
         double r = 2.2491947689600496e+54;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(128.5)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(128.5)");
     }
     {
         double g = ml_bessel_i1 (257.75);
         double r = 2.1581436824261766e+110;
-        CHECK_ULP (&ctx, g, r, 100000.0, "bessel_i1(257.75)");
+        CHECK_ULP (&ctx, g, r, 1.0, "bessel_i1(257.75)");
     }
     {
         double g = ml_bessel_k0 (0.5);
         double r = 0.9244190712276659;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(0.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(0.5)");
     }
     {
         double g = ml_bessel_k0 (1.0);
         double r = 0.42102443824070834;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(1.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(1.0)");
     }
     {
         double g = ml_bessel_k0 (2.0);
         double r = 0.11389387274953344;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(2.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(2.0)");
     }
     /* Round-3: transition-band pins (LD K-quadrature replaces the
      * cancellation-prone ascending series and the exp(-2x) asymptotic). */
     {
         double g = ml_bessel_k0 (5.5);
         double r = 0.0021387085659502875;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(5.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(5.5)");
     }
     {
         double g = ml_bessel_k0 (7.0);
         double r = 0.0004247957418692318;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(7.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(7.0)");
     }
     {
         double g = ml_bessel_k0 (13.0);
         double r = 7.784543861420496e-07;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(13.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(13.0)");
     }
     {
         double g = ml_bessel_k0 (4.0);
         double r = 0.011159676085853025;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(4.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(4.0)");
     }
     {
         double g = ml_bessel_k0 (6.0);
         double r = 0.0012439943280131232;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(6.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(6.0)");
     }
     {
         double g = ml_bessel_k0 (8.0);
         double r = 0.0001464707052228154;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(8.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(8.0)");
     }
     {
         double g = ml_bessel_k0 (9.0);
         double r = 5.0881312956459246e-05;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(9.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(9.0)");
     }
     {
         double g = ml_bessel_k0 (10.0);
         double r = 1.778006231616765e-05;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(10.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(10.0)");
     }
     {
         double g = ml_bessel_k0 (12.0);
         double r = 2.2008253973114916e-06;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(12.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(12.0)");
     }
     {
         double g = ml_bessel_k0 (14.0);
         double r = 2.76137082398162e-07;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(14.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(14.0)");
     }
     {
         double g = ml_bessel_k0 (15.0);
         double r = 9.819536482396435e-08;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(15.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(15.0)");
     }
     {
         double g = ml_bessel_k0 (20.0);
         double r = 5.741237815336525e-10;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(20.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(20.0)");
     }
     {
         double g = ml_bessel_k0 (30.0);
         double r = 2.1324774964630563e-14;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(30.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(30.0)");
     }
     {
         double g = ml_bessel_k0 (64.0);
         double r = 2.5077336051690365e-29;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(64.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(64.0)");
     }
     {
         double g = ml_bessel_k0 (128.5);
         double r = 1.7232433662935412e-57;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(128.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(128.5)");
     }
     {
         double g = ml_bessel_k0 (257.75);
         double r = 8.971140943384636e-114;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k0(257.75)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k0(257.75)");
     }
     {
         double g = ml_bessel_k1 (0.5);
         double r = 1.656441120003301;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(0.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(0.5)");
     }
     {
         double g = ml_bessel_k1 (1.0);
         double r = 0.6019072301972346;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(1.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(1.0)");
     }
     {
         double g = ml_bessel_k1 (2.0);
         double r = 0.13986588181652243;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(2.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(2.0)");
     }
     {
         double g = ml_bessel_k1 (5.5);
         double r = 0.0023255690088490053;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(5.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(5.5)");
     }
     {
         double g = ml_bessel_k1 (7.0);
         double r = 0.00045418248688489695;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(7.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(7.0)");
     }
     {
         double g = ml_bessel_k1 (13.0);
         double r = 8.078588412202347e-07;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(13.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(13.0)");
     }
     {
         double g = ml_bessel_k1 (4.0);
         double r = 0.012483498887268431;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(4.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(4.0)");
     }
     {
         double g = ml_bessel_k1 (6.0);
         double r = 0.001343919717735509;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(6.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(6.0)");
     }
     {
         double g = ml_bessel_k1 (8.0);
         double r = 0.00015536921180500115;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(8.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(8.0)");
     }
     {
         double g = ml_bessel_k1 (9.0);
         double r = 5.363701637945195e-05;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(9.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(9.0)");
     }
     {
         double g = ml_bessel_k1 (10.0);
         double r = 1.8648773453825585e-05;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(10.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(10.0)");
     }
     {
         double g = ml_bessel_k1 (12.0);
         double r = 2.290757464767188e-06;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(12.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(12.0)");
     }
     {
         double g = ml_bessel_k1 (14.0);
         double r = 2.85834365344025e-07;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(14.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(14.0)");
     }
     {
         double g = ml_bessel_k1 (15.0);
         double r = 1.0141729369762092e-07;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(15.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(15.0)");
     }
     {
         double g = ml_bessel_k1 (20.0);
         double r = 5.883057969557038e-10;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(20.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(20.0)");
     }
     {
         double g = ml_bessel_k1 (30.0);
         double r = 2.1677320018915495e-14;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(30.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(30.0)");
     }
     {
         double g = ml_bessel_k1 (64.0);
         double r = 2.5272499115022127e-29;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(64.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(64.0)");
     }
     {
         double g = ml_bessel_k1 (128.5);
         double r = 1.7299356485149652e-57;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(128.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(128.5)");
     }
     {
         double g = ml_bessel_k1 (257.75);
         double r = 8.988526924183496e-114;
-        CHECK_ULP (&ctx, g, r, 65536.0, "bessel_k1(257.75)");
+        CHECK_ULP (&ctx, g, r, 2.0, "bessel_k1(257.75)");
     }
     {
         double g = ml_airy_ai (-30.0);
         double r = -0.08796818845684216;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-30.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-30.0)");
     }
     {
         double g = ml_airy_ai (-20.0);
         double r = -0.1764061270779847;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-20.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-20.0)");
     }
     {
         double g = ml_airy_ai (-12.0);
         double r = -0.06655517505437313;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-12.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-12.0)");
     }
     {
         double g = ml_airy_ai (-9.0);
         double r = -0.022133721547341403;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-9.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-9.0)");
     }
     {
         double g = ml_airy_ai (-7.5);
         double r = 0.3217757163806479;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-7.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-7.5)");
     }
     {
         double g = ml_airy_ai (-7.0);
         double r = 0.18428083525050565;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-7.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-7.0)");
     }
     {
         double g = ml_airy_ai (-6.0);
         double r = -0.3291451736298231;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-6.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-6.0)");
     }
     {
         double g = ml_airy_ai (-3.0);
         double r = -0.37881429367765806;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-3.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-3.0)");
     }
     {
         double g = ml_airy_ai (-1.0);
         double r = 0.5355608832923521;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-1.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-1.0)");
     }
     {
         double g = ml_airy_ai (-0.5);
         double r = 0.4757280916105396;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(-0.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(-0.5)");
     }
     {
         double g = ml_airy_ai (0.0);
         double r = 0.3550280538878172;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(0.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(0.0)");
     }
     {
         double g = ml_airy_ai (0.5);
         double r = 0.23169360648083348;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(0.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(0.5)");
     }
     {
         double g = ml_airy_ai (1.0);
         double r = 0.13529241631288141;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(1.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(1.0)");
     }
     {
         double g = ml_airy_ai (3.0);
         double r = 0.006591139357460719;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(3.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(3.0)");
     }
     {
         double g = ml_airy_ai (4.0);
         double r = 0.0009515638512048018;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(4.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(4.0)");
     }
     {
         double g = ml_airy_ai (4.5);
         double r = 0.00033025032351430896;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(4.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(4.5)");
     }
     {
         double g = ml_airy_ai (6.5);
         double r = 2.7958823432049136e-06;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(6.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(6.5)");
     }
     {
         double g = ml_airy_ai (8.0);
         double r = 4.6922076160992316e-08;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(8.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(8.0)");
     }
     {
         double g = ml_airy_ai (5.0);
         double r = 0.00010834442813607442;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(5.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(5.0)");
     }
     {
         double g = ml_airy_ai (5.5);
         double r = 3.368531190859981e-05;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(5.5)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(5.5)");
     }
     {
         double g = ml_airy_ai (6.0);
         double r = 9.947694360252889e-06;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(6.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(6.0)");
     }
     {
         double g = ml_airy_ai (7.0);
         double r = 7.492128863997167e-07;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(7.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(7.0)");
     }
     {
         double g = ml_airy_ai (9.0);
         double r = 2.47116843087249e-09;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(9.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(9.0)");
     }
     {
         double g = ml_airy_ai (12.0);
         double r = 1.3931846888753607e-13;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(12.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(12.0)");
     }
     {
         double g = ml_airy_ai (20.0);
         double r = 1.6916728686705404e-27;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(20.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(20.0)");
     }
     {
         double g = ml_airy_ai (60.0);
         double r = 2.7831487094969354e-136;
-        CHECK_ULP (&ctx, g, r, 65536.0, "airy(60.0)");
+        CHECK_ULP (&ctx, g, r, 2.0, "airy(60.0)");
     }
     /* --- digamma edge behaviour ---------------------------------------- */
     ASSERT_TRUE (&ctx, ml_isinf (ml_digamma (0.0)) && ml_digamma (0.0) < 0.0,
