@@ -893,7 +893,7 @@ ML_API double ml_beta (double a, double b) {
 /* K: series below XKS, LD K-quadrature to XKA, least-term asym above.
  * Round-3 measured optimum: XKS=4, XKA=16 -> worst 6.8e-15 (was 2e-9). */
 #define ML_BESSEL_XKS 4.0
-#define ML_BESSEL_XKA 16.0
+#define ML_BESSEL_XKA 24.0
 /* Round-3 quadrature bridge: K_nu(x)=int_0^inf exp(-x cosh t) cosh(nu t) dt
  * (DLMF 10.32.10), LD adaptive Simpson, no malloc, thread-safe.
  * Closes K 8-10 (~2e-9) and Airy 5-6 (~3e-9) holes to ~1e-15 measured
@@ -1003,10 +1003,11 @@ static long double ml_bessel_sk (long double nu, long double x, int sgn) {
  * 1/sqrt(2) is exact to 64 bits, so cos/sin of pi/4 and 3pi/4 are the
  * same constant with a sign. */
 #define ML_RSQRT2 0.70710678118654752440
-static void ml_bessel_phase (int n, double x, double *cwp, double *swp) {
-    double s = ml_sin (x), c = ml_cos (x);
-    double cc = (n == 0) ? ML_RSQRT2 : -ML_RSQRT2;
-    double ss = ML_RSQRT2;
+static void ml_bessel_phase (int n, double x, long double *cwp, long double *swp) {
+    long double s = __builtin_sinl ((long double) x);
+    long double c = __builtin_cosl ((long double) x);
+    long double cc = (n == 0) ? ML_RSQRT2 : -ML_RSQRT2;
+    long double ss = ML_RSQRT2;
     *cwp = c * cc + s * ss; /* cos(x - (2n+1)pi/4) */
     *swp = s * cc - c * ss; /* sin(x - (2n+1)pi/4) */
 }
@@ -1017,7 +1018,7 @@ static void ml_bessel_phase (int n, double x, double *cwp, double *swp) {
  * J series uses DD for x>=XJ; the Weber Y series uses DD across (0,17),
  * because its log/harmonic assembly must stay DD to preserve the
  * (log*J + S) cancellation near the Y0/Y1 zeros. Hankel asymptotic above. */
-#define ML_BESSEL_JDD 17.0
+#define ML_BESSEL_JDD 30.0
 static ml_dd_t ml_bessel_j0_dd_ret (double ax) {
     ml_dd_t half = ml_dd_from_d (ax * 0.5);
     ml_dd_t y = ml_dd_mul (half, half);
@@ -1148,10 +1149,10 @@ ML_API double ml_bessel_j0 (double x) {
         if (ax < ML_BESSEL_JDD) return ml_bessel_j0_dd (ax);
         {
             long double P, Q;
-            double cw, sw;
+            long double cw, sw;
             ml_hankel_pq (0.0L, (long double) ax, &P, &Q);
             ml_bessel_phase (0, ax, &cw, &sw);
-            return (double) ((0.79788456080286535588L / __builtin_sqrtl ((long double) ax)) * ((long double) cw * P - (long double) sw * Q));
+            return (double) ((0.79788456080286535588L / __builtin_sqrtl ((long double) ax)) * (cw * P - sw * Q));
         }
     }
 }
@@ -1180,10 +1181,10 @@ ML_API double ml_bessel_j1 (double x) {
         if (ax < ML_BESSEL_JDD) return sgn * ml_bessel_j1_dd (ax);
         {
             long double P, Q;
-            double cw, sw;
+            long double cw, sw;
             ml_hankel_pq (1.0L, (long double) ax, &P, &Q);
             ml_bessel_phase (1, ax, &cw, &sw);
-            return sgn * (double) ((0.79788456080286535588L / __builtin_sqrtl ((long double) ax)) * ((long double) cw * P - (long double) sw * Q));
+            return sgn * (double) ((0.79788456080286535588L / __builtin_sqrtl ((long double) ax)) * (cw * P - sw * Q));
         }
     }
 }
@@ -1651,13 +1652,13 @@ ML_API double ml_bessel_y0 (double x) {
     }
     if (ml_isinf (x)) return 0.0;
     if (x < ML_BESSEL_JDD) return ml_bessel_y0_dd (x);
-    {
-        long double P, Q;
-        double cw, sw;
-        ml_hankel_pq (0.0L, (long double) x, &P, &Q);
-        ml_bessel_phase (0, x, &cw, &sw);
-        return (double) ((0.79788456080286535588L / __builtin_sqrtl ((long double) x)) * ((long double) sw * P + (long double) cw * Q));
-    }
+        {
+            long double P, Q;
+            long double cw, sw;
+            ml_hankel_pq (0.0L, (long double) x, &P, &Q);
+            ml_bessel_phase (0, x, &cw, &sw);
+            return (double) ((0.79788456080286535588L / __builtin_sqrtl ((long double) x)) * (sw * P + cw * Q));
+        }
 }
 ML_API double ml_bessel_y1 (double x) {
     if (ml_isnan (x)) return x;
@@ -1667,13 +1668,13 @@ ML_API double ml_bessel_y1 (double x) {
     }
     if (ml_isinf (x)) return 0.0;
     if (x < ML_BESSEL_JDD) return ml_bessel_y1_dd (x);
-    {
-        long double P, Q;
-        double cw, sw;
-        ml_hankel_pq (1.0L, (long double) x, &P, &Q);
-        ml_bessel_phase (1, x, &cw, &sw);
-        return (double) ((0.79788456080286535588L / __builtin_sqrtl ((long double) x)) * ((long double) sw * P + (long double) cw * Q));
-    }
+        {
+            long double P, Q;
+            long double cw, sw;
+            ml_hankel_pq (1.0L, (long double) x, &P, &Q);
+            ml_bessel_phase (1, x, &cw, &sw);
+            return (double) ((0.79788456080286535588L / __builtin_sqrtl ((long double) x)) * (sw * P + cw * Q));
+        }
 }
 ML_API double ml_bessel_i0 (double x) {
     if (ml_isnan (x)) return x;
