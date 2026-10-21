@@ -443,6 +443,26 @@ ML_API double ml_sinc (double x) {
     {
         double ax = ml_fabs (x);
         if (ax < 1.5e-8) return 1.0 - x * x / 6.0;
+        /* Near zeros of sin (x ≈ k*pi, k≠0): sin(x) ≈ (-1)^k*(x-k*pi)
+         * is tiny, so ml_sin's absolute error (~1e-16) dominates the
+         * relative error of sin(x)/x. Use Taylor around k*pi with
+         * double-double pi for an accurate h = x - k*pi. */
+        double k_d = ml_round (x / ML_PI);
+        if (k_d != 0.0 && ml_fabs (k_d) <= 1024.0) {
+            long long k = (long long) k_d;
+            /* k*pi via DD: k*ML_PI_HI_D (exact for k<=1024 since HI's
+             * low 3 bits are zero), k*ML_PI_LO_D (exact for small k). */
+            double k_pi = (double) k * ML_PI_HI_D + (double) k * ML_PI_LO_D;
+            double h = x - k_pi;
+            if (ml_fabs (h) <= 1e-8) {
+                /* sin(k*pi + h) = (-1)^k * sin(h) ≈ (-1)^k * (h - h^3/6) */
+                double h2 = h * h;
+                double sin_h = h * (1.0 - h2 / 6.0);
+                int neg = ((k & 1LL) != 0);
+                double r = sin_h / x;
+                return neg ? -r : r;
+            }
+        }
         return ml_sin (x) / x;
     }
 }
@@ -491,6 +511,16 @@ ML_API double ml_atan2 (double y, double x) {
         return y_neg ? -ML_PI / 2.0 : ML_PI / 2.0;
     }
 
+#if defined(__STDC_VERSION__) && defined(__LDBL_MANT_DIG__) && (__LDBL_MANT_DIG__ >= 64)
+    /* LD atan2l is correctly rounded and handles all domain edges
+     * (tiny x, huge y/x ratios, signed zeros) without the y/x division
+     * precision loss that ml_atan(y/x) suffers. */
+    {
+        long double r = __builtin_atan2l ((long double) y, (long double) x);
+        double o = (double) r;
+        return ml_isfinite (o) ? o : ml_make_nan ();
+    }
+#else
     double a = ml_atan (y / x);
 
     if (x_neg) {
@@ -498,6 +528,7 @@ ML_API double ml_atan2 (double y, double x) {
     }
 
     return a;
+#endif
 }
 ML_API double ml_r_form (double a, double b, double *R, double *alpha) {
     if (ml_isnan (a) || ml_isnan (b)) return ml_make_nan ();
