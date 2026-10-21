@@ -165,11 +165,11 @@ ML_API cplx ml_cplx_sqrt (cplx a) {
                 }
                 return (cplx) {ml_make_inf (0), ml_copysign (ml_make_inf (0), a.imag)};
             }
-            return (cplx) {ml_make_inf (0), ml_copysign (ml_make_inf (0), a.real)};
+            return (cplx) {ml_make_inf (0), ml_copysign (ml_make_inf (0), a.imag)};
         }
         if (ml_isinf (a.real)) {
             if (a.real > 0.0) {
-                return (cplx) {ml_make_inf (0), ml_copysign (ml_make_inf (0), a.imag)};
+                return (cplx) {ml_make_inf (0), ml_copysign (0.0, a.imag)};
             }
             return (cplx) {0.0, ml_copysign (ml_make_inf (0), a.imag)};
         }
