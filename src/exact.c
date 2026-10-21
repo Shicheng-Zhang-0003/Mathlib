@@ -577,6 +577,7 @@ double ml_mpz_to_double (const ml_mpz_t *a) {
     if (start > (size_t) (INT_MAX / 32)) return a->sign ? -ml_make_inf (0) : ml_make_inf (0);
     exp2 = (int) (start * 32u);
     v = ldexpl (v, exp2);
+    if (v > (long double) DBL_MAX) return a->sign ? -ml_make_inf (0) : ml_make_inf (0);
     d = (double) v;
     return a->sign ? -d : d;
 }
