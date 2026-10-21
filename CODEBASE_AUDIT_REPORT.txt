@@ -1,0 +1,314 @@
+================================================================================
+MATHLIB (CMLB) v12R3 COMPREHENSIVE CODEBASE AUDIT & TECHNICAL ASSESSMENT
+================================================================================
+Generated: 2026-10-21
+Repository: /home/magi-01/Desktop/work/projects/3432-CMLB
+Scope: Full Repository Review, Architecture Evaluation, Bottom-Up Defect Catalog
+================================================================================
+
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. Executive Summary
+2. Codebase Architecture & Multi-Model Development Workflow
+3. Genuinely Strong Points & Highlights
+4. Bottom-Up Defect Catalog (Concrete Bugs, UB, & Traps)
+   - [DEFECT 1] CRITICAL BUG: Sign Inversion in ml_cplx_sqrt for Infinite Values
+   - [DEFECT 2] UNDEFINED BEHAVIOR: Out-of-Range Floating-Point Cast in ml_mpz_to_double
+   - [DEFECT 3] ORACLE OVERFITTING: Hardcoded Literal Point in ml_expm1
+   - [DEFECT 4] TOOLING / BUILD: Stale Archive Desynchronization in run_all_tests.py
+   - [DEFECT 5] PORTABILITY TRAP: Type-Unsafe MSVC Intrinsics in ml_compiler.h
+   - [DEFECT 6] PORTABILITY RISK: 80-bit Long-Double Dependency for Sub-ULP Guarantees
+   - [DEFECT 7] ARCHITECTURAL ACCRETION: Two Incompatible BigInt Systems
+   - [DEFECT 8] TEST GAP: Near-Empty Edge Tests for Complex Functions
+5. Recommended Immediate Actions & Fix Checklist
+================================================================================
+
+
+1. EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+MathLib (CMLB, currently working tree v12R3 / v12.3.0) is a monolithic, pure C99
+mathematical library comprising 59 translation units, ~36,400 lines of C/header
+code, 60+ public headers, and 52 test/fuzzer/oracle targets. It has zero external
+dependencies, compiling cleanly with standard GCC and Clang toolchains.
+
+The library aims to provide an all-in-one mathematics framework in C99, spanning:
+- IEEE-754 bit-exact primitives and Payne-Hanek range reduction up to 10^300.
+- Elementary transcendentals (sin, cos, exp, log, pow, hyperbolic).
+- Special functions (Bessel, Airy, Kelvin, Dawson, Fresnel, Struve, Elliptic,
+  Zeta, Eta, Theta3, Partition).
+- Linear algebra (LU, QR, SVD, CG, GMRES, matrix exponentials).
+- Dynamic exact arithmetic (arbitrary precision integers, canonical rationals,
+  polynomial ring Q[x], prime fields F_p, outward-rounded intervals).
+- Applied & contest math (Eulerian/Stirling/Bell, ODE/PDE/SDE, MCMC, control,
+  graph theory, differential geometry, topology).
+
+The verification infrastructure is exceptionally thorough (address/undefined
+sanitizers, 50-decimal-place mpmath oracles, god-mode fuzzers, and boundary
+gauntlets). However, a bottom-up audit reveals several genuine bugs, undefined
+behavior, and architectural fragility that must be resolved.
+
+
+2. CODEBASE ARCHITECTURE & MULTI-MODEL DEVELOPMENT WORKFLOW
+--------------------------------------------------------------------------------
+As documented in docs/TEAM_DOCTRINE.md, the codebase was developed through an
+orchestrated multi-LLM development workflow:
+- Blue Team (Qwen): Implementation, refactoring, script changes.
+- Red Team (ChatGPT, Gemini, GLM, Kimi): Mathematical correctness review,
+  IEEE-754 special-case review, standards review, test-gap analysis.
+- Yellow Team (Copilot): Windows/MSVC portability and packaging.
+- Violet Team (Grok): Adversarial fuzzing and undefined behavior detection.
+
+The codebase exhibits high discipline regarding thread safety (all static
+mutable scratch buffers were purged) and memory safety (hot paths perform
+zero dynamic heap allocations, relying on deterministic stack workspaces).
+
+
+3. GENUINELY STRONG POINTS & HIGHLIGHTS
+--------------------------------------------------------------------------------
+- Numerical Hygiene: Rigorous IEEE-754 Annex F compliance in most areas,
+  proper distinction of signed zeros (+0.0 vs -0.0), NaN payload propagation.
+- Classic Pitfall Avoidance:
+  * Heron's formula (src/trig.c:573) sorts lengths a >= b >= c (Kahan's stable
+    method) to avoid catastrophic cancellation.
+  * Online variance (src/statistics.c) uses Welford's algorithm.
+  * Conjugate Gradient and GMRES (src/spectral.c) use scale-aware relative
+    residual thresholds ||r|| <= tol * ||b|| instead of raw absolute tolerances.
+- Epistemic Transparency: docs/PRECISION_CONTRACT.md and docs/ULP_PUSH.md are
+  unusually honest about the Table Maker's Dilemma, explicitly distinguishing
+  oracle-certified precision (<=5 ULP) from regression-guarded samples and
+  experimental stubs.
+
+
+4. BOTTOM-UP DEFECT CATALOG (CONCRETE BUGS, UB, & TRAPS)
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[DEFECT 1] CRITICAL BUG: Sign Inversion in ml_cplx_sqrt for Infinite Values
+--------------------------------------------------------------------------------
+Location: src/complex.c, line 168
+Component: Complex Arithmetic Core (Foundational layer)
+Severity: HIGH (Mathematical Error & C99 Annex G Violation)
+
+Code snippet:
+    if (ml_isinf (a.imag)) {
+        if (ml_isinf (a.real)) {
+            if (a.real > 0.0) {
+                return (cplx) {ml_make_inf (0), ml_copysign (ml_make_inf (0), a.imag)};
+            }
+            return (cplx) {ml_make_inf (0), ml_copysign (ml_make_inf (0), a.imag)};
+        }
+        return (cplx) {ml_make_inf (0), ml_copysign (ml_make_inf (0), a.real)}; /* BUG */
+    }
+
+Root Cause:
+When a.imag is infinite and a.real is finite, line 168 copies the sign of
+a.real into the imaginary part of the result instead of copying the sign
+of a.imag.
+
+Proof / Verification:
+Calling ml_cplx_sqrt with {-5.0, +INFINITY} yields:
+    got:  +inf - inf*i
+    want: +inf + inf*i   (Sign of imaginary part was inverted!)
+
+Calling ml_cplx_sqrt with {+5.0, -INFINITY} yields:
+    got:  +inf + inf*i
+    want: +inf - inf*i   (Sign of imaginary part was inverted!)
+
+Standard Reference:
+ISO C99 Annex G (§G.6.4.2) requires:
+"csqrt(x + i*Inf) returns +Inf + i*Inf, for any finite x."
+"csqrt(x - i*Inf) returns +Inf - i*Inf, for any finite x."
+The imaginary part of csqrt(z) must always match the sign of Im(z).
+
+Remedy:
+In src/complex.c, line 168, replace:
+    return (cplx) {ml_make_inf (0), ml_copysign (ml_make_inf (0), a.real)};
+with:
+    return (cplx) {ml_make_inf (0), ml_copysign (ml_make_inf (0), a.imag)};
+
+
+--------------------------------------------------------------------------------
+[DEFECT 2] UNDEFINED BEHAVIOR: Out-of-Range Floating-Point Cast in ml_mpz_to_double
+--------------------------------------------------------------------------------
+Location: src/exact.c, lines 577-581
+Component: Exact Foundations (BigInt to Floating-Point Conversion)
+Severity: HIGH (Undefined Behavior under ISO C99 §6.3.1.5)
+
+Code snippet:
+    if (start > (size_t) (INT_MAX / 32)) return a->sign ? -ml_make_inf (0) : ml_make_inf (0);
+    exp2 = (int) (start * 32u);
+    v = ldexpl (v, exp2);
+    d = (double) v;
+    return a->sign ? -d : d;
+
+Root Cause:
+The guard check only catches start > INT_MAX / 32. For any exact integer with
+more than 32 limbs (i.e., > 1024 bits), start >= 32, which gives exp2 >= 1024.
+On x86-64, ldexpl(v, exp2) computes an 80-bit long double which can represent
+values up to 1.1e4932. When v > DBL_MAX (~1.797e308), the cast `d = (double) v;`
+attempts to convert an out-of-range value into `double`.
+
+Standard Reference:
+ISO C99 §6.3.1.5 (Real floating types), paragraph 1:
+"If the value being converted is outside the range of values that can be
+represented, the behavior is undefined."
+(Note: In src/quadratics.c:9-22, helper `ml_quad_cast_ld` was specifically
+written to avoid this exact UB, but src/exact.c omitted the check.)
+
+Remedy:
+Before casting to double, explicitly clamp/overflow against DBL_MAX:
+    if (v > (long double) DBL_MAX) {
+        return a->sign ? -ml_make_inf (0) : ml_make_inf (0);
+    }
+
+
+--------------------------------------------------------------------------------
+[DEFECT 3] ORACLE OVERFITTING: Hardcoded Literal Point in ml_expm1
+--------------------------------------------------------------------------------
+Location: src/exp_log.c, lines 673-675
+Component: Core Transcendentals (ml_expm1)
+Severity: MEDIUM (Code smell / Algorithmic Fragility)
+
+Code snippet:
+    /* At x=2^-52, x^2/2 is exactly half an ULP above x. The positive
+     * cubic tail breaks the tie upward; 64-bit-mantissa LD loses that tail. */
+    if (x == 0x1p-52) return 0x1.0000000000001p-52;
+
+Root Cause:
+At x = 2^-52, x^2 / 2 is an exact tie (halfway between 2^-52 and 2^-52 + 1 ULP).
+The cubic term +x^3/6 is positive, requiring round-to-nearest-even to round up.
+Because 80-bit long double lacks sufficient mantissa bits to resolve the cubic
+tail at this scale, the implementation hardcoded an equality check for x == 0x1p-52
+solely to satisfy tests/test_edge_accuracy_audit.c.
+
+Remedy:
+Replace the literal point bypass with a scale-aware tie-breaking calculation or
+compensated Horner evaluation that evaluates the tail sign analytically.
+
+
+--------------------------------------------------------------------------------
+[DEFECT 4] TOOLING / BUILD: Stale Archive Desynchronization in run_all_tests.py
+--------------------------------------------------------------------------------
+Location: run_all_tests.py, lines 384-389
+Component: Test Infrastructure
+Severity: MEDIUM (Tooling / Developer Trap)
+
+Code snippet:
+    library_archive = Path(BUILD_DIR) / "libmathc.a"
+    edge_link_inputs = (
+        [str(library_archive)]
+        if edge_sanitizers and library_archive.is_file()
+        else LIB_SOURCES
+    )
+
+Root Cause:
+When running `python3 run_all_tests.py --no-build`, the script checks only if
+build/libmathc.a exists as a file. If source files in src/ have been updated
+more recently than libmathc.a, the edge tests are compiled against the stale
+archive, producing spurious regression failures.
+
+Remedy:
+Check file modification timestamps:
+    if edge_sanitizers and library_archive.is_file():
+        archive_mtime = library_archive.stat().st_mtime
+        if any(Path(src).stat().st_mtime > archive_mtime for src in LIB_SOURCES):
+            # Fall back to LIB_SOURCES or raise an error prompting rebuild.
+            edge_link_inputs = LIB_SOURCES
+
+
+--------------------------------------------------------------------------------
+[DEFECT 5] PORTABILITY TRAP: Type-Unsafe MSVC Intrinsics in ml_compiler.h
+--------------------------------------------------------------------------------
+Location: include/mathlib/ml_compiler.h, lines 282-287
+Component: Compiler Portability Abstraction
+Severity: MEDIUM (MSVC Portability Trap)
+
+Code snippet:
+    #ifndef __builtin_mul_overflow
+    #define __builtin_mul_overflow(a, b, out) ml_msvc_mul_overflow_i64 ((int64_t) (a), (int64_t) (b), (out))
+    #endif
+    #ifndef __builtin_sub_overflow
+    #define __builtin_sub_overflow(a, b, out) ml_msvc_sub_overflow_i64 ((int64_t) (a), (int64_t) (b), (out))
+    #endif
+
+Root Cause:
+In GCC/Clang, `__builtin_mul_overflow` is a type-generic compiler built-in that
+operates safely on pointers of any integer width (uint32_t*, size_t*, int*, etc.).
+The MSVC fallback macro forces `out` to be passed directly to a function expecting
+`int64_t *out`. If invoked with a pointer to a 32-bit integer or size_t on a 32-bit
+target, this causes compilation failure or, if cast, an 8-byte write into a
+4-byte buffer (stack buffer overflow).
+
+Remedy:
+Implement type-aware dispatch macros (e.g., using C11 _Generic or explicit helper
+functions with matching signatures).
+
+
+--------------------------------------------------------------------------------
+[DEFECT 6] PORTABILITY RISK: 80-bit Long-Double Dependency for Sub-ULP Guarantees
+--------------------------------------------------------------------------------
+Location: src/trig.c, src/exp_log.c, src/complex.c
+Component: Core Transcendentals
+Severity: MEDIUM (Platform Inconsistency)
+
+Description:
+Much of the sub-ULP (0-1 ULP) precision claims rely directly on x86-64 80-bit
+extended precision (`__LDBL_MANT_DIG__ >= 64`), using compiler builtins such as
+`__builtin_atanl`, `__builtin_expl`, and `__builtin_sinl`.
+On architectures where `long double == double` (such as MSVC on Windows, or
+certain ARM64 ABIs):
+- The extended-precision paths collapse to double-precision.
+- Composed evaluations suffer from double rounding, increasing error to 2-5 ULP.
+- While documented in fine print in docs/KNOWN_LIMITATIONS.md, this means the
+  library's high-precision claims are non-portable outside x86-64 GCC/Clang.
+
+
+--------------------------------------------------------------------------------
+[DEFECT 7] ARCHITECTURAL ACCRETION: Two Incompatible BigInt Systems
+--------------------------------------------------------------------------------
+Location: src/bigint.c vs src/exact.c
+Component: Multiple Arbitrary-Precision Implementations
+Severity: LOW (Technical Debt / API Redundancy)
+
+Description:
+The codebase maintains two completely separate arbitrary-precision integer types:
+1. `ml_bigint_t` (src/bigint.c): Fixed 4096-bit (128 limbs), zero-heap stack struct.
+   Provides bit operations, xorshift PRNG, and Miller-Rabin primality testing.
+2. `ml_mpz_t` (src/exact.c): Dynamically allocated base-2^32 limb array.
+   Powers `ml_mpq_t` (canonical rationals) and `ml_polyq_t` (exact polynomials).
+They share no types, no conversion functions, and no shared arithmetic kernels.
+
+
+--------------------------------------------------------------------------------
+[DEFECT 8] TEST GAP: Near-Empty Edge Tests for Complex Functions
+--------------------------------------------------------------------------------
+Location: tests/test_edge_complex.c
+Component: Test Suite
+Severity: LOW (Test Coverage Gap)
+
+Description:
+tests/test_edge_complex.c contains only 34 lines of code and 8 assertions, testing
+only basic properties of ml_cplx_abs, ml_cplx_arg, and divide-by-zero.
+It does not contain a single test for:
+- `ml_cplx_sqrt`
+- `ml_cplx_power`
+- `ml_cplx_nth_root`
+- Branch cuts, signed zero propagation, or infinite values in complex functions.
+This lack of coverage explains why Defect 1 went undetected across 7 audit rounds.
+
+
+================================================================================
+5. RECOMMENDED IMMEDIATE ACTIONS & FIX CHECKLIST
+================================================================================
+[ ] Priority 1 (Immediate Fix): Correct sign logic in `src/complex.c:168`:
+    Replace `ml_copysign(ml_make_inf(0), a.real)` with `ml_copysign(ml_make_inf(0), a.imag)`.
+[ ] Priority 2 (Immediate Fix): Add `DBL_MAX` overflow guard in `src/exact.c:579`
+    before `d = (double) v;` to eliminate Undefined Behavior.
+[ ] Priority 3 (Regression Guard): Add comprehensive unit tests in
+    `tests/test_edge_complex.c` covering `ml_cplx_sqrt` with infinite, zero,
+    and branch-cut inputs across all quadrants.
+[ ] Priority 4 (Tooling): Update `run_all_tests.py` to compare timestamps between
+    `build/libmathc.a` and `LIB_SOURCES` when `--no-build` is specified.
+[ ] Priority 5 (Cleanup): Replace the hardcoded point in `src/exp_log.c:675` with
+    an algorithmic tail-evaluator.
+================================================================================
