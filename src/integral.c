@@ -1757,7 +1757,8 @@ ML_API double ml_bessel_k0 (double x) {
             s = tt;
             if (__builtin_fabsl (t * hn) < 1e-22L * (__builtin_fabsl (s) + 1.0L)) break;
         }
-        return -(ml_log (x * 0.5) + GAM) * (double) i0 + (double) s;
+        long double lg = __builtin_logl ((long double) x * 0.5L);
+        return (double) (-(lg + (long double) GAM) * i0 + s);
     }
     /* Round-3: transition band uses LD K-quadrature (was series-to-9 with
      * 2e-9 cancellation, then asym with exp(-2x) least term). */
@@ -1792,7 +1793,7 @@ ML_API double ml_bessel_k1 (double x) {
             if (k > 3 && __builtin_fabsl (t * ck) < 1e-22L * __builtin_fabsl (s)) break;
             t *= y / ((long double) (k + 1) * (long double) (k + 2));
         }
-        return (double) (1.0L / (long double) x + (long double) ml_log (x * 0.5) * i1 - ((long double) x * 0.25L) * s);
+        return (double) (1.0L / (long double) x + __builtin_logl ((long double) x * 0.5L) * i1 - ((long double) x * 0.25L) * s);
     }
     /* Round-3: transition band uses LD K-quadrature (was series-to-9). */
     if (x < ML_BESSEL_XKA) return (double) ml_Kquad (1.0L, (long double) x);
