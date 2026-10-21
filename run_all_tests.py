@@ -382,11 +382,13 @@ def phase_edge(report: TestReport, verbose: bool, fail_fast: bool) -> None:
     # direct-source fallback for --no-build trees without the archive and for
     # unsanitized edge runs, where the CMake archive may be instrumented.
     library_archive = Path(BUILD_DIR) / "libmathc.a"
-    edge_link_inputs = (
-        [str(library_archive)]
-        if edge_sanitizers and library_archive.is_file()
-        else LIB_SOURCES
-    )
+    edge_link_inputs = None
+    if edge_sanitizers and library_archive.is_file():
+        archive_mtime = library_archive.stat().st_mtime
+        if not any(Path(src).stat().st_mtime > archive_mtime for src in LIB_SOURCES):
+            edge_link_inputs = [str(library_archive)]
+    if edge_link_inputs is None:
+        edge_link_inputs = LIB_SOURCES
 
     for src in edge_sources:
         name = Path(src).stem
