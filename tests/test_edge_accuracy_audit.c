@@ -1845,6 +1845,12 @@ int main (void) {
         CHECK_ULP (&ctx, ml_bessel_kv (2.0, 1.0), 1.6248388986351775, 1, "bessel_k2(1.0)");
     }
 
+    /* --- Higher-order Bessel functions (order 3) -------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_bessel_jv (3.0, 1.0), 0.0195633539826684, 2, "bessel_j3(1.0)");
+        CHECK_ULP (&ctx, ml_bessel_iv (3.0, 1.0), 0.0221684249243319, 2, "bessel_i3(1.0)");
+    }
+
     /* --- Bessel recurrence self-consistency ------------------------------- */
     {
         /* J_{n+1} = 2n/x * J_n - J_{n-1} for integer orders */
@@ -1986,6 +1992,13 @@ int main (void) {
         CHECK_ULP (&ctx, ml_atan2 (0.0, 1.0), 0.0, 0, "atan2(0,1) == 0");
         CHECK_ULP (&ctx, ml_atan2 (1.0, 0.0), ML_PI / 2.0, 0, "atan2(1,0) == pi/2");
         CHECK_ULP (&ctx, ml_atan2 (-1.0, -1.0), -3.0 * ML_PI / 4.0, 0, "atan2(-1,-1) == -3pi/4");
+    }
+
+    /* --- Carlson elliptic integrals --------------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_carlson_rf (1.0, 1.0, 1.0), 1.0, 0, "carlson_rf(1,1,1) == 1");
+        CHECK_ULP (&ctx, ml_carlson_rc (1.0, 2.0), 0.7853981633974483, 0, "carlson_rc(1,2) == pi/4");
+        CHECK_ULP (&ctx, ml_carlson_rj (1.0, 1.0, 1.0, 1.0), 1.0, 0, "carlson_rj(1,1,1,1) == 1");
     }
 
     return ml_test_summary (&ctx);
