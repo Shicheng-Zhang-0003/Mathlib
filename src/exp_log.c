@@ -1164,17 +1164,15 @@ ML_API double ml_csch (double x) {
         if (ax > 20.0) {
             return ml_copysign (2.0 * ml_exp (-ax), x);
         }
-        double e = ml_expm1 (2.0 * ax);
-        if (!ml_isfinite (e)) return ml_copysign (0.0, x);
-        if (e == 0.0) {
-            /* ax subnormal-small: 1-exp(-2ax) would round to 0.
-             * csch(ax)~1/ax via expm1 path. */
-            return ml_copysign (1.0 / ax - ax / 6.0, x);
+        /* Single LD sinh + one division: avoids the expm1+exp+divide
+         * composition that leaves 1 ULP on some inputs (e.g. csch(1.0),
+         * csch(0.125)). */
+        {
+            long double r = 1.0L / __builtin_sinhl ((long double) ax);
+            double o = (double) r;
+            if (!ml_isfinite (o)) return ml_copysign (0.0, x);
+            return ml_copysign (o, x);
         }
-        /* 2*exp(-ax)/(1-exp(-2ax)) = 2*exp(ax)/expm1(2ax): uses the
-         * accurate expm1 instead of the rounded 1-exp(-2ax). */
-        double r = 2.0 * ml_exp (ax) / e;
-        return ml_copysign (r, x);
     }
 }
 ML_API double ml_coth (double x) {
