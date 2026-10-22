@@ -1968,5 +1968,25 @@ int main (void) {
         CHECK_ULP (&ctx, ml_trigamma (1.0), 1.6449340668482264, 0, "trigamma(1) == pi^2/6");
     }
 
+    /* --- Remaining elementary functions --------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_acos (0.0), ML_PI / 2.0, 0, "acos(0) == pi/2");
+        CHECK_ULP (&ctx, ml_acos (1.0), 0.0, 0, "acos(1) == 0 exactly");
+        CHECK_ULP (&ctx, ml_acos (-1.0), ML_PI, 0, "acos(-1) == pi");
+        CHECK_ULP (&ctx, ml_acos (0.5), 1.0471975511965979, 0, "acos(0.5) == pi/3");
+        CHECK_ULP (&ctx, ml_acosh (1.0), 0.0, 0, "acosh(1) == 0 exactly");
+        CHECK_ULP (&ctx, ml_acosh (2.0), 1.3169578969248168, 0, "acosh(2)");
+        CHECK_ULP (&ctx, ml_exp (0.0), 1.0, 0, "exp(0) == 1 exactly");
+        CHECK_ULP (&ctx, ml_exp (1.0), 2.7182818284590451, 0, "exp(1) == e");
+        CHECK_ULP (&ctx, ml_exp (-1.0), 0.36787944117144233, 0, "exp(-1) == 1/e");
+        CHECK_ULP (&ctx, ml_log (1.0), 0.0, 0, "log(1) == 0 exactly");
+        CHECK_ULP (&ctx, ml_log (2.7182818284590451), 1.0, 0, "log(e) == 1");
+        CHECK_ULP (&ctx, ml_log (10.0), 2.3025850929940459, 0, "log(10)");
+        CHECK_ULP (&ctx, ml_atan2 (1.0, 1.0), ML_PI / 4.0, 0, "atan2(1,1) == pi/4");
+        CHECK_ULP (&ctx, ml_atan2 (0.0, 1.0), 0.0, 0, "atan2(0,1) == 0");
+        CHECK_ULP (&ctx, ml_atan2 (1.0, 0.0), ML_PI / 2.0, 0, "atan2(1,0) == pi/2");
+        CHECK_ULP (&ctx, ml_atan2 (-1.0, -1.0), -3.0 * ML_PI / 4.0, 0, "atan2(-1,-1) == -3pi/4");
+    }
+
     return ml_test_summary (&ctx);
 }

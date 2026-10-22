@@ -1743,10 +1743,22 @@ ML_API double ml_bessel_k0 (double x) {
     }
     if (ml_isinf (x)) return 0.0;
     if (x < ML_BESSEL_XKS) {
-        long double i0 = (long double) ml_bessel_i0 (x);
-        long double y = (long double) x * (long double) x * 0.25L;
-        long double t = 1.0L, s = 0.0L, c = 0.0L, hn = 0.0L;
+        long double ax = (long double) x;
+        long double y = ax * ax * 0.25L;
+        /* I0 in long double (not cast from double) for K0 accuracy. */
+        long double it = 1.0L, is = 1.0L, ic = 0.0L;
         int m;
+        for (m = 1; m < 400; m++) {
+            long double w, tt;
+            it *= y / ((long double) m * (long double) m);
+            w = it - ic;
+            tt = is + w;
+            ic = (tt - is) - w;
+            is = tt;
+            if (__builtin_fabsl (it) < 1e-22L * __builtin_fabsl (is)) break;
+        }
+        long double i0 = is;
+        long double t = 1.0L, s = 0.0L, c = 0.0L, hn = 0.0L;
         for (m = 1; m < 200; m++) {
             long double w, tt;
             hn += 1.0L / (long double) m;
@@ -1779,8 +1791,21 @@ ML_API double ml_bessel_k1 (double x) {
     if (x < ML_BESSEL_XKS) {
         /* DLMF 10.31.1 (n=1): 1/z + ln(z/2)I1 - (z/2) S,
          * S = sum (psi(k+1)+psi(k+2)) y^k/(k!(k+1)!). */
-        long double i1 = (long double) ml_bessel_i1 (x);
-        long double y = (long double) x * (long double) x * 0.25L;
+        long double ax = (long double) x;
+        long double y = ax * ax * 0.25L;
+        /* I1 in long double (not cast from double) for K1 accuracy. */
+        long double it = 0.5L * ax, is = it, ic = 0.0L;
+        int m;
+        for (m = 1; m < 400; m++) {
+            long double w, tt;
+            it *= y / ((long double) m * (long double) (m + 1));
+            w = it - ic;
+            tt = is + w;
+            ic = (tt - is) - w;
+            is = tt;
+            if (__builtin_fabsl (it) < 1e-22L * __builtin_fabsl (is)) break;
+        }
+        long double i1 = is;
         long double t = 1.0L, s = 0.0L, c = 0.0L;
         int k;
         for (k = 0; k < 200; k++) {
@@ -1793,7 +1818,7 @@ ML_API double ml_bessel_k1 (double x) {
             if (k > 3 && __builtin_fabsl (t * ck) < 1e-22L * __builtin_fabsl (s)) break;
             t *= y / ((long double) (k + 1) * (long double) (k + 2));
         }
-        return (double) (1.0L / (long double) x + __builtin_logl ((long double) x * 0.5L) * i1 - ((long double) x * 0.25L) * s);
+        return (double) (1.0L / ax + __builtin_logl (ax * 0.5L) * i1 - (ax * 0.25L) * s);
     }
     /* Round-3: transition band uses LD K-quadrature (was series-to-9). */
     if (x < ML_BESSEL_XKA) return (double) ml_Kquad (1.0L, (long double) x);
