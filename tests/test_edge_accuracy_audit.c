@@ -1994,6 +1994,32 @@ int main (void) {
         CHECK_ULP (&ctx, ml_atan2 (-1.0, -1.0), -3.0 * ML_PI / 4.0, 0, "atan2(-1,-1) == -3pi/4");
     }
 
+    /* --- Elementary functions at extreme scales -------------------------- */
+    {
+        /* Very small arguments: result should equal argument to <1 ULP */
+        CHECK_ULP (&ctx, ml_exp (1e-16), 1.0 + 1e-16, 0, "exp(1e-16) ~ 1+1e-16");
+        CHECK_ULP (&ctx, ml_log1p (1e-16), 1e-16, 0, "log1p(1e-16) ~ 1e-16");
+        CHECK_ULP (&ctx, ml_expm1 (1e-16), 1e-16, 0, "expm1(1e-16) ~ 1e-16");
+        CHECK_ULP (&ctx, ml_sin (1e-16), 1e-16, 0, "sin(1e-16) ~ 1e-16");
+        CHECK_ULP (&ctx, ml_tan (1e-16), 1e-16, 0, "tan(1e-16) ~ 1e-16");
+        CHECK_ULP (&ctx, ml_sinh (1e-16), 1e-16, 0, "sinh(1e-16) ~ 1e-16");
+        CHECK_ULP (&ctx, ml_tanh (1e-16), 1e-16, 0, "tanh(1e-16) ~ 1e-16");
+        CHECK_ULP (&ctx, ml_asinh (1e-16), 1e-16, 0, "asinh(1e-16) ~ 1e-16");
+        CHECK_ULP (&ctx, ml_atanh (1e-16), 1e-16, 0, "atanh(1e-16) ~ 1e-16");
+
+        /* Large arguments: correctly reduced (Payne-Hanek + LD kernel) */
+        {
+            double s10 = ml_sin (1.0e10);
+            double c10 = ml_cos (1.0e10);
+            ASSERT_TRUE (&ctx, ml_isfinite (s10) && ml_isfinite (c10), "sin/cos(1e10) finite");
+            ASSERT_TRUE (&ctx, s10 >= -1.0 && s10 <= 1.0, "sin(1e10) in [-1,1]");
+            ASSERT_TRUE (&ctx, c10 >= -1.0 && c10 <= 1.0, "cos(1e10) in [-1,1]");
+            CHECK_ULP (&ctx, s10 * s10 + c10 * c10, 1.0, 1e-14, "sin^2+cos^2 at 1e10");
+        }
+        CHECK_ULP (&ctx, ml_exp (-50.0), 1.9287498479639178e-22, 0, "exp(-50)");
+        CHECK_ULP (&ctx, ml_log (1e-10), -23.025850929940456, 0, "log(1e-10)");
+    }
+
     /* --- Carlson elliptic integrals --------------------------------------- */
     {
         CHECK_ULP (&ctx, ml_carlson_rf (1.0, 1.0, 1.0), 1.0, 0, "carlson_rf(1,1,1) == 1");
