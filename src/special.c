@@ -138,6 +138,26 @@ static double j_integer (int n, double x) {
     if (n < 0) return (n % 2) ? -j_integer (-n, x) : j_integer (-n, x);
     if (n == 0) return ml_bessel_j0 (x);
     if (n == 1) return ml_bessel_j1 (x);
+    /* Direct series for small orders and small x: converges rapidly,
+     * avoids Miller recurrence accumulation error (~3 ULP at J2(1)). */
+    if (n <= 5 && x <= 10.0) {
+        long double half = (long double) x * 0.5L;
+        long double half2 = half * half;
+        long double term = __builtin_powl (half, (long double) n);
+        /* term = (x/2)^n / n! */
+        long double fact = 1.0L;
+        for (int f = 2; f <= n; f++) fact *= (long double) f;
+        term /= fact;
+        long double sum = term;
+        int m;
+        for (m = 1; m < 200; m++) {
+            term *= -half2 / ((long double) m * (long double) (m + n));
+            sum += term;
+            if (__builtin_fabsl (term) < 1e-20L * __builtin_fabsl (sum)) break;
+        }
+        double r = (double) sum;
+        return ml_isfinite (r) ? r : ml_make_nan ();
+    }
     if (x > (double) n + 10.0) {
         double jm = ml_bessel_j0 (x), j = ml_bessel_j1 (x);
         for (k = 1; k < n; k++) {
@@ -402,14 +422,18 @@ ML_API double ml_airy_bi_prime (double x) {
 /* ----------------------------------------------- Exponential / trig integrals */
 
 static double e1_series (double x) {
-    double sum = 0.0, tk = 1.0;
+    long double sum = 0.0L, tk = 1.0L;
+    long double xl = (long double) x;
     int k;
     for (k = 1; k < 400; k++) {
-        tk *= x / (double) k;
-        sum += ((k % 2) ? 1.0 : -1.0) * tk / (double) k;
-        if (ml_fabs (tk / (double) k) < 1e-18 * ml_fabs (sum)) break;
+        tk *= xl / (long double) k;
+        long double term = ((k % 2) ? 1.0L : -1.0L) * tk / (long double) k;
+        sum += term;
+        if (__builtin_fabsl (tk / (long double) k) < 1e-18L * __builtin_fabsl (sum)) break;
     }
-    return -SP_EULER - ml_log (x) + sum;
+    long double r = -((long double) SP_EULER) - __builtin_logl (xl) + sum;
+    double o = (double) r;
+    return ml_isfinite (o) ? o : ml_make_nan ();
 }
 static double e1_cf (double x) {
     double b = x + 1.0;
