@@ -1027,10 +1027,10 @@ ML_API double ml_lambert_w0 (double x) {
             double L1 = ml_log (x), L2 = ml_log (L1);
             w = L1 - L2 + L2 / L1;
         }
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 50; i++) {
             double nw = ml_lambert_iter (x, w);
             if (!ml_isfinite (nw)) return ml_make_nan ();
-            if (ml_fabs (nw - w) < 1e-16 * (1.0 + ml_fabs (nw))) return nw;
+            if (nw == w) return nw;
             w = nw;
         }
         return w;
@@ -1047,10 +1047,10 @@ ML_API double ml_lambert_wm1 (double x) {
     {
         double L1 = ml_log (-x), L2 = ml_log (-L1);
         double w = L1 - L2 + L2 / L1;
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 50; i++) {
             double nw = ml_lambert_iter (x, w);
             if (!ml_isfinite (nw)) return ml_make_nan ();
-            if (ml_fabs (nw - w) < 1e-16 * (1.0 + ml_fabs (nw))) return nw;
+            if (nw == w) return nw;
             w = nw;
         }
         return w;
