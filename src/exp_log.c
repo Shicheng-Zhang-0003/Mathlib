@@ -1217,7 +1217,15 @@ ML_API double ml_acsch (double x) {
              * acsch(x)~sign*log(2/|x|) to <1 ULP for tiny x. */
             return ml_copysign (ml_log (2.0) - ml_log (ax), x);
         }
-        return ml_log (1.0 / x + ml_sqrt (1.0 / (x * x) + 1.0));
+        /* LD acsch: log(1/x + sqrt(1/x^2 + 1)) in LD, single final rounding.
+         * Avoids the double sqrt(1/x^2 + 1) rounding error near x=1. */
+        {
+            long double al = (long double) ax;
+            long double r = __builtin_logl (1.0L / al + __builtin_sqrtl (1.0L / (al * al) + 1.0L));
+            double o = (double) r;
+            if (!ml_isfinite (o)) return ml_copysign (0.0, x);
+            return ml_copysign (o, x);
+        }
     }
 }
 ML_API double ml_acoth (double x) {
