@@ -21,6 +21,7 @@
 #include "ml_stats_extra.h"
 #include "ml_topology.h"
 #include "ml_combinatorics.h"
+#include "ml_stats_inv.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2394,6 +2395,71 @@ int main (void) {
         ASSERT_TRUE (&ctx, ml_triangular (2) == 3, "triangular(2) == 3");
         ASSERT_TRUE (&ctx, ml_triangular (3) == 6, "triangular(3) == 6");
         ASSERT_TRUE (&ctx, ml_triangular (4) == 10, "triangular(4) == 10");
+    }
+
+    /* --- Scaled complementary error function erfcx(x) = exp(x^2) erfc(x) --------------- */
+    {
+        /* erfcx(0) = 1 */
+        CHECK_ULP (&ctx, ml_erfcx (0.0), 1.0, 0, "erfcx(0) == 1");
+        /* erfcx(1) = e * erfc(1) = 2.718281828 * 0.1572992071 = 0.4275835762 */
+        CHECK_ULP (&ctx, ml_erfcx (1.0), 0.427583576155807, 1, "erfcx(1)");
+        /* erfcx(-1) = e * erfc(-1) = e * (2 - erfc(1)) */
+        CHECK_ULP (&ctx, ml_erfcx (-1.0), 2.718281828459045 * (2.0 - 0.15729920705028513), 1, "erfcx(-1)");
+    }
+
+    /* --- Spherical harmonics Y_l^m(theta, phi) -------------------------------------------- */
+    {
+        /* Y_0^0 = 1/sqrt(4pi) */
+        CHECK_ULP (&ctx, ml_spherical_harmonic (0, 0, 0.5, 0.3), 0.28209479177387814, 0, "sph_harm(0,0,0.5,0.3) == 1/sqrt(4pi)");
+        /* Y_1^0 = sqrt(3/4pi) cos(theta) */
+        CHECK_ULP (&ctx, ml_spherical_harmonic (1, 0, 0.5, 0.3),
+                   0.4886025119029199 * 0.8775825618903728, 1, "sph_harm(1,0,0.5,0.3)");
+    }
+
+    /* --- Jacobi polynomials P_n^{a,b}(x) --------------------------------------------------- */
+    {
+        /* P_0^{a,b}(x) = 1 */
+        CHECK_ULP (&ctx, ml_jacobi_p (0, 0.5, 0.5, 0.3), 1.0, 0, "jacobi_p(0,0.5,0.5,0.3) == 1");
+        /* P_1^{a,b}(x) = (a+1) + (a+b+2)*(x-1)/2 */
+        /* P_1^{0.5,0.5}(0.3) = 1.5 + 3*(-0.7)/2 = 1.5 - 1.05 = 0.45 */
+        CHECK_ULP (&ctx, ml_jacobi_p (1, 0.5, 0.5, 0.3), 0.45, 1, "jacobi_p(1,0.5,0.5,0.3) == 0.45");
+        /* P_1^{0,0}(x) = x (Legendre) */
+        CHECK_ULP (&ctx, ml_jacobi_p (1, 0.0, 0.0, 0.7), 0.7, 0, "jacobi_p(1,0,0,0.7) == 0.7");
+    }
+
+    /* --- Binomial CDF ----------------------------------------------------------- */
+    {
+        /* binomial_cdf(n,k,p) = sum_{i=0}^{k} C(n,i) p^i (1-p)^{n-i} */
+        /* binomial_cdf(10,10,0.5) = 1 */
+        CHECK_ULP (&ctx, ml_binomial_cdf (10, 10, 0.5), 1.0, 0, "binomial_cdf(10,10,0.5) == 1");
+        /* binomial_cdf(10,0,0.5) = 0.5^10 = 0.0009765625 */
+        CHECK_ULP (&ctx, ml_binomial_cdf (10, 0, 0.5), 0.0009765625, 0, "binomial_cdf(10,0,0.5) == 0.5^10");
+        /* binomial_cdf(10,5,0.5) = 0.623046875 by symmetry (sum half + half of middle) */
+        CHECK_ULP (&ctx, ml_binomial_cdf (10, 5, 0.5), 0.623046875, 1, "binomial_cdf(10,5,0.5)");
+    }
+
+    /* --- Inverse CDF round-trips -------------------------------------------------- */
+    {
+        /* gamma_inv: gamma_cdf(gamma_inv(p,a,b), a, b) ~ p */
+        {
+            double x = ml_gamma_inv (0.5, 2.0, 1.0);
+            ASSERT_NEAR (&ctx, ml_gamma_cdf (x, 2.0, 1.0), 0.5, 1e-10, "gamma_inv roundtrip p=0.5");
+        }
+        /* chi2_inv: chi2_cdf(chi2_inv(p,k), k) ~ p */
+        {
+            double x = ml_chi2_inv (0.95, 3);
+            ASSERT_NEAR (&ctx, ml_chi2_cdf (x, 3), 0.95, 1e-10, "chi2_inv roundtrip p=0.95");
+        }
+        /* student_t_inv: student_t_cdf(student_t_inv(p,nu), nu) ~ p */
+        {
+            double x = ml_student_t_inv (0.975, 10);
+            ASSERT_NEAR (&ctx, ml_student_t_cdf (x, 10), 0.975, 1e-8, "student_t_inv roundtrip");
+        }
+        /* lognormal_inv: lognormal_cdf(lognormal_inv(p,mu,sigma), mu, sigma) ~ p */
+        {
+            double x = ml_lognormal_inv (0.975, 0.0, 1.0);
+            ASSERT_NEAR (&ctx, ml_lognormal_cdf (x, 0.0, 1.0), 0.975, 1e-10, "lognormal_inv roundtrip");
+        }
     }
 
     return ml_test_summary (&ctx);

@@ -305,6 +305,18 @@ ML_API double ml_binomial_cdf (int n, int k, double p) {
     if (k < 0) return 0.0;
     if (k >= n) return 1.0;
     if (n < 0 || p < 0.0 || p > 1.0) return ml_make_nan ();
+    if (p == 0.0) return 1.0;
+    if (p == 1.0) return 0.0;
+    /* Exact recurrence for small n: start at P(0), iterate P(i+1) = P(i) * ... */
+    if (n <= 1000) {
+        double term = ml_exp ((double) n * ml_log1p (-p));
+        double s = term;
+        for (i = 0; i < k; i++) {
+            term *= ((double) (n - i) / (double) (i + 1)) * (p / (1.0 - p));
+            s += term;
+        }
+        return s > 1.0 ? 1.0 : s;
+    }
     for (i = 0; i <= k; i++) {
         double lp = se_log_choose (n, i);
         if (p > 0.0) lp += (double) i * ml_log (p);
