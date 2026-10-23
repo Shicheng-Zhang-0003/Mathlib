@@ -28,6 +28,8 @@
 #include "ml_info.h"
 #include "ml_polynomial.h"
 #include "ml_calculus.h"
+#include "ml_calculus_extra.h"
+#include "ml_numerical.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -48,6 +50,22 @@ static void CHECK_ULP (ml_test_ctx_t *ctx, double got, double ref,
     }
 }
 static double ml_opt_f_square (double x) { return x * x; }
+static double f_x2m2 (double x) { return x * x - 2.0; }
+static double f_cosmx (double x) { return ml_cos (x) - x; }
+static double f_quad2 (const double *x, int n, void *ctx) {
+    (void) n; (void) ctx;
+    return x[0] * x[0] + 3.0 * x[1];
+}
+static double f_quad_form (const double *x, int n, void *ctx) {
+    (void) n; (void) ctx;
+    return x[0] * x[0] + x[0] * x[1] + x[1] * x[1];
+}
+static void f_map2 (const double *x, int n, double *out, int m, void *ctx) {
+    (void) n; (void) ctx;
+    out[0] = x[0] + x[1];
+    out[1] = x[0] * x[1];
+    (void) m;
+}
 int main (void) {
     ml_test_ctx_t ctx;
     ml_test_init (&ctx, "Accuracy Audit");
@@ -2838,6 +2856,53 @@ int main (void) {
                 }
                 CHECK_ULP (&ctx, s, 0.4, 2, "GL(4) integrates x^4 == 2/5");
             }
+        }
+    }
+
+    /* --- Root finding: bisection and Brent ------------------------------------------------- */
+    {
+        /* root of x^2 - 2 on [0, 2] = sqrt(2) */
+        double r1 = ml_bisection (f_x2m2, 0.0, 2.0, 1e-15, 100);
+        ASSERT_NEAR (&ctx, r1, 1.4142135623730951, 1e-14, "bisection x^2-2 == sqrt(2)");
+        double r2 = ml_brent (f_x2m2, 0.0, 2.0, 1e-15, 100);
+        ASSERT_NEAR (&ctx, r2, 1.4142135623730951, 1e-14, "brent x^2-2 == sqrt(2)");
+        /* root of cos(x) - x on [0, 1] = Dottie number 0.7390851332151607 */
+        double r3 = ml_brent (f_cosmx, 0.0, 1.0, 1e-15, 100);
+        ASSERT_NEAR (&ctx, r3, 0.7390851332151607, 1e-14, "brent cos(x)-x == Dottie");
+    }
+
+    /* --- Finite-difference gradient / Hessian / Jacobian -------------------------------------- */
+    {
+        /* f(x) = x0^2 + 3*x1 at (1,2): grad = (2, 3) */
+        {
+            double x[2] = {1.0, 2.0};
+            double g[2];
+            ml_status_t st = ml_gradient_rn (f_quad2, x, 2, g, 1e-6, NULL);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "gradient_rn ok");
+            ASSERT_NEAR (&ctx, g[0], 2.0, 1e-6, "grad[0] == 2");
+            ASSERT_NEAR (&ctx, g[1], 3.0, 1e-6, "grad[1] == 3");
+        }
+        /* Hessian of x0^2 + x0*x1 + x1^2: [[2,1],[1,2]] */
+        {
+            double x[2] = {0.7, -1.3};
+            double H[4];
+            ml_status_t st = ml_hessian_rn (f_quad_form, x, 2, H, 1e-5, NULL);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "hessian_rn ok");
+            ASSERT_NEAR (&ctx, H[0], 2.0, 1e-5, "H[0][0] == 2");
+            ASSERT_NEAR (&ctx, H[1], 1.0, 1e-5, "H[0][1] == 1");
+            ASSERT_NEAR (&ctx, H[2], 1.0, 1e-5, "H[1][0] == 1");
+            ASSERT_NEAR (&ctx, H[3], 2.0, 1e-5, "H[1][1] == 2");
+        }
+        /* Jacobian of (x0+x1, x0*x1): [[1,1],[x1,x0]] */
+        {
+            double x[2] = {3.0, 5.0};
+            double J[4];
+            ml_status_t st = ml_jacobian_rn (f_map2, x, 2, 2, J, 1e-6, NULL);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "jacobian_rn ok");
+            ASSERT_NEAR (&ctx, J[0], 1.0, 1e-6, "J[0][0] == 1");
+            ASSERT_NEAR (&ctx, J[1], 1.0, 1e-6, "J[0][1] == 1");
+            ASSERT_NEAR (&ctx, J[2], 5.0, 1e-6, "J[1][0] == 5");
+            ASSERT_NEAR (&ctx, J[3], 3.0, 1e-6, "J[1][1] == 3");
         }
     }
 
