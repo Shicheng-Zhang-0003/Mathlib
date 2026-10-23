@@ -3083,5 +3083,50 @@ int main (void) {
         CHECK_ULP (&ctx, ml_factorial_float (5.0), 120.0, 0, "factorial_float(5) == 120");
     }
 
+    /* --- Inverse trig: asin/acos -------------------------------------------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_asin (0.0), 0.0, 0, "asin(0) == 0");
+        CHECK_ULP (&ctx, ml_asin (0.5), ML_PI / 6.0, 1, "asin(0.5) == pi/6");
+        CHECK_ULP (&ctx, ml_asin (1.0), ML_PI / 2.0, 0, "asin(1) == pi/2");
+        CHECK_ULP (&ctx, ml_asin (-0.5), -ML_PI / 6.0, 1, "asin(-0.5) == -pi/6");
+        CHECK_ULP (&ctx, ml_acos (0.5), ML_PI / 3.0, 1, "acos(0.5) == pi/3");
+        CHECK_ULP (&ctx, ml_acos (0.0), ML_PI / 2.0, 0, "acos(0) == pi/2");
+        CHECK_ULP (&ctx, ml_acos (-1.0), ML_PI, 0, "acos(-1) == pi");
+    }
+
+    /* --- AM >= GM check ----------------------------------------------------------------------------- */
+    {
+        double pos[4] = {1.0, 2.0, 4.0, 8.0};
+        ASSERT_TRUE (&ctx, ml_amgm_check (pos, 4) == 1, "amgm(1,2,4,8) holds");
+        double with_zero[3] = {0.0, 1.0, 2.0};
+        ASSERT_TRUE (&ctx, ml_amgm_check (with_zero, 3) == 1, "amgm(0,1,2) holds");
+        double neg[3] = {-1.0, 2.0, 3.0};
+        ASSERT_TRUE (&ctx, ml_amgm_check (neg, 3) == 0, "amgm(-1,2,3) fails");
+    }
+
+    /* --- Arithmetic sequence -------------------------------------------------------------------------- */
+    {
+        /* a_n = a1 + (n-1)*d: a1=1,d=2,n=5 → 1+8=9 */
+        CHECK_ULP (&ctx, ml_arith_nth (1.0, 2.0, 5), 9.0, 0, "arith_nth(1,2,5) == 9");
+        /* S_n = n/2 * (2*a1 + (n-1)*d): 5/2 * (2+8) = 25 */
+        CHECK_ULP (&ctx, ml_arith_sum (1.0, 2.0, 5), 25.0, 0, "arith_sum(1,2,5) == 25");
+        /* a1=0,d=0: all zero */
+        CHECK_ULP (&ctx, ml_arith_nth (0.0, 0.0, 100), 0.0, 0, "arith_nth(0,0,100) == 0");
+        CHECK_ULP (&ctx, ml_arith_sum (0.0, 0.0, 100), 0.0, 0, "arith_sum(0,0,100) == 0");
+    }
+
+    /* --- Cartesian to polar --------------------------------------------------------------------------- */
+    {
+        double r, th;
+        ml_cart_to_polar (1.0, 0.0, &r, &th);
+        CHECK_ULP (&ctx, r, 1.0, 0, "cart_to_polar(1,0) r == 1");
+        CHECK_ULP (&ctx, th, 0.0, 0, "cart_to_polar(1,0) theta == 0");
+        ml_cart_to_polar (0.0, 1.0, &r, &th);
+        CHECK_ULP (&ctx, r, 1.0, 0, "cart_to_polar(0,1) r == 1");
+        CHECK_ULP (&ctx, th, ML_PI / 2.0, 0, "cart_to_polar(0,1) theta == pi/2");
+        ml_cart_to_polar (0.0, 0.0, &r, &th);
+        CHECK_ULP (&ctx, r, 0.0, 0, "cart_to_polar(0,0) r == 0");
+    }
+
     return ml_test_summary (&ctx);
 }
