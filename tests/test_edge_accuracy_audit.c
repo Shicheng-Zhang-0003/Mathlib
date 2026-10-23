@@ -32,6 +32,8 @@
 #include "ml_numerical.h"
 #include "ml_geometry.h"
 #include "ml_manifold.h"
+#include "ml_pde.h"
+#include "ml_transforms.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2933,6 +2935,62 @@ int main (void) {
             double b[3] = {0.0, 1.0, 0.0};
             CHECK_ULP (&ctx, ml_sphere_dist (a, b, 3), ML_PI / 2.0, 0, "sphere_dist orthogonal == pi/2");
             CHECK_ULP (&ctx, ml_sphere_dist (a, a, 3), 0.0, 0, "sphere_dist self == 0");
+        }
+    }
+
+    /* --- Laplace transforms -------------------------------------------------------------------- */
+    {
+        /* L{e^{a t}}(s) = 1/(s-a), s > a */
+        CHECK_ULP (&ctx, ml_laplace_exp (3.0, 1.0), 0.5, 0, "laplace_exp(3,1) == 1/2");
+        CHECK_ULP (&ctx, ml_laplace_exp (1.0, 0.0), 1.0, 0, "laplace_exp(1,0) == 1");
+        /* L{sin(w t)}(s) = w/(s^2+w^2) */
+        CHECK_ULP (&ctx, ml_laplace_sin (1.0, 1.0), 0.5, 0, "laplace_sin(1,1) == 1/2");
+        CHECK_ULP (&ctx, ml_laplace_sin (2.0, 1.0), 0.2, 0, "laplace_sin(2,1) == 1/5");
+        /* L{cos(w t)}(s) = s/(s^2+w^2) */
+        CHECK_ULP (&ctx, ml_laplace_cos (1.0, 1.0), 0.5, 0, "laplace_cos(1,1) == 1/2");
+        CHECK_ULP (&ctx, ml_laplace_cos (3.0, 4.0), 0.12, 1, "laplace_cos(3,4) == 3/25");
+    }
+
+    /* --- PDE solvers: invariants and sanity ------------------------------------------------------ */
+    {
+        /* heat_explicit: constant field stays constant */
+        {
+            double u0[9], u1[9];
+            for (int i = 0; i < 9; i++) u0[i] = 2.5;
+            ml_status_t st = ml_heat_explicit (u0, u1, 9, 0.1, 0.001, 1.0);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "heat_explicit ok");
+            for (int i = 1; i < 8; i++) {
+                ASSERT_NEAR (&ctx, u1[i], 2.5, 1e-12, "heat constant preserved");
+            }
+        }
+        /* heat_implicit: constant field stays constant */
+        {
+            double u0[9], u1[9];
+            for (int i = 0; i < 9; i++) u0[i] = -1.5;
+            ml_status_t st = ml_heat_implicit (u0, u1, 9, 0.1, 0.001, 1.0);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "heat_implicit ok");
+            for (int i = 1; i < 8; i++) {
+                ASSERT_NEAR (&ctx, u1[i], -1.5, 1e-12, "heat implicit constant preserved");
+            }
+        }
+        /* poisson_1d: f = 0 with zero BCs gives u = 0 */
+        {
+            double f[9] = {0}, u[9];
+            ml_status_t st = ml_poisson_1d (f, u, 9, 0.1);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "poisson_1d ok");
+            for (int i = 0; i < 9; i++) {
+                ASSERT_NEAR (&ctx, u[i], 0.0, 1e-12, "poisson zero source -> zero");
+            }
+        }
+        /* wave_leapfrog: uniform state stays uniform */
+        {
+            double up[9], uc[9], un[9];
+            for (int i = 0; i < 9; i++) { up[i] = 1.0; uc[i] = 1.0; }
+            ml_status_t st = ml_wave_leapfrog (up, uc, un, 9, 0.5);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "wave_leapfrog ok");
+            for (int i = 1; i < 8; i++) {
+                ASSERT_NEAR (&ctx, un[i], 1.0, 1e-12, "wave uniform preserved");
+            }
         }
     }
 
