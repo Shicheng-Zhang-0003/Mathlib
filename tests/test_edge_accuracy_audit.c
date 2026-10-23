@@ -26,6 +26,7 @@
 #include "ml_complex.h"
 #include "ml_analytic_nt.h"
 #include "ml_info.h"
+#include "ml_polynomial.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2666,6 +2667,83 @@ int main (void) {
         /* eta(2) = pi^2/12 */
         cplx e2 = ml_dirichlet_eta_cplx ((cplx) {2.0, 0.0});
         CHECK_ULP (&ctx, e2.real, 0.8224670334241132, 2, "dirichlet_eta(2) == pi^2/12");
+    }
+
+    /* --- Chebyshev T and U polynomials ----------------------------------------------- */
+    {
+        /* T_0 = 1, T_1 = x, T_2 = 2x^2-1, T_3 = 4x^3-3x */
+        CHECK_ULP (&ctx, ml_chebyshev_t (0, 0.5), 1.0, 0, "cheb_t(0,0.5) == 1");
+        CHECK_ULP (&ctx, ml_chebyshev_t (1, 0.5), 0.5, 0, "cheb_t(1,0.5) == 0.5");
+        CHECK_ULP (&ctx, ml_chebyshev_t (2, 0.5), -0.5, 0, "cheb_t(2,0.5) == -0.5");
+        CHECK_ULP (&ctx, ml_chebyshev_t (3, 0.5), -1.0, 0, "cheb_t(3,0.5) == -1");
+        /* U_0 = 1, U_1 = 2x, U_2 = 4x^2-1, U_3 = 8x^3-4x */
+        CHECK_ULP (&ctx, ml_chebyshev_u (0, 0.5), 1.0, 0, "cheb_u(0,0.5) == 1");
+        CHECK_ULP (&ctx, ml_chebyshev_u (1, 0.5), 1.0, 0, "cheb_u(1,0.5) == 1");
+        CHECK_ULP (&ctx, ml_chebyshev_u (2, 0.5), 0.0, 0, "cheb_u(2,0.5) == 0");
+        CHECK_ULP (&ctx, ml_chebyshev_u (3, 0.5), -1.0, 0, "cheb_u(3,0.5) == -1");
+    }
+
+    /* --- Hermite and Laguerre polynomials -------------------------------------------- */
+    {
+        /* H_0 = 1, H_1 = 2x, H_2 = 4x^2-2, H_3 = 8x^3-12x */
+        CHECK_ULP (&ctx, ml_hermite_h (0, 1.0), 1.0, 0, "hermite(0,1) == 1");
+        CHECK_ULP (&ctx, ml_hermite_h (1, 1.0), 2.0, 0, "hermite(1,1) == 2");
+        CHECK_ULP (&ctx, ml_hermite_h (2, 1.0), 2.0, 0, "hermite(2,1) == 2");
+        CHECK_ULP (&ctx, ml_hermite_h (3, 1.0), -4.0, 0, "hermite(3,1) == -4");
+        /* L_0 = 1, L_1 = 1-x, L_2 = 1-2x+x^2/2 */
+        CHECK_ULP (&ctx, ml_laguerre_l (0, 1.5), 1.0, 0, "laguerre(0,1.5) == 1");
+        CHECK_ULP (&ctx, ml_laguerre_l (1, 1.5), -0.5, 0, "laguerre(1,1.5) == -0.5");
+        CHECK_ULP (&ctx, ml_laguerre_l (2, 1.5), -0.875, 0, "laguerre(2,1.5) == -0.875");
+        /* generalized: L_1^alpha(x) = 1+alpha-x */
+        CHECK_ULP (&ctx, ml_laguerre_l_gen (1, 0.5, 2.0), -0.5, 0, "laguerre_l_gen(1,0.5,2)");
+    }
+
+    /* --- Legendre derivative ----------------------------------------------------------- */
+    {
+        /* P_1' = 1, P_2' = 3x, P_3' = (15x^2-3)/2 */
+        CHECK_ULP (&ctx, ml_legendre_p_deriv (1, 0.5), 1.0, 0, "legendre_deriv(1,0.5) == 1");
+        CHECK_ULP (&ctx, ml_legendre_p_deriv (2, 0.5), 1.5, 0, "legendre_deriv(2,0.5) == 1.5");
+        CHECK_ULP (&ctx, ml_legendre_p_deriv (3, 0.5), (15.0 * 0.25 - 3.0) / 2.0, 1, "legendre_deriv(3,0.5)");
+    }
+
+    /* --- Legendre symbol (a/p) --------------------------------------------------------- */
+    {
+        /* QRs mod 7: {1,2,4}; so (2/7)=1, (3/7)=-1, (4/7)=1, (7/7)=0 */
+        ASSERT_TRUE (&ctx, ml_legendre_symbol (2, 7) == 1, "legendre(2,7) == 1");
+        ASSERT_TRUE (&ctx, ml_legendre_symbol (3, 7) == -1, "legendre(3,7) == -1");
+        ASSERT_TRUE (&ctx, ml_legendre_symbol (4, 7) == 1, "legendre(4,7) == 1");
+        ASSERT_TRUE (&ctx, ml_legendre_symbol (7, 7) == 0, "legendre(7,7) == 0");
+        /* QRs mod 13: {1,3,4,9,10,12} */
+        ASSERT_TRUE (&ctx, ml_legendre_symbol (3, 13) == 1, "legendre(3,13) == 1");
+        ASSERT_TRUE (&ctx, ml_legendre_symbol (2, 13) == -1, "legendre(2,13) == -1");
+    }
+
+    /* --- Polynomial evaluation / derivative / Newton root ------------------------------ */
+    {
+        /* coeffs ascending: {c0,c1,c2} -> c0 + c1 x + c2 x^2 */
+        {
+            double c[3] = {3.0, 2.0, 1.0};  /* p(x) = x^2 + 2x + 3 */
+            CHECK_ULP (&ctx, ml_polynomial_eval (c, 2, 2.0), 11.0, 0, "poly_eval(1,2,3) at 2 == 11");
+            CHECK_ULP (&ctx, ml_polynomial_eval (c, 2, 0.0), 3.0, 0, "poly_eval at 0 == c0");
+            /* derivative: 2 + 2x */
+            {
+                double d[2];
+                ml_polynomial_derivative (c, 2, d);
+                CHECK_ULP (&ctx, d[0], 2.0, 0, "poly_deriv c0 == 2");
+                CHECK_ULP (&ctx, d[1], 2.0, 0, "poly_deriv c1 == 2");
+            }
+            /* Newton root of x^2 + 2x + 3 has no real root (disc = -8) */
+            ASSERT_TRUE (&ctx, ml_isnan (ml_polynomial_newton (c, 2, 0.0, 1e-15, 50)),
+                         "poly_newton no real root -> NaN");
+        }
+        /* (x-1)(x-2) = x^2 -3x +2, roots 1 and 2 (avoid x0=1.5: p'=0 at vertex) */
+        {
+            double c[3] = {2.0, -3.0, 1.0};
+            double r = ml_polynomial_newton (c, 2, 1.2, 1e-15, 100);
+            ASSERT_NEAR (&ctx, r, 1.0, 1e-10, "poly_newton finds root 1");
+            double r2 = ml_polynomial_newton (c, 2, 2.8, 1e-15, 100);
+            ASSERT_NEAR (&ctx, r2, 2.0, 1e-10, "poly_newton finds root 2");
+        }
     }
 
     return ml_test_summary (&ctx);
