@@ -22,6 +22,9 @@
 #include "ml_topology.h"
 #include "ml_combinatorics.h"
 #include "ml_stats_inv.h"
+#include "ml_linalg.h"
+#include "ml_complex.h"
+#include "ml_analytic_nt.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2460,6 +2463,64 @@ int main (void) {
             double x = ml_lognormal_inv (0.975, 0.0, 1.0);
             ASSERT_NEAR (&ctx, ml_lognormal_cdf (x, 0.0, 1.0), 0.975, 1e-10, "lognormal_inv roundtrip");
         }
+    }
+
+    /* --- Vector Euclidean norm ------------------------------------------------------ */
+    {
+        /* norm([3,4]) = 5 */
+        {
+            double v[2] = {3.0, 4.0};
+            CHECK_ULP (&ctx, ml_norm (v, 2), 5.0, 0, "norm([3,4]) == 5");
+        }
+        /* norm([]) = 0 */
+        {
+            double v[1] = {0.0};
+            CHECK_ULP (&ctx, ml_norm (v, 1), 0.0, 0, "norm([0]) == 0");
+        }
+        /* norm([1,2,2]) = 3 */
+        {
+            double v[3] = {1.0, 2.0, 2.0};
+            CHECK_ULP (&ctx, ml_norm (v, 3), 3.0, 0, "norm([1,2,2]) == 3");
+        }
+    }
+
+    /* --- Carlson symmetric integrals ------------------------------------------------- */
+    {
+        /* RC(x,x) = 1/sqrt(x) */
+        CHECK_ULP (&ctx, ml_carlson_rc (4.0, 4.0), 0.5, 0, "carlson_rc(4,4) == 0.5");
+        /* RC(1,2) = asinh-like: RC(x,y) = atan(sqrt((y-x)/x))/sqrt(y-x) for 0 < x < y */
+        /* RC(0,y) = pi/(2*sqrt(y)) */
+        CHECK_ULP (&ctx, ml_carlson_rc (0.0, 4.0), 1.5707963267948966 / 2.0, 0, "carlson_rc(0,4) == pi/4");
+        /* RF(x,x,x) = 1/sqrt(x) */
+        CHECK_ULP (&ctx, ml_carlson_rf (1.0, 1.0, 1.0), 1.0, 0, "carlson_rf(1,1,1) == 1");
+        /* RF(1,2,3) = 0.72694593546890820 */
+        CHECK_ULP (&ctx, ml_carlson_rf (1.0, 2.0, 3.0), 0.72694593546890820, 0, "carlson_rf(1,2,3)");
+    }
+
+    /* --- Incomplete elliptic integrals F(phi,m), E(phi,m) ---------------------------- */
+    {
+        /* F(pi/2, 0) = K(0) = pi/2 */
+        CHECK_ULP (&ctx, ml_ellip_f (ML_PI / 2.0, 0.0), 1.5707963267948966, 0, "ellip_f(pi/2,0) == pi/2");
+        /* E(pi/2, 0) = E(0) = pi/2 */
+        CHECK_ULP (&ctx, ml_ellip_e_inc (ML_PI / 2.0, 0.0), 1.5707963267948966, 0, "ellip_e_inc(pi/2,0) == pi/2");
+        /* F(0, m) = 0 */
+        CHECK_ULP (&ctx, ml_ellip_f (0.0, 0.5), 0.0, 0, "ellip_f(0,0.5) == 0");
+        /* E(0, m) = 0 */
+        CHECK_ULP (&ctx, ml_ellip_e_inc (0.0, 0.5), 0.0, 0, "ellip_e_inc(0,0.5) == 0");
+        /* Ellip_pi(n, 0) = pi/(2*sqrt(1-n)) for n < 1 */
+        CHECK_ULP (&ctx, ml_ellip_pi (0.5, 0.0), 2.2214414690791831, 0, "ellip_pi(0.5,0) == pi/(2*sqrt(1-0.5))");
+    }
+
+    /* --- Complex zeta function ---------------------------------------------------------- */
+    {
+        /* zeta(2) = pi^2/6 (as complex, real part) */
+        cplx z2 = ml_zeta_cplx ((cplx) {2.0, 0.0});
+        CHECK_ULP (&ctx, z2.real, 1.6449340668482264, 0, "zeta_cplx(2) real == pi^2/6");
+        ASSERT_NEAR (&ctx, z2.imag, 0.0, 1e-15, "zeta_cplx(2) imag == 0");
+        /* zeta(0) = -1/2 */
+        cplx z0 = ml_zeta_cplx ((cplx) {0.0, 0.0});
+        CHECK_ULP (&ctx, z0.real, -0.5, 0, "zeta_cplx(0) == -1/2");
+        ASSERT_NEAR (&ctx, z0.imag, 0.0, 1e-15, "zeta_cplx(0) imag == 0");
     }
 
     return ml_test_summary (&ctx);
