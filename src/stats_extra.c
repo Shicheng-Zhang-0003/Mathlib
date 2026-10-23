@@ -328,6 +328,28 @@ ML_API double ml_negbinom_pmf (int k, double r, double p) {
 ML_API double ml_hypergeometric_pmf (int k, int N, int K, int n) {
     double lp;
     if (k < 0 || k > K || k > n || n - k > N - K) return 0.0;
+    /* Exact integer path for small counts (avoids log-gamma cancellation). */
+    if (N <= 50) {
+        double num = 1.0, den = 1.0;
+        for (int i = 0; i < k; i++) {
+            num *= (double) (K - i);
+            den *= (double) (i + 1);
+        }
+        double cKk = num / den;
+        num = 1.0; den = 1.0;
+        for (int i = 0; i < n - k; i++) {
+            num *= (double) (N - K - i);
+            den *= (double) (i + 1);
+        }
+        double cNKnk = num / den;
+        num = 1.0; den = 1.0;
+        for (int i = 0; i < n; i++) {
+            num *= (double) (N - i);
+            den *= (double) (i + 1);
+        }
+        double cNn = num / den;
+        return (cKk * cNKnk) / cNn;
+    }
     lp = se_log_choose (K, k) + se_log_choose (N - K, n - k) - se_log_choose (N, n);
     return ml_exp (lp);
 }

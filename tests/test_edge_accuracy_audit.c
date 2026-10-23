@@ -2313,5 +2313,88 @@ int main (void) {
         }
     }
 
+    /* --- Poisson distribution ---------------------------------------------------- */
+    {
+        /* poisson_pmf(k,lambda) = lambda^k e^{-lambda}/k! */
+        /* poisson_pmf(0, 1) = e^{-1} */
+        CHECK_ULP (&ctx, ml_poisson_pmf (0, 1.0), 0.36787944117144233, 1, "poisson_pmf(0,1) == e^-1");
+        /* poisson_pmf(1, 1) = e^{-1} */
+        CHECK_ULP (&ctx, ml_poisson_pmf (1, 1.0), 0.36787944117144233, 1, "poisson_pmf(1,1) == e^-1");
+        /* poisson_pmf(2, 1) = e^{-1}/2 */
+        CHECK_ULP (&ctx, ml_poisson_pmf (2, 1.0), 0.18393972058572117, 1, "poisson_pmf(2,1) == e^-1/2");
+        /* poisson_pmf(0, 0) = 1 */
+        CHECK_ULP (&ctx, ml_poisson_pmf (0, 0.0), 1.0, 0, "poisson_pmf(0,0) == 1");
+    }
+
+    /* --- Geometric distribution -------------------------------------------------- */
+    {
+        /* geometric_pmf(k,p) = (1-p)^{k-1} p for k >= 1 */
+        /* geometric_pmf(1, 0.5) = 0.5 */
+        CHECK_ULP (&ctx, ml_geometric_pmf (1, 0.5), 0.5, 0, "geometric_pmf(1,0.5) == 0.5");
+        /* geometric_pmf(2, 0.5) = 0.25 */
+        CHECK_ULP (&ctx, ml_geometric_pmf (2, 0.5), 0.25, 0, "geometric_pmf(2,0.5) == 0.25");
+    }
+
+    /* --- Hypergeometric distribution ---------------------------------------------- */
+    {
+        /* hypergeometric_pmf(k,N,K,n) = C(K,k)*C(N-K,n-k)/C(N,n) */
+        /* hypergeometric_pmf(1, 10, 5, 3) = C(5,1)*C(5,2)/C(10,3) = 5*10/120 = 5/12 */
+        CHECK_ULP (&ctx, ml_hypergeometric_pmf (1, 10, 5, 3), 5.0 / 12.0, 1, "hypergeom_pmf(1,10,5,3) == 5/12");
+        /* hypergeometric_pmf(0, 10, 5, 3) = C(5,0)*C(5,3)/C(10,3) = 1*10/120 = 1/12 */
+        CHECK_ULP (&ctx, ml_hypergeometric_pmf (0, 10, 5, 3), 1.0 / 12.0, 1, "hypergeom_pmf(0,10,5,3) == 1/12");
+    }
+
+    /* --- Exponential distribution -------------------------------------------------- */
+    {
+        /* exponential_pdf(x, lambda) = lambda * exp(-lambda*x) */
+        CHECK_ULP (&ctx, ml_exponential_pdf (1.0, 1.0), 0.36787944117144233, 1, "exp_pdf(1,1) == e^-1");
+        /* exponential_cdf(x, lambda) = 1 - exp(-lambda*x) */
+        CHECK_ULP (&ctx, ml_exponential_cdf (1.0, 1.0), 1.0 - 0.36787944117144233, 1, "exp_cdf(1,1) == 1-e^-1");
+    }
+
+    /* --- Uniform distribution -------------------------------------------------------- */
+    {
+        /* uniform_pdf(x,a,b) = 1/(b-a) for a <= x <= b */
+        CHECK_ULP (&ctx, ml_uniform_pdf (0.5, 0.0, 1.0), 1.0, 0, "uniform_pdf(0.5,0,1) == 1");
+        /* uniform_cdf(x,a,b) = (x-a)/(b-a) */
+        CHECK_ULP (&ctx, ml_uniform_cdf (0.5, 0.0, 1.0), 0.5, 0, "uniform_cdf(0.5,0,1) == 0.5");
+    }
+
+    /* --- Lognormal distribution -------------------------------------------------------- */
+    {
+        /* lognormal_pdf(x,mu,sigma) = 1/(x sigma sqrt(2pi)) exp(-(ln x - mu)^2/(2 sigma^2)) */
+        /* lognormal_pdf(1,0,1) = 1/sqrt(2pi) */
+        CHECK_ULP (&ctx, ml_lognormal_pdf (1.0, 0.0, 1.0), 0.3989422804014327, 1, "lognormal_pdf(1,0,1) == 1/sqrt(2pi)");
+        /* lognormal_cdf(1,0,1) = 0.5 (by symmetry) */
+        CHECK_ULP (&ctx, ml_lognormal_cdf (1.0, 0.0, 1.0), 0.5, 0, "lognormal_cdf(1,0,1) == 0.5");
+    }
+
+    /* --- Weibull distribution -------------------------------------------------------- */
+    {
+        /* weibull_pdf(x,k,lambda) = (k/lambda)(x/lambda)^{k-1} exp(-(x/lambda)^k) */
+        /* weibull_pdf(1,1,1) = exp(-1) */
+        CHECK_ULP (&ctx, ml_weibull_pdf (1.0, 1.0, 1.0), 0.36787944117144233, 1, "weibull_pdf(1,1,1) == e^-1");
+        /* weibull_cdf(1,1,1) = 1 - exp(-1) */
+        CHECK_ULP (&ctx, ml_weibull_cdf (1.0, 1.0, 1.0), 1.0 - 0.36787944117144233, 1, "weibull_cdf(1,1,1) == 1-e^-1");
+    }
+
+    /* --- Student's t-distribution ------------------------------------------------------ */
+    {
+        /* student_t_pdf(x, 1) = 1/(pi(1+x^2)) (Cauchy) */
+        CHECK_ULP (&ctx, ml_student_t_pdf (0.0, 1), 1.0 / ML_PI, 1, "student_t_pdf(0,1) == 1/pi");
+        /* student_t_cdf(0, 1) = 0.5 (Cauchy median) */
+        CHECK_ULP (&ctx, ml_student_t_cdf (0, 1), 0.5, 0, "student_t_cdf(0,1) == 0.5");
+    }
+
+    /* --- Triangular numbers -------------------------------------------------------------- */
+    {
+        /* T_0 = 0, T_1 = 1, T_2 = 3, T_3 = 6, T_4 = 10 */
+        ASSERT_TRUE (&ctx, ml_triangular (0) == 0, "triangular(0) == 0");
+        ASSERT_TRUE (&ctx, ml_triangular (1) == 1, "triangular(1) == 1");
+        ASSERT_TRUE (&ctx, ml_triangular (2) == 3, "triangular(2) == 3");
+        ASSERT_TRUE (&ctx, ml_triangular (3) == 6, "triangular(3) == 6");
+        ASSERT_TRUE (&ctx, ml_triangular (4) == 10, "triangular(4) == 10");
+    }
+
     return ml_test_summary (&ctx);
 }

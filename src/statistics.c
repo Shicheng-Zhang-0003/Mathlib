@@ -322,8 +322,11 @@ ML_API double ml_exponential_pdf (double x, double lambda) {
     }
 }
 ML_API double ml_poisson_pmf (int k, double lambda) {
-    if (ML_UNLIKELY (k < 0 || !(lambda > 0.0) || !ml_isfinite (lambda))) {
+    if (ML_UNLIKELY (k < 0 || lambda < 0.0 || !ml_isfinite (lambda))) {
         return ml_make_nan ();
+    }
+    if (lambda == 0.0) {
+        return (k == 0) ? 1.0 : 0.0;
     }
     /* log pmf = k*log(l) - l - lgamma(k+1), via DD-stable lgamma. */
     {
