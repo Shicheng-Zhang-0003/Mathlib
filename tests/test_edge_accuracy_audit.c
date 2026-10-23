@@ -30,6 +30,8 @@
 #include "ml_calculus.h"
 #include "ml_calculus_extra.h"
 #include "ml_numerical.h"
+#include "ml_geometry.h"
+#include "ml_manifold.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2903,6 +2905,34 @@ int main (void) {
             ASSERT_NEAR (&ctx, J[1], 1.0, 1e-6, "J[0][1] == 1");
             ASSERT_NEAR (&ctx, J[2], 5.0, 1e-6, "J[1][0] == 5");
             ASSERT_NEAR (&ctx, J[3], 3.0, 1e-6, "J[1][1] == 3");
+        }
+    }
+
+    /* --- Geometry: spheres, triangle, convex hull -------------------------------------------- */
+    {
+        /* sphere area = 4 pi r^2 */
+        CHECK_ULP (&ctx, ml_sphere_area (1.0), 12.566370614359172, 1, "sphere_area(1) == 4pi");
+        CHECK_ULP (&ctx, ml_sphere_area (2.0), 50.26548245743669, 2, "sphere_area(2) == 16pi");
+        /* sphere volume = (4/3) pi r^3 */
+        CHECK_ULP (&ctx, ml_sphere_vol (1.0), 4.188790204786391, 1, "sphere_vol(1) == 4/3 pi");
+        CHECK_ULP (&ctx, ml_sphere_vol (0.0), 0.0, 0, "sphere_vol(0) == 0");
+        /* triangle area = 0.5 * a * b * sin(C) */
+        CHECK_ULP (&ctx, ml_triangle_area_sas (3.0, 4.0, ML_PI / 2.0), 6.0, 1, "triangle_sas(3,4,pi/2) == 6");
+        CHECK_ULP (&ctx, ml_triangle_area_sas (2.0, 2.0, ML_PI / 3.0), 1.7320508075688772, 1, "triangle_sas(2,2,pi/3) == sqrt(3)");
+        /* convex hull of a square: 4 vertices (out = indices) */
+        {
+            double xs[5] = {0.0, 1.0, 1.0, 0.0, 0.5};
+            double ys[5] = {0.0, 0.0, 1.0, 1.0, 0.5};
+            int ox[8];
+            int m = ml_convex_hull (xs, ys, 5, ox, 8);
+            ASSERT_TRUE (&ctx, m == 4, "convex hull of square has 4 vertices");
+        }
+        /* sphere_dist: unit vectors with angle theta have distance theta */
+        {
+            double a[3] = {1.0, 0.0, 0.0};
+            double b[3] = {0.0, 1.0, 0.0};
+            CHECK_ULP (&ctx, ml_sphere_dist (a, b, 3), ML_PI / 2.0, 0, "sphere_dist orthogonal == pi/2");
+            CHECK_ULP (&ctx, ml_sphere_dist (a, a, 3), 0.0, 0, "sphere_dist self == 0");
         }
     }
 
