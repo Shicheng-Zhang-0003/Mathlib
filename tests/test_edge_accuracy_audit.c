@@ -32,6 +32,7 @@
 #include "ml_numerical.h"
 #include "ml_geometry.h"
 #include "ml_manifold.h"
+#include "ml_diffgeom.h"
 #include "ml_pde.h"
 #include "ml_transforms.h"
 static double ulp_of (double x) {
@@ -70,6 +71,10 @@ static void f_map2 (const double *x, int n, double *out, int m, void *ctx) {
     out[1] = x[0] * x[1];
     (void) m;
 }
+static double f_cos (double x) { return ml_cos (x); }
+static double f_sin (double x) { return ml_sin (x); }
+static double f_zero (double x) { (void) x; return 0.0; }
+static double f_x2 (double x) { return x * x; }
 int main (void) {
     ml_test_ctx_t ctx;
     ml_test_init (&ctx, "Accuracy Audit");
@@ -3039,6 +3044,43 @@ int main (void) {
         ASSERT_TRUE (&ctx, ml_schur_deg1 (1.0, 1.0, 1.0) == 1, "schur(1,1,1) == 1");
         ASSERT_TRUE (&ctx, ml_schur_deg1 (2.0, 1.0, 1.0) == 1, "schur(2,1,1) == 1");
         ASSERT_TRUE (&ctx, ml_schur_deg1 (0.0, 0.0, 0.0) == 1, "schur(0,0,0) == 1");
+    }
+
+    /* --- DCT-II / DCT-III pair (inverse up to scale) -------------------------------------------- */
+    {
+        double x[4] = {1.0, 2.0, 3.0, 4.0};
+        double X[4], xr[4];
+        ml_dct2 (x, X, 4);
+        ml_dct3 (X, xr, 4);
+        /* DCT3(DCT2(x)) = x (unitary pair) */
+        for (int i = 0; i < 4; i++) {
+            CHECK_ULP (&ctx, xr [i], x [i], 4, "dct3(dct2(x)) == x");
+        }
+    }
+
+    /* --- Arc length of a curve -------------------------------------------------------------------- */
+    {
+        /* Unit circle: r(t) = (cos t, sin t, 0), t in [0, 2pi], length = 2pi */
+        double len = ml_arc_length (f_cos, f_sin, f_zero, 0.0, 2.0 * ML_PI, 10000);
+        ASSERT_NEAR (&ctx, len, 2.0 * ML_PI, 1e-6, "arc length unit circle == 2pi");
+    }
+
+    /* --- Curvature of graphs and parametric curves ------------------------------------------------ */
+    {
+        /* y = x^2 at x=0: y'=0, y''=2, kappa = 2/(1+0)^(3/2) = 2 */
+        CHECK_ULP (&ctx, ml_curvature_graph (f_x2, 0.0), 2.0, 1e-4, "curvature x^2 at 0 == 2");
+        /* y = sin(x) at x=0: y'=1, y''=0, kappa = 0 */
+        CHECK_ULP (&ctx, ml_curvature_graph (f_sin, 0.0), 0.0, 1e-12, "curvature sin at 0 == 0");
+        /* Parametric circle: kappa = 1 everywhere (FD-limited) */
+        CHECK_ULP (&ctx, ml_curvature_param (f_cos, f_sin, 0.7), 1.0, 1000000,
+                   "curvature circle == 1");
+    }
+
+    /* --- Factorial as float ------------------------------------------------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_factorial_float (0.0), 1.0, 0, "factorial_float(0) == 1");
+        CHECK_ULP (&ctx, ml_factorial_float (1.0), 1.0, 0, "factorial_float(1) == 1");
+        CHECK_ULP (&ctx, ml_factorial_float (5.0), 120.0, 0, "factorial_float(5) == 120");
     }
 
     return ml_test_summary (&ctx);
