@@ -2523,5 +2523,79 @@ int main (void) {
         ASSERT_NEAR (&ctx, z0.imag, 0.0, 1e-15, "zeta_cplx(0) imag == 0");
     }
 
+    /* --- Normal distribution ------------------------------------------------------------- */
+    {
+        /* normal_pdf(0,0,1) = 1/sqrt(2pi) */
+        CHECK_ULP (&ctx, ml_normal_pdf (0.0, 0.0, 1.0), 0.3989422804014327, 1, "normal_pdf(0,0,1) == 1/sqrt(2pi)");
+        /* normal_cdf(0,0,1) = 0.5 */
+        CHECK_ULP (&ctx, ml_normal_cdf (0.0, 0.0, 1.0), 0.5, 0, "normal_cdf(0,0,1) == 0.5");
+        /* normal_cdf(1.959963984540054, 0, 1) = 0.975 */
+        CHECK_ULP (&ctx, ml_normal_cdf (1.959963984540054, 0.0, 1.0), 0.975, 1, "normal_cdf(z_0.975) == 0.975");
+        /* normal_inv roundtrip: normal_cdf(normal_inv(0.975), 0, 1) ~ 0.975 */
+        {
+            double z = ml_normal_inv (0.975, 0.0, 1.0);
+            ASSERT_NEAR (&ctx, z, 1.959963984540054, 1e-10, "normal_inv(0.975) == 1.96");
+            ASSERT_NEAR (&ctx, ml_normal_cdf (z, 0.0, 1.0), 0.975, 1e-12, "normal_inv roundtrip");
+        }
+        /* normal_pdf is even about mu */
+        CHECK_ULP (&ctx, ml_normal_pdf (1.5, 0.5, 1.0), ml_normal_pdf (-0.5, 0.5, 1.0), 0, "normal_pdf symmetry");
+    }
+
+    /* --- Descriptive statistics ------------------------------------------------------------ */
+    {
+        double d4[4] = {1.0, 2.0, 3.0, 4.0};
+        double d3[3] = {1.0, 2.0, 4.0};
+        double tmp[4];
+        CHECK_ULP (&ctx, ml_mean (d4, 4), 2.5, 0, "mean(1,2,3,4) == 2.5");
+        CHECK_ULP (&ctx, ml_variance (d4, 4), 1.25, 0, "variance(1,2,3,4) == 1.25");
+        CHECK_ULP (&ctx, ml_stddev (d4, 4), 1.118033988749895, 1, "stddev(1,2,3,4) == sqrt(1.25)");
+        CHECK_ULP (&ctx, ml_median (d4, 4, tmp), 2.5, 0, "median(1,2,3,4) == 2.5");
+        CHECK_ULP (&ctx, ml_gmean (d3, 3), 2.0, 1, "gmean(1,2,4) == 2");
+        CHECK_ULP (&ctx, ml_hmean (d3, 3), 1.7142857142857142, 2, "hmean(1,2,4)");
+        /* correlation of perfectly linear data = 1 */
+        {
+            double x[3] = {1.0, 2.0, 3.0};
+            double y[3] = {2.0, 4.0, 6.0};
+            CHECK_ULP (&ctx, ml_correlation (x, y, 3), 1.0, 2, "corr([1,2,3],[2,4,6]) == 1");
+            /* sample covariance (n-1 denominator): sum dev-prod / 2 = 4/2 = 2 */
+            CHECK_ULP (&ctx, ml_covariance (x, y, 3), 2.0, 2, "cov([1,2,3],[2,4,6]) == 2");
+        }
+    }
+
+    /* --- F-distribution ------------------------------------------------------------------------ */
+    {
+        /* F_cdf(1, d1, d1) = 0.5 by symmetry */
+        CHECK_ULP (&ctx, ml_f_cdf (1.0, 3, 3), 0.5, 2, "f_cdf(1,3,3) == 0.5");
+        /* F_pdf is positive */
+        ASSERT_TRUE (&ctx, ml_f_pdf (1.0, 3, 3) > 0.0, "f_pdf(1,3,3) > 0");
+        /* F_inv roundtrip */
+        {
+            double x = ml_f_inv (0.95, 5, 10);
+            ASSERT_NEAR (&ctx, ml_f_cdf (x, 5, 10), 0.95, 1e-8, "f_inv roundtrip");
+        }
+    }
+
+    /* --- Negative binomial and Poisson CDF --------------------------------------------------------- */
+    {
+        /* negbinom_pmf(k,r,p) = C(k+r-1,k) p^r (1-p)^k */
+        /* negbinom_pmf(0,1,0.5) = 0.5 */
+        CHECK_ULP (&ctx, ml_negbinom_pmf (0, 1, 0.5), 0.5, 0, "negbinom_pmf(0,1,0.5) == 0.5");
+        /* negbinom_pmf(2,1,0.5) = 0.5 * 0.25 = 0.125 */
+        CHECK_ULP (&ctx, ml_negbinom_pmf (2, 1, 0.5), 0.125, 1, "negbinom_pmf(2,1,0.5) == 0.125");
+        /* poisson_cdf(k,lambda) = sum_{i<=k} e^-lam lam^i / i! */
+        /* poisson_cdf(0, 1) = e^-1 */
+        CHECK_ULP (&ctx, ml_poisson_cdf (0, 1.0), 0.36787944117144233, 2, "poisson_cdf(0,1) == e^-1");
+        /* poisson_cdf(10, 100) is small */
+        ASSERT_TRUE (&ctx, ml_poisson_cdf (10, 100.0) < 1e-15, "poisson_cdf(10,100) tiny");
+    }
+
+    /* --- Beta pdf ------------------------------------------------------------------------------------ */
+    {
+        /* beta_pdf(x,1,1) = 1 (uniform) */
+        CHECK_ULP (&ctx, ml_beta_pdf (0.5, 1.0, 1.0), 1.0, 0, "beta_pdf(0.5,1,1) == 1");
+        /* beta_pdf(x,2,2) = 6x(1-x); at 0.5 = 1.5 */
+        CHECK_ULP (&ctx, ml_beta_pdf (0.5, 2.0, 2.0), 1.5, 1, "beta_pdf(0.5,2,2) == 1.5");
+    }
+
     return ml_test_summary (&ctx);
 }
