@@ -539,8 +539,8 @@ ML_API double ml_shi (double x) {
     if (x == 0.0) return 0.0;
     for (k = 1; k < 400; k++) {
         term *= x * x / (((double) (2 * k)) * ((double) (2 * k + 1)));
-        sum += term / (double) (2 * k + 1);
-        if (ml_fabs (term / (double) (2 * k + 1)) < 1e-18 * ml_fabs (sum)) break;
+        sum += term;
+        if (ml_fabs (term) < 1e-18 * ml_fabs (sum)) break;
     }
     return sum;
 }

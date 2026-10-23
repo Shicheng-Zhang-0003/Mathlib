@@ -2071,5 +2071,68 @@ int main (void) {
         CHECK_ULP (&ctx, ml_basel_partial (100), 1.6349839001848923, 3, "basel(100)");
     }
 
+    /* --- Hyperbolic integrals Shi/Chi ------------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_shi (0.0), 0.0, 0, "shi(0) == 0");
+        CHECK_ULP (&ctx, ml_chi (1.0), 0.8378669409802082, 0, "chi(1)");
+        CHECK_ULP (&ctx, ml_shi (1.0), 1.1752011936438014, 1, "shi(1)");
+    }
+
+    /* --- Polygamma and polylogarithm -------------------------------------- */
+    {
+        /* polygamma(1, x) = trigamma(x); trigamma(1) = pi^2/6 */
+        CHECK_ULP (&ctx, ml_polygamma (1, 1.0), 1.6449340668482264, 0, "polygamma(1,1) == pi^2/6");
+        /* polylog(2, 1) = zeta(2) = pi^2/6 */
+        CHECK_ULP (&ctx, ml_polylog (2, 1.0), 1.6449340668482264, 0, "polylog(2,1) == pi^2/6");
+        /* polylog(1, x) = -ln(1-x) */
+        CHECK_ULP (&ctx, ml_polylog (1, 0.5), 0.6931471805599453, 2, "polylog(1,0.5) == ln(2)");
+    }
+
+    /* --- Lerch transcendent ------------------------------------------------ */
+    {
+        /* lerch_phi(0, 1, 1) = 1/1 = 1 (trivial sum) */
+        CHECK_ULP (&ctx, ml_lerch_phi (0.0, 1.0, 1.0), 1.0, 0, "lerch_phi(0,1,1) == 1");
+    }
+
+    /* --- Spherical Bessel functions ---------------------------------------- */
+    {
+        /* j_0(x) = sin(x)/x */
+        CHECK_ULP (&ctx, ml_sph_bessel_j (0, 1.0), 0.8414709848078965, 1, "sph_bessel_j(0,1) == sin(1)");
+        /* y_0(x) = -cos(x)/x */
+        CHECK_ULP (&ctx, ml_sph_bessel_y (0, 1.0), -0.5403023058681398, 1, "sph_bessel_y(0,1) == -cos(1)");
+        /* i_0(x) = sinh(x)/x */
+        CHECK_ULP (&ctx, ml_sph_bessel_i (0, 1.0), 1.1752011936438014, 0, "sph_bessel_i(0,1) == sinh(1)");
+        /* k_0(x) = pi/(2x) * exp(-x) */
+        CHECK_ULP (&ctx, ml_sph_bessel_k (0, 1.0), 0.5778636748954609, 1, "sph_bessel_k(0,1)");
+    }
+
+    /* --- Jacobi elliptic functions (at m=0, reduce to trig) ----------------- */
+    {
+        /* sn(u, 0) = sin(u) */
+        CHECK_ULP (&ctx, ml_jacobi_sn (1.0, 0.0), 0.8414709848078965, 0, "jacobi_sn(1,0) == sin(1)");
+        /* cn(u, 0) = cos(u) */
+        CHECK_ULP (&ctx, ml_jacobi_cn (1.0, 0.0), 0.5403023058681398, 0, "jacobi_cn(1,0) == cos(1)");
+        /* dn(u, 0) = 1 */
+        CHECK_ULP (&ctx, ml_jacobi_dn (1.0, 0.0), 1.0, 0, "jacobi_dn(1,0) == 1");
+    }
+
+    /* --- Gegenbauer polynomials -------------------------------------------- */
+    {
+        /* C_0^alpha(x) = 1 */
+        CHECK_ULP (&ctx, ml_gegenbauer (0, 0.5, 0.3), 1.0, 0, "gegenbauer(0,0.5,0.3) == 1");
+        /* C_1^alpha(x) = 2*alpha*x */
+        CHECK_ULP (&ctx, ml_gegenbauer (1, 0.5, 0.3), 0.3, 0, "gegenbauer(1,0.5,0.3) == 0.3");
+        /* C_2^alpha(x) = 2*alpha*(alpha+1)*x^2 - alpha */
+        CHECK_ULP (&ctx, ml_gegenbauer (2, 0.5, 0.3), -0.365, 0, "gegenbauer(2,0.5,0.3)");
+    }
+
+    /* --- Zernike polynomials ----------------------------------------------- */
+    {
+        /* Z_0^0(rho) = 1 */
+        CHECK_ULP (&ctx, ml_zernike_r (0, 0, 0.5), 1.0, 0, "zernike(0,0,0.5) == 1");
+        /* Z_1^1(rho) = rho */
+        CHECK_ULP (&ctx, ml_zernike_r (1, 1, 0.5), 0.5, 0, "zernike(1,1,0.5) == 0.5");
+    }
+
     return ml_test_summary (&ctx);
 }
