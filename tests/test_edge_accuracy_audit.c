@@ -25,6 +25,7 @@
 #include "ml_linalg.h"
 #include "ml_complex.h"
 #include "ml_analytic_nt.h"
+#include "ml_info.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2595,6 +2596,76 @@ int main (void) {
         CHECK_ULP (&ctx, ml_beta_pdf (0.5, 1.0, 1.0), 1.0, 0, "beta_pdf(0.5,1,1) == 1");
         /* beta_pdf(x,2,2) = 6x(1-x); at 0.5 = 1.5 */
         CHECK_ULP (&ctx, ml_beta_pdf (0.5, 2.0, 2.0), 1.5, 1, "beta_pdf(0.5,2,2) == 1.5");
+    }
+
+    /* --- Information theory: entropy and KL divergence ------------------------------------------ */
+    {
+        /* entropy of uniform distribution over n outcomes = ln(n) */
+        {
+            double p2[2] = {0.5, 0.5};
+            double p4[4] = {0.25, 0.25, 0.25, 0.25};
+            CHECK_ULP (&ctx, ml_entropy (p2, 2), 0.6931471805599453, 0, "entropy(0.5,0.5) == ln(2)");
+            CHECK_ULP (&ctx, ml_entropy (p4, 4), 1.3862943611198906, 0, "entropy(0.25*4) == ln(4)");
+            /* KL(p||p) = 0 */
+            CHECK_ULP (&ctx, ml_kl_div (p2, p2, 2), 0.0, 0, "kl(p||p) == 0");
+            /* KL(uniform || (0.9,0.1)) = 0.5*ln(0.5/0.9) + 0.5*ln(0.5/0.1) */
+            {
+                double q[2] = {0.9, 0.1};
+                double want = 0.5 * log (0.5 / 0.9) + 0.5 * log (0.5 / 0.1);
+                CHECK_ULP (&ctx, ml_kl_div (p2, q, 2), want, 2, "kl(uniform||q)");
+            }
+        }
+    }
+
+    /* --- Logistic function --------------------------------------------------------------------------- */
+    {
+        /* logistic(0) = 0.5 */
+        CHECK_ULP (&ctx, ml_logistic (0.0), 0.5, 0, "logistic(0) == 0.5");
+        /* logistic(x) + logistic(-x) = 1 */
+        CHECK_ULP (&ctx, ml_logistic (1.7) + ml_logistic (-1.7), 1.0, 1, "logistic(x)+logistic(-x) == 1");
+        /* logistic(large) -> 1 */
+        ASSERT_TRUE (&ctx, ml_logistic (40.0) > 0.9999999999999999, "logistic(40) ~ 1");
+    }
+
+    /* --- Quantile / percentile / IQR / MAD / trimmed mean ----------------------------------------- */
+    {
+        double d[6] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+        double tmp[6];
+        CHECK_ULP (&ctx, ml_percentile (d, 6, 50.0, tmp), 3.5, 0, "percentile(50) == 3.5");
+        CHECK_ULP (&ctx, ml_quantile (d, 6, 0.5, tmp), 3.5, 0, "quantile(0.5) == 3.5");
+        /* IQR = Q3 - Q1 = 5 - 2 = 3 for 1..6 (linear interpolation: Q1=2.25, Q3=4.75 -> 2.5) */
+        {
+            double q1 = ml_quantile (d, 6, 0.25, tmp);
+            double q3 = ml_quantile (d, 6, 0.75, tmp);
+            CHECK_ULP (&ctx, ml_iqr (d, 6, tmp), q3 - q1, 0, "iqr == q3-q1");
+        }
+        /* MAD of 1..6 about median 3.5: median of |devs| = median(2.5,1.5,0.5,0.5,1.5,2.5) = 1.5 */
+        CHECK_ULP (&ctx, ml_mad (d, 6, tmp), 1.5, 1, "mad(1..6) == 1.5");
+        /* trimmed_mean with alpha=0 removes nothing */
+        CHECK_ULP (&ctx, ml_trimmed_mean (d, 6, 0.0, tmp), 3.5, 0, "trimmed_mean(0) == mean");
+    }
+
+    /* --- Multivariate normal pdf -------------------------------------------------------------------- */
+    {
+        /* mvn_pdf at mean with identity covariance = (2pi)^{-n/2} */
+        {
+            double x[2] = {0.0, 0.0};
+            double mu[2] = {0.0, 0.0};
+            double S[4] = {1.0, 0.0, 0.0, 1.0};
+            double work[4];
+            double want = 1.0 / (2.0 * ML_PI);
+            CHECK_ULP (&ctx, ml_multivariate_normal_pdf (x, mu, S, 2, work), want, 2, "mvn_pdf(0,I2) == 1/(2pi)");
+        }
+    }
+
+    /* --- Dirichlet eta (alternating zeta) ------------------------------------------------------------ */
+    {
+        /* eta(1) = ln(2) */
+        cplx e1 = ml_dirichlet_eta_cplx ((cplx) {1.0, 0.0});
+        CHECK_ULP (&ctx, e1.real, 0.6931471805599453, 1, "dirichlet_eta(1) == ln(2)");
+        /* eta(2) = pi^2/12 */
+        cplx e2 = ml_dirichlet_eta_cplx ((cplx) {2.0, 0.0});
+        CHECK_ULP (&ctx, e2.real, 0.8224670334241132, 2, "dirichlet_eta(2) == pi^2/12");
     }
 
     return ml_test_summary (&ctx);

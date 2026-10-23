@@ -81,16 +81,24 @@ ML_API cplx ml_hurwitz_zeta (double s, double a) {
 ML_API cplx ml_dirichlet_eta_cplx (cplx s) {
     cplx nn = {ml_make_nan (), ml_make_nan ()};
     if (ml_isnan (s.real) || ml_isnan (s.imag)) return nn;
-    /* eta(s)=(1-2^{1-s}) zeta(s); complex via cplx power. */
-    cplx one = {1.0, 0.0}, two = {2.0, 0.0};
-    cplx ex = {1.0 - s.real, -s.imag};
-    cplx p = ml_cplx_power (two, ex);
-    if (ml_isnan (p.real)) return nn;
-    cplx f = {1.0 - p.real, -p.imag};
-    cplx z = ml_zeta_cplx (s);
-    if (ml_isnan (z.real)) return nn;
-    return ml_cplx_mul (f, z);
-    (void) one;
+    /* Removable singularity at s = 1: eta(1) = ln 2 (0 * pole). */
+    if (s.real == 1.0 && s.imag == 0.0) {
+        return (cplx) {ML_LN2, 0.0};
+    }
+    /* eta(s)=(1-2^{1-s}) zeta(s); factor computed cancellation-free near s=1. */
+    {
+        double a = (1.0 - s.real) * ML_LN2;
+        double b = (-s.imag) * ML_LN2;
+        double ea = ml_exp (a);
+        double s2 = ml_sin (0.5 * b);
+        /* 1 - e^a(cos b + i sin b), split to avoid cancellation:
+         * Re = -expm1(a) + e^a * 2 sin^2(b/2);  Im = -e^a sin b. */
+        double cr = -ml_expm1 (a) + ea * (2.0 * s2 * s2);
+        double ci = -ea * ml_sin (b);
+        cplx z = ml_zeta_cplx (s);
+        if (ml_isnan (z.real)) return nn;
+        return (cplx) {cr * z.real - ci * z.imag, cr * z.imag + ci * z.real};
+    }
 }
 ML_API double ml_theta3 (double q) {
     if (ml_isnan (q) || !ml_isfinite (q) || q <= 0.0 || q >= 1.0) return ml_make_nan ();
