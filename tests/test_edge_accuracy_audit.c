@@ -19,6 +19,8 @@
 #include "ml_orthogonal.h"
 #include "ml_statistics.h"
 #include "ml_stats_extra.h"
+#include "ml_topology.h"
+#include "ml_combinatorics.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2235,6 +2237,80 @@ int main (void) {
         CHECK_ULP (&ctx, ml_sinc (0.5), 0.958851077208406, 0, "sinc(0.5) == sin(0.5)/0.5");
         /* sinc(-0.5) = sin(-0.5)/(-0.5) = sin(0.5)/0.5 (even) */
         CHECK_ULP (&ctx, ml_sinc (-0.5), 0.958851077208406, 0, "sinc(-0.5) == sinc(0.5)");
+    }
+
+    /* --- Binomial and Bernoulli distributions -------------------------------- */
+    {
+        /* binomial_pmf(n,k,p) = C(n,k) p^k (1-p)^{n-k} */
+        /* binomial_pmf(10,5,0.5) = C(10,5)/1024 = 252/1024 = 0.24609375 */
+        CHECK_ULP (&ctx, ml_binomial_pmf (10, 5, 0.5), 0.24609375, 1, "binomial_pmf(10,5,0.5)");
+        /* binomial_pmf(5,2,0.3) = C(5,2)*0.3^2*0.7^3 = 10*0.09*0.343 = 0.3087 */
+        CHECK_ULP (&ctx, ml_binomial_pmf (5, 2, 0.3), 0.3087, 1, "binomial_pmf(5,2,0.3)");
+        /* bernoulli_pmf(k,p) */
+        CHECK_ULP (&ctx, ml_bernoulli_pmf (1, 0.3), 0.3, 0, "bernoulli_pmf(1,0.3) == 0.3");
+        CHECK_ULP (&ctx, ml_bernoulli_pmf (0, 0.3), 0.7, 0, "bernoulli_pmf(0,0.3) == 0.7");
+        /* binom_mean(n,p) = np */
+        CHECK_ULP (&ctx, ml_binom_mean (10, 0.5), 5.0, 0, "binom_mean(10,0.5) == 5");
+        /* binom_var(n,p) = np(1-p) */
+        CHECK_ULP (&ctx, ml_binom_var (10, 0.5), 2.5, 0, "binom_var(10,0.5) == 2.5");
+    }
+
+    /* --- Cauchy distribution -------------------------------------------------- */
+    {
+        /* cauchy_pdf(x, 0, 1) = 1/(pi(1+x^2)) */
+        CHECK_ULP (&ctx, ml_cauchy_pdf (0.0, 0.0, 1.0), 1.0 / ML_PI, 0, "cauchy_pdf(0,0,1) == 1/pi");
+        /* cauchy_cdf(0, 0, 1) = 0.5 */
+        CHECK_ULP (&ctx, ml_cauchy_cdf (0.0, 0.0, 1.0), 0.5, 0, "cauchy_cdf(0,0,1) == 0.5");
+        /* cauchy_cdf(1, 0, 1) = 0.75 */
+        CHECK_ULP (&ctx, ml_cauchy_cdf (1.0, 0.0, 1.0), 0.75, 0, "cauchy_cdf(1,0,1) == 0.75");
+    }
+
+    /* --- Bell numbers and Catalan numbers ------------------------------------- */
+    {
+        /* B_0 = 1, B_1 = 1, B_2 = 2, B_3 = 5, B_4 = 15, B_5 = 52 */
+        ASSERT_TRUE (&ctx, ml_bell_number (0) == 1, "bell(0) == 1");
+        ASSERT_TRUE (&ctx, ml_bell_number (1) == 1, "bell(1) == 1");
+        ASSERT_TRUE (&ctx, ml_bell_number (2) == 2, "bell(2) == 2");
+        ASSERT_TRUE (&ctx, ml_bell_number (3) == 5, "bell(3) == 5");
+        ASSERT_TRUE (&ctx, ml_bell_number (4) == 15, "bell(4) == 15");
+        ASSERT_TRUE (&ctx, ml_bell_number (5) == 52, "bell(5) == 52");
+        /* Catalan: C_0=1, C_1=1, C_2=2, C_3=5, C_4=14, C_5=42 */
+        ASSERT_TRUE (&ctx, ml_catalan (0) == 1, "catalan(0) == 1");
+        ASSERT_TRUE (&ctx, ml_catalan (1) == 1, "catalan(1) == 1");
+        ASSERT_TRUE (&ctx, ml_catalan (2) == 2, "catalan(2) == 2");
+        ASSERT_TRUE (&ctx, ml_catalan (3) == 5, "catalan(3) == 5");
+        ASSERT_TRUE (&ctx, ml_catalan (4) == 14, "catalan(4) == 14");
+        ASSERT_TRUE (&ctx, ml_catalan (5) == 42, "catalan(5) == 42");
+    }
+
+    /* --- Collatz steps --------------------------------------------------------- */
+    {
+        /* Collatz(1) = 0 steps (already at 1) */
+        ASSERT_TRUE (&ctx, ml_collatz_steps (1) == 0, "collatz(1) == 0 steps");
+        /* Collatz(2) -> 1: 1 step */
+        ASSERT_TRUE (&ctx, ml_collatz_steps (2) == 1, "collatz(2) == 1 step");
+        /* Collatz(3) -> 10 -> 5 -> 16 -> 8 -> 4 -> 2 -> 1: 7 steps */
+        ASSERT_TRUE (&ctx, ml_collatz_steps (3) == 7, "collatz(3) == 7 steps");
+        /* Collatz(27) takes 111 steps */
+        ASSERT_TRUE (&ctx, ml_collatz_steps (27) == 111, "collatz(27) == 111 steps");
+    }
+
+    /* --- Bareiss determinant ---------------------------------------------------- */
+    {
+        /* det([1,2;3,4]) = 1*4 - 2*3 = -2 */
+        {
+            long long A[4] = {1, 2, 3, 4};
+            long long det = 0;
+            ml_status_t st = ml_bareiss_det (A, 2, &det);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS && det == -2, "bareiss_det([1,2;3,4]) == -2");
+        }
+        /* det(identity_3) = 1 */
+        {
+            long long I[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+            long long det = 0;
+            ml_status_t st = ml_bareiss_det (I, 3, &det);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS && det == 1, "bareiss_det(I_3) == 1");
+        }
     }
 
     return ml_test_summary (&ctx);
