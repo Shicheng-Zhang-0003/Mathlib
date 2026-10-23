@@ -1905,7 +1905,7 @@ int main (void) {
     /* --- Lambert W0 ------------------------------------------------------- */
     {
         /* W0(1) = Omega constant ≈ 0.5671432904097839 */
-        CHECK_ULP (&ctx, ml_lambert_w0 (1.0), 0.5671432904097839, 1, "lambert_w0(1.0)");
+        CHECK_ULP (&ctx, ml_lambert_w0 (1.0), 0.56714329040978384, 0, "lambert_w0(1.0)");
         /* W0(0) = 0 */
         CHECK_ULP (&ctx, ml_lambert_w0 (0.0), 0.0, 0, "lambert_w0(0)");
     }
@@ -2025,6 +2025,18 @@ int main (void) {
         CHECK_ULP (&ctx, ml_carlson_rf (1.0, 1.0, 1.0), 1.0, 0, "carlson_rf(1,1,1) == 1");
         CHECK_ULP (&ctx, ml_carlson_rc (1.0, 2.0), 0.7853981633974483, 0, "carlson_rc(1,2) == pi/4");
         CHECK_ULP (&ctx, ml_carlson_rj (1.0, 1.0, 1.0, 1.0), 1.0, 0, "carlson_rj(1,1,1,1) == 1");
+    }
+
+    /* --- Inverse error function ------------------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_erfinv (0.0), 0.0, 0, "erfinv(0) == 0");
+        CHECK_ULP (&ctx, ml_erfinv (0.5), 0.4769362762044699, 1, "erfinv(0.5)");
+    }
+
+    /* --- Lambert W_{-1} branch -------------------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_lambert_wm1 (-ml_exp (-1.0)), -1.0, 0, "lambert_wm1(-1/e) == -1");
+        CHECK_ULP (&ctx, ml_lambert_wm1 (-0.1), -3.5771520639572971, 0, "lambert_wm1(-0.1)");
     }
 
     return ml_test_summary (&ctx);

@@ -1030,10 +1030,25 @@ ML_API double ml_lambert_w0 (double x) {
         for (int i = 0; i < 50; i++) {
             double nw = ml_lambert_iter (x, w);
             if (!ml_isfinite (nw)) return ml_make_nan ();
-            if (nw == w) return nw;
+            if (nw == w) break;
             w = nw;
         }
-        return w;
+        /* LD refinement: 2–3 Halley steps in long double. */
+        {
+            long double wx = (long double) x;
+            long double wl = (long double) w;
+            for (int i = 0; i < 4; i++) {
+                long double ew = __builtin_expl (wl);
+                long double f = wl * ew - wx;
+                long double den = ew * (wl + 1.0L)
+                               - (wl + 2.0L) * f / (2.0L * wl + 2.0L);
+                if (den == 0.0L) break;
+                long double nw = wl - f / den;
+                if (nw == wl) break;
+                wl = nw;
+            }
+            return (double) wl;
+        }
     }
 }
 ML_API double ml_lambert_wm1 (double x) {
@@ -1045,15 +1060,31 @@ ML_API double ml_lambert_wm1 (double x) {
     if (x < -INV_E) return ml_make_nan ();
     if (x == -INV_E) return -1.0;
     {
+        /* Double start, then long-double Halley refinement. */
         double L1 = ml_log (-x), L2 = ml_log (-L1);
         double w = L1 - L2 + L2 / L1;
         for (int i = 0; i < 50; i++) {
             double nw = ml_lambert_iter (x, w);
             if (!ml_isfinite (nw)) return ml_make_nan ();
-            if (nw == w) return nw;
+            if (nw == w) break;
             w = nw;
         }
-        return w;
+        /* LD refinement: 2–3 Halley steps in long double. */
+        {
+            long double wx = (long double) x;
+            long double wl = (long double) w;
+            for (int i = 0; i < 4; i++) {
+                long double ew = __builtin_expl (wl);
+                long double f = wl * ew - wx;
+                long double den = ew * (wl + 1.0L)
+                               - (wl + 2.0L) * f / (2.0L * wl + 2.0L);
+                if (den == 0.0L) break;
+                long double nw = wl - f / den;
+                if (nw == wl) break;
+                wl = nw;
+            }
+            return (double) wl;
+        }
     }
 }
 ML_API double ml_exp10 (double x) {
