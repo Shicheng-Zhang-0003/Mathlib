@@ -2994,5 +2994,52 @@ int main (void) {
         }
     }
 
+    /* --- Linear algebra: cross3, svd_2x2, lyapunov, schur ----------------------------------------- */
+    {
+        /* cross3([1,0,0],[0,1,0]) = [0,0,1] */
+        {
+            double a[3] = {1.0, 0.0, 0.0};
+            double b[3] = {0.0, 1.0, 0.0};
+            double c[3];
+            ml_cross3 (a, b, c);
+            ASSERT_TRUE (&ctx, c[0] == 0.0 && c[1] == 0.0 && c[2] == 1.0,
+                         "cross3(e1,e2) == e3");
+        }
+        /* cross3([0,1,0],[0,0,1]) = [1,0,0] */
+        {
+            double a[3] = {0.0, 1.0, 0.0};
+            double b[3] = {0.0, 0.0, 1.0};
+            double c[3];
+            ml_cross3 (a, b, c);
+            ASSERT_TRUE (&ctx, c[0] == 1.0 && c[1] == 0.0 && c[2] == 0.0,
+                         "cross3(e2,e3) == e1");
+        }
+        /* svd_2x2 of diag(2,1): singular values 2, 1 */
+        {
+            double s0 = 0, s1 = 0;
+            ml_status_t st = ml_svd_2x2 (2.0, 0.0, 0.0, 1.0, &s0, &s1);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "svd_2x2 ok");
+            ASSERT_NEAR (&ctx, s0, 2.0, 1e-12, "svd diag(2,1) s0 == 2");
+            ASSERT_NEAR (&ctx, s1, 1.0, 1e-12, "svd diag(2,1) s1 == 1");
+        }
+        /* svd_2x2 of ones matrix: s0 = 2, s1 = 0 */
+        {
+            double s0 = 0, s1 = 0;
+            ml_status_t st = ml_svd_2x2 (1.0, 1.0, 1.0, 1.0, &s0, &s1);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "svd_2x2 ones ok");
+            ASSERT_NEAR (&ctx, s0, 2.0, 1e-12, "svd ones s0 == 2");
+            ASSERT_NEAR (&ctx, s1, 0.0, 1e-12, "svd ones s1 == 0");
+        }
+        /* lyapunov/Hurwitz margin: margin = -tr(A) */
+        CHECK_ULP (&ctx, ml_lyapunov_2x2_trace (-1.0, 0.0, 0.0, -2.0), 3.0, 0,
+                   "lyapunov margin(diag(-1,-2)) == 3");
+        CHECK_ULP (&ctx, ml_lyapunov_2x2_trace (-0.5, 0.0, 0.0, -0.5), 1.0, 0,
+                   "lyapunov margin(diag(-0.5,-0.5)) == 1");
+        /* schur_deg1: sum a^3 + 3abc >= sum_sym a^2 b (equality at a=b=c) */
+        ASSERT_TRUE (&ctx, ml_schur_deg1 (1.0, 1.0, 1.0) == 1, "schur(1,1,1) == 1");
+        ASSERT_TRUE (&ctx, ml_schur_deg1 (2.0, 1.0, 1.0) == 1, "schur(2,1,1) == 1");
+        ASSERT_TRUE (&ctx, ml_schur_deg1 (0.0, 0.0, 0.0) == 1, "schur(0,0,0) == 1");
+    }
+
     return ml_test_summary (&ctx);
 }
