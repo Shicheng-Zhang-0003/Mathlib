@@ -1836,7 +1836,7 @@ int main (void) {
     /* --- Higher-order Bessel functions (order 2) -------------------------- */
     {
         /* J2(1) = 0.11490348493190051 */
-        CHECK_ULP (&ctx, ml_bessel_jv (2.0, 1.0), 0.11490348493190051, 3, "bessel_j2(1.0)");
+        CHECK_ULP (&ctx, ml_bessel_jv (2.0, 1.0), 0.11490348493190047, 0, "bessel_j2(1.0)");
         /* Y2(1) = -1.6506826068162544 */
         CHECK_ULP (&ctx, ml_bessel_yv (2.0, 1.0), -1.6506826068162544, 0, "bessel_y2(1.0)");
         /* I2(1) = 0.13574766976703828 */
