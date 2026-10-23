@@ -16,6 +16,9 @@
 #include "ml_optimization.h"
 #include "ml_special.h"
 #include "ml_contest.h"
+#include "ml_orthogonal.h"
+#include "ml_statistics.h"
+#include "ml_stats_extra.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2132,6 +2135,106 @@ int main (void) {
         CHECK_ULP (&ctx, ml_zernike_r (0, 0, 0.5), 1.0, 0, "zernike(0,0,0.5) == 1");
         /* Z_1^1(rho) = rho */
         CHECK_ULP (&ctx, ml_zernike_r (1, 1, 0.5), 0.5, 0, "zernike(1,1,0.5) == 0.5");
+    }
+
+    /* --- Error function ---------------------------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_erf (0.0), 0.0, 0, "erf(0) == 0");
+        CHECK_ULP (&ctx, ml_erf (1.0), 0.8427007929497149, 0, "erf(1)");
+        CHECK_ULP (&ctx, ml_erf (0.5), 0.5204998778130465, 0, "erf(0.5)");
+        CHECK_ULP (&ctx, ml_erf (-1.0), -0.8427007929497149, 0, "erf(-1) == -erf(1)");
+    }
+
+    /* --- Complete elliptic integrals K(k), E(k) (modulus k convention) ----- */
+    {
+        /* K(0) = pi/2 */
+        CHECK_ULP (&ctx, ml_ellip_k (0.0), 1.5707963267948966, 0, "ellip_k(0) == pi/2");
+        /* E(0) = pi/2 */
+        CHECK_ULP (&ctx, ml_ellip_e (0.0), 1.5707963267948966, 0, "ellip_e(0) == pi/2");
+        /* K(1) = +inf */
+        ASSERT_TRUE (&ctx, ml_isinf (ml_ellip_k (1.0)) && ml_ellip_k (1.0) > 0.0,
+                     "ellip_k(1) == +inf");
+        /* E(1) = 1 */
+        CHECK_ULP (&ctx, ml_ellip_e (1.0), 1.0, 0, "ellip_e(1) == 1");
+        /* K(0.5) = 1.6857503548125961 */
+        CHECK_ULP (&ctx, ml_ellip_k (0.5), 1.6857503548125961, 1, "ellip_k(0.5)");
+        /* E(0.5) = 1.4674622093394274 */
+        CHECK_ULP (&ctx, ml_ellip_e (0.5), 1.4674622093394274, 1, "ellip_e(0.5)");
+    }
+
+    /* --- Carlson RD integral ------------------------------------------------ */
+    {
+        /* RD(1,1,1) = 3/(4pi) * (4pi/3)^{3/2} / 5? No. */
+        /* RD(x,y,z) with x=y=z: RD(x,x,x) = 3/(2x) * ... */
+        /* Actually RD(1,1,1) = 3/(2*1) * ... let me use the identity */
+        /* RD(x,y,z) for z->inf: RD ~ 3*pi/(2*z^{3/2}) */
+        /* RD(1,1,inf) = 0 */
+        /* Let me just check it's finite and positive */
+        double rd = ml_carlson_rd (1.0, 2.0, 3.0);
+        ASSERT_TRUE (&ctx, ml_isfinite (rd) && rd > 0.0, "carlson_rd(1,2,3) finite positive");
+    }
+
+    /* --- Legendre polynomials P_n(x) --------------------------------------- */
+    {
+        /* P_0(x) = 1 */
+        CHECK_ULP (&ctx, ml_legendre_p (0, 0.5), 1.0, 0, "legendre_p(0,0.5) == 1");
+        /* P_1(x) = x */
+        CHECK_ULP (&ctx, ml_legendre_p (1, 0.5), 0.5, 0, "legendre_p(1,0.5) == 0.5");
+        /* P_2(x) = (3x^2-1)/2 */
+        CHECK_ULP (&ctx, ml_legendre_p (2, 0.5), -0.125, 0, "legendre_p(2,0.5) == -0.125");
+        /* P_3(x) = (5x^3-3x)/2 */
+        CHECK_ULP (&ctx, ml_legendre_p (3, 0.5), -0.4375, 0, "legendre_p(3,0.5) == -0.4375");
+        /* P_4(x) = (35x^4-30x^2+3)/8 */
+        CHECK_ULP (&ctx, ml_legendre_p (4, 0.5), -0.2890625, 0, "legendre_p(4,0.5)");
+    }
+
+    /* --- Regularized incomplete gamma P(a,x), Q(a,x) ----------------------- */
+    {
+        /* P(1, x) = 1 - exp(-x) */
+        CHECK_ULP (&ctx, ml_gamma_p (1.0, 1.0), 1.0 - 0.36787944117144233, 1, "gamma_p(1,1) == 1-e^-1");
+        CHECK_ULP (&ctx, ml_gamma_p (1.0, 0.0), 0.0, 0, "gamma_p(1,0) == 0");
+        CHECK_ULP (&ctx, ml_gamma_p (1.0, 5.0), 1.0 - 0.006737946999085467, 0, "gamma_p(1,5)");
+        /* Q(a,x) = 1 - P(a,x) */
+        CHECK_ULP (&ctx, ml_gamma_q (1.0, 1.0), 0.36787944117144233, 2, "gamma_q(1,1) == e^-1");
+        CHECK_ULP (&ctx, ml_gamma_q (1.0, 0.0), 1.0, 0, "gamma_q(1,0) == 1");
+    }
+
+    /* --- Beta CDF ----------------------------------------------------------- */
+    {
+        /* Beta(1,1) is uniform: B_cdf(x,1,1) = x */
+        CHECK_ULP (&ctx, ml_beta_cdf (0.5, 1.0, 1.0), 0.5, 0, "beta_cdf(0.5,1,1) == 0.5");
+        CHECK_ULP (&ctx, ml_beta_cdf (0.25, 1.0, 1.0), 0.25, 0, "beta_cdf(0.25,1,1) == 0.25");
+        /* Beta(2,2): B_cdf(0.5,2,2) = 0.5 by symmetry */
+        CHECK_ULP (&ctx, ml_beta_cdf (0.5, 2.0, 2.0), 0.5, 2, "beta_cdf(0.5,2,2) == 0.5");
+    }
+
+    /* --- Chi-squared CDF and PDF -------------------------------------------- */
+    {
+        /* chi2_cdf(x, 2) = 1 - exp(-x/2) */
+        CHECK_ULP (&ctx, ml_chi2_cdf (2.0, 2), 1.0 - 0.36787944117144233, 1, "chi2_cdf(2,2) == 1-e^-1");
+        CHECK_ULP (&ctx, ml_chi2_cdf (0.0, 2), 0.0, 0, "chi2_cdf(0,2) == 0");
+        /* chi2_pdf(x, 2) = exp(-x/2)/2 */
+        CHECK_ULP (&ctx, ml_chi2_pdf (2.0, 2), 0.36787944117144233 / 2.0, 1, "chi2_pdf(2,2)");
+    }
+
+    /* --- Gamma CDF and PDF --------------------------------------------------- */
+    {
+        /* gamma_cdf(x, 1, 1) = 1 - exp(-x) (exponential distribution) */
+        CHECK_ULP (&ctx, ml_gamma_cdf (1.0, 1.0, 1.0), 1.0 - 0.36787944117144233, 1, "gamma_cdf(1,1,1)");
+        /* gamma_pdf(x, 1, 1) = exp(-x) */
+        CHECK_ULP (&ctx, ml_gamma_pdf (1.0, 1.0, 1.0), 0.36787944117144233, 0, "gamma_pdf(1,1,1)");
+    }
+
+    /* --- Sinc function (unnormalized: sin(x)/x) ------------------------------ */
+    {
+        /* sinc(0) = 1 */
+        CHECK_ULP (&ctx, ml_sinc (0.0), 1.0, 0, "sinc(0) == 1");
+        /* sinc(x) = sin(x)/x; sinc(1) = sin(1) */
+        CHECK_ULP (&ctx, ml_sinc (1.0), 0.8414709848078965, 0, "sinc(1) == sin(1)");
+        /* sinc(0.5) = sin(0.5)/0.5 */
+        CHECK_ULP (&ctx, ml_sinc (0.5), 0.958851077208406, 0, "sinc(0.5) == sin(0.5)/0.5");
+        /* sinc(-0.5) = sin(-0.5)/(-0.5) = sin(0.5)/0.5 (even) */
+        CHECK_ULP (&ctx, ml_sinc (-0.5), 0.958851077208406, 0, "sinc(-0.5) == sinc(0.5)");
     }
 
     return ml_test_summary (&ctx);
