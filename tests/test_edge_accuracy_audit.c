@@ -15,6 +15,7 @@
 #include "ml_control.h"
 #include "ml_optimization.h"
 #include "ml_special.h"
+#include "ml_contest.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2037,6 +2038,37 @@ int main (void) {
     {
         CHECK_ULP (&ctx, ml_lambert_wm1 (-ml_exp (-1.0)), -1.0, 0, "lambert_wm1(-1/e) == -1");
         CHECK_ULP (&ctx, ml_lambert_wm1 (-0.1), -3.5771520639572971, 0, "lambert_wm1(-0.1)");
+    }
+
+    /* --- Beta function B(a,b) = Gamma(a)Gamma(b)/Gamma(a+b) --------------- */
+    {
+        CHECK_ULP (&ctx, ml_beta (1.0, 1.0), 1.0, 0, "beta(1,1) == 1");
+        CHECK_ULP (&ctx, ml_beta (2.0, 3.0), 0.08333333333333333, 0, "beta(2,3) == 1/12");
+        CHECK_ULP (&ctx, ml_beta (0.5, 0.5), ML_PI, 0, "beta(0.5,0.5) == pi");
+        CHECK_ULP (&ctx, ml_beta (2.0, 0.5), 1.3333333333333333, 0, "beta(2,0.5) == 4/3");
+    }
+
+    /* --- Bessel Jn/Yn at integer orders ----------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_bessel_jn (0, 1.0), 0.7651976865579666, 0, "bessel_jn(0,1)");
+        CHECK_ULP (&ctx, ml_bessel_jn (1, 1.0), 0.4400505857449335, 0, "bessel_jn(1,1)");
+        CHECK_ULP (&ctx, ml_bessel_jn (2, 5.0), 0.04656511627775222, 1, "bessel_jn(2,5)");
+        CHECK_ULP (&ctx, ml_bessel_yn (0, 1.0), 0.08825696421567696, 0, "bessel_yn(0,1)");
+        CHECK_ULP (&ctx, ml_bessel_yn (1, 1.0), -0.7812128213002887, 0, "bessel_yn(1,1)");
+    }
+
+    /* --- Associated Legendre polynomials (Condon-Shortley phase) ---------- */
+    {
+        CHECK_ULP (&ctx, ml_assoc_legendre (1, 0, 0.5), 0.5, 0, "P_1^0(0.5) == 0.5");
+        CHECK_ULP (&ctx, ml_assoc_legendre (2, 0, 0.5), -0.125, 0, "P_2^0(0.5) == -0.125");
+        CHECK_ULP (&ctx, ml_assoc_legendre (2, 1, 0.5), -1.299038105676658, 0, "P_2^1(0.5)");
+        CHECK_ULP (&ctx, ml_assoc_legendre (3, 0, 0.5), -0.4375, 0, "P_3^0(0.5) == -0.4375");
+    }
+
+    /* --- Basel problem partial sum ---------------------------------------- */
+    {
+        CHECK_ULP (&ctx, ml_basel_partial (1), 1.0, 0, "basel(1) == 1");
+        CHECK_ULP (&ctx, ml_basel_partial (100), 1.6349839001848923, 3, "basel(100)");
     }
 
     return ml_test_summary (&ctx);
