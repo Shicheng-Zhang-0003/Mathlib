@@ -27,6 +27,7 @@
 #include "ml_analytic_nt.h"
 #include "ml_info.h"
 #include "ml_polynomial.h"
+#include "ml_calculus.h"
 static double ulp_of (double x) {
     int e;
     if (x == 0.0 || ml_isnan (x) || ml_isinf (x)) return 0.0;
@@ -2743,6 +2744,100 @@ int main (void) {
             ASSERT_NEAR (&ctx, r, 1.0, 1e-10, "poly_newton finds root 1");
             double r2 = ml_polynomial_newton (c, 2, 2.8, 1e-15, 100);
             ASSERT_NEAR (&ctx, r2, 2.0, 1e-10, "poly_newton finds root 2");
+        }
+    }
+
+    /* --- Number theory basics --------------------------------------------------------- */
+    {
+        ASSERT_TRUE (&ctx, ml_gcd (12, 18) == 6, "gcd(12,18) == 6");
+        ASSERT_TRUE (&ctx, ml_gcd (7, 13) == 1, "gcd(7,13) == 1");
+        ASSERT_TRUE (&ctx, ml_gcd (0, 5) == 5, "gcd(0,5) == 5");
+        ASSERT_TRUE (&ctx, ml_lcm (4, 6) == 12, "lcm(4,6) == 12");
+        ASSERT_TRUE (&ctx, ml_lcm (3, 5) == 15, "lcm(3,5) == 15");
+        ASSERT_TRUE (&ctx, ml_modpow (2, 10, 1000) == 24, "modpow(2,10,1000) == 24");
+        ASSERT_TRUE (&ctx, ml_modpow (3, 0, 7) == 1, "modpow(3,0,7) == 1");
+        /* 3 * 5 = 15 = 1 mod 7 */
+        ASSERT_TRUE (&ctx, ml_modinv (3, 7) == 5, "modinv(3,7) == 5");
+        /* egcd: 30x + 20y = gcd = 10 */
+        {
+            int64_t x = 0, y = 0;
+            int64_t g = ml_egcd (30, 20, &x, &y);
+            ASSERT_TRUE (&ctx, g == 10 && 30 * x + 20 * y == 10, "egcd(30,20) == 10 with bezout");
+        }
+        ASSERT_TRUE (&ctx, ml_factorial (0) == 1, "0! == 1");
+        ASSERT_TRUE (&ctx, ml_factorial (5) == 120, "5! == 120");
+        ASSERT_TRUE (&ctx, ml_factorial (10) == 3628800, "10! == 3628800");
+        ASSERT_TRUE (&ctx, ml_is_prime64 (2) == 1, "2 is prime");
+        ASSERT_TRUE (&ctx, ml_is_prime64 (1) == 0, "1 not prime");
+        ASSERT_TRUE (&ctx, ml_is_prime64 (0) == 0, "0 not prime");
+        ASSERT_TRUE (&ctx, ml_is_prime64 (97) == 1, "97 is prime");
+        ASSERT_TRUE (&ctx, ml_is_prime64 (100) == 0, "100 not prime");
+        ASSERT_TRUE (&ctx, ml_is_prime64 (1000000007) == 1, "1e9+7 is prime");
+        /* Mobius: mu(1)=1, mu(2)=-1, mu(4)=0, mu(6)=1 (2*3 squarefree, 2 factors) */
+        ASSERT_TRUE (&ctx, ml_mobius (1) == 1, "mobius(1) == 1");
+        ASSERT_TRUE (&ctx, ml_mobius (2) == -1, "mobius(2) == -1");
+        ASSERT_TRUE (&ctx, ml_mobius (4) == 0, "mobius(4) == 0");
+        ASSERT_TRUE (&ctx, ml_mobius (6) == 1, "mobius(6) == 1");
+        ASSERT_TRUE (&ctx, ml_mobius (30) == -1, "mobius(30) == -1");
+    }
+
+    /* --- Combinatorial sequences -------------------------------------------------------- */
+    {
+        /* Lucas: L_0 = 2, L_1 = 1, L_2 = 3, L_3 = 4, L_4 = 7 */
+        ASSERT_TRUE (&ctx, ml_lucas_number (0) == 2, "lucas(0) == 2");
+        ASSERT_TRUE (&ctx, ml_lucas_number (1) == 1, "lucas(1) == 1");
+        ASSERT_TRUE (&ctx, ml_lucas_number (2) == 3, "lucas(2) == 3");
+        ASSERT_TRUE (&ctx, ml_lucas_number (4) == 7, "lucas(4) == 7");
+        /* Tribonacci: T_0=0, T_1=0, T_2=1, T_3=1, T_4=2, T_5=4 */
+        ASSERT_TRUE (&ctx, ml_tribonacci (0) == 0, "trib(0) == 0");
+        ASSERT_TRUE (&ctx, ml_tribonacci (2) == 1, "trib(2) == 1");
+        ASSERT_TRUE (&ctx, ml_tribonacci (5) == 4, "trib(5) == 4");
+        /* Stirling numbers of both kinds */
+        ASSERT_TRUE (&ctx, ml_stirling2 (4, 2) == 7, "stirling2(4,2) == 7");
+        ASSERT_TRUE (&ctx, ml_stirling2 (5, 3) == 25, "stirling2(5,3) == 25");
+        ASSERT_TRUE (&ctx, ml_stirling1 (4, 2) == 11, "stirling1(4,2) == 11");
+        ASSERT_TRUE (&ctx, ml_stirling1 (5, 2) == 50, "stirling1(5,2) == 50");
+        /* Harmonic numbers: H_1 = 1, H_2 = 1.5, H_3 = 11/6 */
+        CHECK_ULP (&ctx, ml_harmonic_number (1), 1.0, 0, "H(1) == 1");
+        CHECK_ULP (&ctx, ml_harmonic_number (2), 1.5, 0, "H(2) == 1.5");
+        CHECK_ULP (&ctx, ml_harmonic_number (3), 1.8333333333333333, 1, "H(3) == 11/6");
+    }
+
+    /* --- Exponential integrals Ei and li ------------------------------------------------ */
+    {
+        /* Ei(1) = 1.8951178163559368 */
+        CHECK_ULP (&ctx, ml_ei (1.0), 1.8951178163559368, 1, "ei(1)");
+        /* li(2) = Ei(ln 2) = 1.0451637801174928 */
+        CHECK_ULP (&ctx, ml_li (2.0), 1.0451637801174928, 1, "li(2)");
+        /* li(10) = 6.1655995047872979 */
+        CHECK_ULP (&ctx, ml_li (10.0), 6.165599504787298, 1, "li(10)");
+    }
+
+    /* --- Gauss-Legendre nodes and weights ------------------------------------------------ */
+    {
+        /* n=2: nodes +/- 1/sqrt(3), weights 1 */
+        {
+            double xs[2], ws[2];
+            ml_status_t st = ml_gauss_legendre (2, xs, ws);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "gauss_legendre(2) ok");
+            CHECK_ULP (&ctx, ws[0] + ws[1], 2.0, 1, "GL(2) weights sum == 2");
+            CHECK_ULP (&ctx, xs[0] * xs[1], -1.0 / 3.0, 1, "GL(2) node product == -1/3");
+        }
+        /* n=4: weights sum to 2 */
+        {
+            double xs[4], ws[4];
+            ml_status_t st = ml_gauss_legendre (4, xs, ws);
+            ASSERT_TRUE (&ctx, st == ML_SUCCESS, "gauss_legendre(4) ok");
+            CHECK_ULP (&ctx, ws[0] + ws[1] + ws[2] + ws[3], 2.0, 1, "GL(4) weights sum == 2");
+            /* integrate x^4 exactly: sum w_i x_i^4 = 2/5 */
+            {
+                double s = 0.0;
+                for (int i = 0; i < 4; i++) {
+                    double x2 = xs[i] * xs[i];
+                    s += ws[i] * x2 * x2;
+                }
+                CHECK_ULP (&ctx, s, 0.4, 2, "GL(4) integrates x^4 == 2/5");
+            }
         }
     }
 
